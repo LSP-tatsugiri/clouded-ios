@@ -1,0 +1,20 @@
+{
+  "_note": "EDIT ME. This is a seed guess, not truth. Levels: none | some | solid. Anything not listed is treated as 'none'. Be honest — an inflated profile makes every distance wrong.",
+  "user": "brian",
+  "skills": {
+    "mcu-firmware": "solid",
+    "i2c-spi-io": "solid",
+    "pcb-schematic": "some",
+    "pcb-layout": "some",
+    "solder-through-hole": "solid",
+    "solder-smd": "some",
+    "servo-control": "some",
+    "stepper-control": "some",
+    "relational-schema": "solid",
+    "rest-api-auth": "solid",
+    "frontend-spa": "solid",
+    "llm-api": "some",
+    "parametric-cad": "some",
+    "blender-modeling": "some"
+  }
+}

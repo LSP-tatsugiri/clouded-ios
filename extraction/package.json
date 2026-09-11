@@ -1,0 +1,10 @@
+{
+  "name": "clouded",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node --env-file=.env src/index.js",
+    "fresh": "node --env-file=.env src/index.js --force"
+  },
+  "engines": { "node": ">=20" }
+}

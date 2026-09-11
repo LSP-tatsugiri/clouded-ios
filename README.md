@@ -307,25 +307,27 @@ This repo is the **iOS app**. It is currently empty — that is deliberate, see
 [Build order](#build-order): capture is built last, because what an entry stores
 and what the list shows both fall out of what extraction actually produces.
 
-The extraction work lives in a sibling repo, `clouded`, and should be merged in
-here (or referenced as a submodule) once the app exists:
+The extraction pipeline lives in [`extraction/`](extraction) — a standalone Node
+script with no dependencies. It is the part of the product that had to be proven
+before anything was built around it, and it is where prompt work still happens:
 
 | Path | What it is |
 |---|---|
-| `data/ideas.json` | The raw backlog — 19 real ideas, verbatim, typos included. That is the true input shape. |
-| `data/skills.json` | The canonical skill table, ~45 hand-written entries. |
-| `data/profile.json` | Your own skill levels. A wrong profile makes every distance wrong. |
-| `src/extract.js` | The system prompt and the API call. The product is in this file. |
-| `src/distance.js` | Capability + profile → gap classification. |
-| `src/index.js` | Runs everything, prints the report. |
-| `schema.sql` | The target Postgres schema with RLS policies. |
+| `extraction/data/ideas.json` | The raw backlog — 19 real ideas, verbatim, typos included. That is the true input shape. |
+| `extraction/data/skills.json` | The canonical skill table, ~45 hand-written entries. |
+| `extraction/data/profile.json` | Your own skill levels. A wrong profile makes every distance wrong. |
+| `extraction/src/extract.js` | The system prompt and the API call. The product is in this file. |
+| `extraction/src/distance.js` | Capability + profile → gap classification. |
+| `extraction/src/index.js` | Runs everything, prints the report. |
+| `extraction/schema.sql` | The target Postgres schema with RLS policies. |
 
 ### Running the extraction testbed
 
 Requires Node 20+. No dependencies.
 
 ```bash
-cp .env.example .env     # add your Anthropic API key
+cd extraction
+cp .env.example .env     # add your Anthropic API key (console.anthropic.com)
 npm start                # uses cache where available
 npm run fresh            # re-extract everything after a prompt change
 ```
@@ -337,7 +339,7 @@ ask; and the leverage ranking.
 
 ### The development loop
 
-Edit the prompt in `src/extract.js`, run `npm run fresh`, read the output, repeat.
+Edit the prompt in `extraction/src/extract.js`, run `npm run fresh`, read the output, repeat.
 Two things to watch:
 
 - **Are the capabilities checkable?** If you cannot answer yes or no without
