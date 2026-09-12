@@ -1,0 +1,93 @@
+{
+  "haptic-profiles": {
+    "names": [
+      "haptic-profiles",
+      "haptic-profile-design"
+    ],
+    "reasons": [
+      "design and tune virtual detent profiles that feel good to turn",
+      "translate intended feel (clicks, ratchets, spring return, damping) into torque curves"
+    ],
+    "ideas": [
+      "knob"
+    ],
+    "runs": [
+      "2026-09-12T21:00",
+      "2026-09-12T21:02"
+    ],
+    "crux_count": 0,
+    "promoted": "haptic-profiles"
+  },
+  "label-design": {
+    "names": [
+      "label-design",
+      "label-design-printing",
+      "label-design-for-organizers"
+    ],
+    "reasons": [
+      "create and apply color/type labels for each storage section",
+      "create and apply color-coded labels or legends for type identification",
+      "create type icons or labels that are legible at organizer scale and integrate into the print",
+      "create color-coded labels or color bands that clearly indicate which compartment holds which type"
+    ],
+    "ideas": [
+      "pokemon-bin"
+    ],
+    "runs": [
+      "2026-09-12T21:00",
+      "2026-09-12T21:01",
+      "2026-09-12T21:02",
+      "2026-09-12T21:09"
+    ],
+    "crux_count": 0,
+    "rejected": "not a skill \u2014 a detail of one idea (reviewed 2026-09-12)"
+  },
+  "vibration-dampening": {
+    "names": [
+      "vibration-dampening"
+    ],
+    "reasons": [
+      "keep the phone stable during bag movement and club impacts without blur",
+      "keep the phone stable against bag movement and ground vibration during walking and swings"
+    ],
+    "ideas": [
+      "golf-mount"
+    ],
+    "runs": [
+      "2026-09-12T21:01",
+      "2026-09-12T21:02"
+    ],
+    "crux_count": 2,
+    "promoted": "vibration-mount"
+  },
+  "multi-color-printing": {
+    "names": [
+      "multi-color-printing"
+    ],
+    "reasons": [
+      "print different compartments in type-matching colors (green, red, blue, etc.) for visual sorting"
+    ],
+    "ideas": [
+      "pokemon-bin"
+    ],
+    "runs": [
+      "2026-09-12T21:02"
+    ],
+    "crux_count": 1
+  },
+  "portfolio-calculation": {
+    "names": [
+      "portfolio-calculation"
+    ],
+    "reasons": [
+      "calculate total value, gains/losses, and cost basis across multiple positions"
+    ],
+    "ideas": [
+      "ledger"
+    ],
+    "runs": [
+      "2026-09-12T21:02"
+    ],
+    "crux_count": 0
+  }
+}

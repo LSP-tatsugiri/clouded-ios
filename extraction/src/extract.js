@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 
 const MODEL = process.env.MODEL || "claude-sonnet-4-5-20250929";
 const API = "https://api.anthropic.com/v1/messages";
@@ -28,13 +29,21 @@ Two hard rules:
    medium, material or category with nothing attached to it ("blender animation",
    "3d printed", "rc truck"). Then ask ONE short question that would make it
    concrete.
+   An entry that names a kind of thing to build ("personal todo list app") IS
+   extractable, even with no details: assume the most ordinary form of it and
+   state that assumption in the objective. Missing preferences — platform,
+   features, style, size — are never a reason to ask. Only a missing object is.
    When in doubt, extract. A wrong guess is visible and easy to correct; a
    question about something the person already told you is just friction.
 
 Map each required capability to a skill_id from this canonical list wherever one
 fits, even loosely — reuse beats precision, because the whole point is that the
-same skill shows up across different ideas. Only when nothing on the list covers
-it, leave skill_id null and set proposed_name to a short canonical-style name.
+same skill shows up across different ideas. Before proposing a new skill, re-read
+the list: if an existing skill's task or aliases would cover the work, use it,
+even if your wording would have been more specific. A proposed skill must not
+overlap an existing one. Only when nothing on the list covers it, leave skill_id
+null and set proposed_name to a kebab-case slug in the same style as the list
+("vehicle-rigging", not "label design for organizers").
 
 CANONICAL SKILLS:
 ${skillList}
@@ -60,7 +69,11 @@ const TOOL = {
           type: "object",
           properties: {
             skill_id: { type: ["string", "null"] },
-            proposed_name: { type: ["string", "null"] },
+            proposed_name: {
+              type: ["string", "null"],
+              pattern: "^[a-z0-9]+(-[a-z0-9]+){0,4}$",
+              description: "kebab-case slug, 2-5 words, same style as the canonical ids; null when skill_id is set"
+            },
             reason: { type: "string", description: "why this idea needs it, one clause" },
             is_crux: { type: "boolean" }
           },
@@ -72,7 +85,7 @@ const TOOL = {
   }
 };
 
-export async function extract(raw) {
+export async function extract(raw, clarification) {
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) throw new Error("ANTHROPIC_API_KEY is not set. Copy .env.example to .env and fill it in.");
 
@@ -89,7 +102,7 @@ export async function extract(raw) {
       system: SYSTEM,
       tools: [TOOL],
       tool_choice: { type: "tool", name: "record_extraction" },
-      messages: [{ role: "user", content: `Raw captured idea:\n\n"${raw}"` }]
+      messages: [{ role: "user", content: `Raw captured idea:\n\n"${raw}"${clarification ? `\n\nThe person later clarified: "${clarification}"` : ""}` }]
     })
   });
 
@@ -100,5 +113,11 @@ export async function extract(raw) {
   if (!block) throw new Error("model did not return structured output");
   return block.input;
 }
+
+// changes whenever the prompt, the tool schema or the skills table change
+export const promptHash = createHash("sha256")
+  .update(MODEL + SYSTEM + JSON.stringify(TOOL))
+  .digest("hex")
+  .slice(0, 12);
 
 export { skills };
