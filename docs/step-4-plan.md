@@ -17,16 +17,19 @@ behind the product. This file is the concrete plan for the next build step.
 - Trello board: https://trello.com/b/eSTxmwz7/clouded. A nightly task reads
   GitHub commits and moves cards; write commit messages that name what shipped.
 
-## Decisions still open (decide before applying the schema)
+## Decisions (made 2026-09-12)
 
-1. **Crux representation.** `is_crux boolean` flips on a third of ideas across
-   same-prompt runs (13/19 stable). Recommended: `crux_rank smallint`
-   (1 primary, 2 secondary, null otherwise). Backward compatible with the
-   boolean (`crux_rank = 1`). The extraction tool schema changes to return a
-   ranked top-2.
-2. **Distance sort.** Flat gap count treats a trivial gap and a project-killing
-   gap the same. Recommended: sort by crux status (held / partial / gap), then
-   gap count. This is app-side; it does not change the schema.
+1. **Crux representation: `crux_rank smallint`** (1 primary, 2 secondary,
+   null otherwise). A partial unique index enforces exactly one rank-1 row per
+   idea. Backward compatible with the boolean: the edge function writes
+   `crux_rank = 1` where `is_crux = true` and leaves the extraction tool
+   schema unchanged, so Phase D compares against the existing baseline. Switch
+   the tool to a ranked top-2 as its own commit, with a fresh baseline, after
+   Phase D passes. (Context: `is_crux` flipped on 6/19 ideas across
+   same-prompt runs.)
+2. **Distance sort: crux status first** (held / partial / gap), then gap
+   count. App-side; no schema change. The "learnable from a tutorial" flag
+   stays deferred until the crux-first sort has been used for a while.
 
 ## Phase A — project + tooling
 
