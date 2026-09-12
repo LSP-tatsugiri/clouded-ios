@@ -18,8 +18,8 @@ rest is worth writing — exists as a script in this repo and runs against a rea
 - [Architecture](#architecture)
 - [Data model](#data-model)
 - [The skill taxonomy](#the-skill-taxonomy)
-- [What's in this repo right now](#whats-in-this-repo-right-now)
-- [Running the testbed](#running-the-testbed)
+- [Repository layout](#repository-layout)
+- [Running the extraction testbed](#running-the-extraction-testbed)
 - [Findings so far](#findings-so-far)
 - [Build order](#build-order)
 - [Known risks](#known-risks)
@@ -283,8 +283,8 @@ Two decisions worth calling out:
 
 ## The skill taxonomy
 
-Roughly 45 seed entries across six domains: fabrication, embedded, 3D animation,
-software, gamedev, art, vision.
+51 entries across seven domains: fabrication, embedded, 3D animation, software,
+gamedev, art, vision.
 
 Rules for adding one:
 
@@ -313,12 +313,16 @@ before anything was built around it, and it is where prompt work still happens:
 
 | Path | What it is |
 |---|---|
-| `extraction/data/ideas.json` | The raw backlog — 19 real ideas, verbatim, typos included. That is the true input shape. |
-| `extraction/data/skills.json` | The canonical skill table, ~45 hand-written entries. |
+| `extraction/data/ideas.json` | The raw backlog — 19 real ideas, verbatim, typos included. That is the true input shape. An optional `clarification` field holds the answer to a clarifying question; `raw` is never edited. |
+| `extraction/data/skills.json` | The canonical skill table, 51 hand-written entries. |
 | `extraction/data/profile.json` | Your own skill levels. A wrong profile makes every distance wrong. |
 | `extraction/src/extract.js` | The system prompt and the API call. The product is in this file. |
 | `extraction/src/distance.js` | Capability + profile → gap classification. |
+| `extraction/src/resolve.js` | Skill resolution: matches proposed capabilities to the table (lexical, then one semantic call), and keeps the proposal registry. |
+| `extraction/src/stability.js` | Runs the same prompt N times and reports how much the crux and skill sets wobble. |
 | `extraction/src/index.js` | Runs everything, prints the report. |
+| `extraction/out/extractions.json` | Output of the last run, committed so a prompt change ships with its result. |
+| `extraction/out/proposed.json` | The proposal registry: every unmatched concept, the names it was seen under, which ideas, how many runs, and its review outcome. |
 | `extraction/schema.sql` | The target Postgres schema with RLS policies. |
 
 ### Running the extraction testbed
@@ -328,14 +332,22 @@ Requires Node 20+. No dependencies.
 ```bash
 cd extraction
 cp .env.example .env     # add your Anthropic API key (console.anthropic.com)
-npm start                # uses cache where available
-npm run fresh            # re-extract everything after a prompt change
+npm start                # uses cache; a prompt or skills-table change invalidates it
+npm run fresh            # force re-extraction of everything
+node --env-file=.env src/stability.js 3   # same prompt, 3 runs, how much does it wobble
 ```
 
-Output has three sections: every idea closest-to-buildable first with each
+Output has five sections: every idea closest-to-buildable first with each
 capability marked `[x]` held · `[~]` partial · `[ ]` gap · `[?]` proposed and the
 crux flagged; the entries too vague to extract, with the question the app should
-ask; and the leverage ranking.
+ask; the leverage ranking; how each capability got its skill id (direct, lexical,
+semantic); and the proposed skills due for review — only those seen for two or
+more ideas, or in two or more runs.
+
+Review a proposal by editing its entry in `out/proposed.json`: add
+`"rejected": "<why>"` and it never surfaces again, or add the skill to
+`skills.json` and set `"promoted": "<skill_id>"` so later matches resolve
+straight to it.
 
 ### The development loop
 
@@ -353,7 +365,7 @@ did not already know.
 
 ## Findings so far
 
-From the first real run against the 19-idea backlog:
+From the full runs against the 19-idea backlog (September 2026):
 
 **Extraction quality is good.** On ideas with actual content, the capabilities
 came out specific and checkable, and the crux identification was correct —
@@ -361,28 +373,62 @@ closed-loop BLDC control for the haptic knob, mechanical singulation for the
 screw dispenser, on-device vision for the tracking Gundam head. These match a
 hand analysis done independently.
 
-**The clustering produces a real answer.** Parametric CAD appeared in every
-extracted idea and is the single bottleneck across the backlog: the golf-bag
-mount, the Gridfinity organizer, and the Pokémon storage bin reduce to the *same
-three capabilities* (parametric CAD, tolerance fitting, material choice), and CAD
-also gates the screw dispenser and the Gundam head. One weekend learning
-Fusion or OnShape moves the most ideas of any single skill.
+**The clustering produces a real answer.** Parametric CAD appears in 7 of 16
+extracted ideas and is the single highest-leverage skill in the backlog: the
+golf-bag mount, the Gridfinity organizer, and the Pokémon storage bin share it
+with fit-to-measured-object and material choice, and CAD also gates the screw
+dispenser, the dryer and the Gundam head. One weekend learning Fusion or OnShape
+moves the most ideas of any single skill. Caveat: the ranking is biased by how
+finely the table splits a domain — 15 embedded skills vs 7 fabrication — so a
+broad skill wins partly by construction.
 
 **The vagueness rule over-triggered.** The first prompt marked 15 of 19 entries
 as too vague to extract, including several that are clearly extractable
 ("shower body dryer", "gridfinity tool cutout organizer"). Fixed by inverting the
 default: extract unless the entry names no object *and* no action. Terse is not
-vague.
+vague. A second miss: "personal todo list app idea" was treated as vague because
+it named no platform. Fixed by stating that missing *preferences* are never a
+reason to ask — only a missing object is. 16 of 19 now extract; the three that
+don't ("blender animation", "3d printed", "rc truck") genuinely name nothing.
 
-**Proposed skills are appearing at a low rate** (3 across 4 extractions), which
-is the healthy signal — the canonical table is mostly winning.
+**Terse entries get confidently misread.** "pcb coaster" was extracted as
+decorative PCB art. It is a weight-sensing smart coaster. The objective sentence
+stated the assumption, but nothing flagged it as a guess. Assumptions have to be
+visible in the UI, not buried in prose — and the `clarification` field on
+`ideas.json` is the testbed's stand-in for the user correcting it.
+
+**Proposed skills were the main problem, not a healthy signal.** The first full
+run produced 10 proposed skills across 15 ideas, and 4 cruxes landed on skills
+the table didn't have. Across seven runs the model kept proposing the same ~8
+concepts under a different name each time — "label design" got five slugs,
+"fetch stock prices from an API" got four. Three of the eight were existing
+skills it had failed to recognise. Aliases helped but did not force it. This is
+what `src/resolve.js` exists for: lexical matching, then one closed-choice
+semantic call (canonical id, previous proposal, or new), plus a registry that
+counts concepts rather than names. After it, the last full run had 77
+capabilities and zero new proposals; four table additions came out of the review
+(`print-joinery`, `third-party-api`, `haptic-profiles`, `vibration-mount`).
+
+**The crux is the least stable output.** Three fresh runs with the same prompt
+agreed on the vague/clear verdict 19/19 and on skill sets about three-quarters of
+the time, but on the crux only 13/19. Where two capabilities are both plausible
+project-killers (airflow vs waterproofing for the dryer, mechanism vs vision for
+the Gundam head), the model picks either. Until this is settled — a ranked top-2,
+or majority-of-three — the UI should present the crux as *a* hard part, not
+*the* hard part. Stability with the resolve step in place has not yet been
+measured.
+
+**A flat gap count is not size.** Every gap counts 1 and the model is capped at
+3–7 capabilities, so "pick PETG for heat" weighs the same as "mechanical
+singulation of small fasteners". The planned fix is to sort by crux status first
+(held / partial / gap), then by gap count.
 
 ## Build order
 
-1. ~~Extraction script against real ideas~~ ← **you are here**
-2. Tune the prompt until capabilities are consistently checkable
-3. Hand-curate the skills table from what the extractions produce
-4. Supabase schema + the pipeline as an edge function
+1. ~~Extraction script against real ideas~~
+2. ~~Tune the prompt until capabilities are consistently checkable~~
+3. ~~Hand-curate the skills table from what the extractions produce~~ (ongoing via the registry)
+4. Supabase schema + the pipeline as an edge function ← **you are here**
 5. Web list view — sorted, filterable
 6. iOS capture app + Share Extension
 7. Sharing and the friend skill pool
