@@ -162,6 +162,30 @@ ${prev}`;
   };
 }
 
+// ---------- repair ----------
+
+// Sonnet 5 sometimes returns `capabilities` as a JSON-encoded string: either
+// the array itself, or the whole record wrapped in it (then the outer object
+// may be missing every other field). Both decode cleanly. Returns the repaired
+// record and a note for _meta, or the input untouched and null.
+export function repairExtraction(o: unknown): { record: unknown; repaired: string | null } {
+  if (!o || typeof o !== "object") return { record: o, repaired: null };
+  const outer = o as Record<string, unknown>;
+  if (typeof outer.capabilities !== "string") return { record: o, repaired: null };
+  let parsed: unknown;
+  try { parsed = JSON.parse(outer.capabilities); } catch { return { record: o, repaired: null }; }
+  if (Array.isArray(parsed)) {
+    return { record: { ...outer, capabilities: parsed }, repaired: "capabilities was a JSON string (array)" };
+  }
+  if (parsed && typeof parsed === "object") {
+    const inner = parsed as Record<string, unknown>;
+    const { capabilities: _drop, ...rest } = outer;
+    // outer fields win when both sides have them; the inner record fills the gaps
+    return { record: { ...inner, ...rest }, repaired: "capabilities was a JSON string (whole record)" };
+  }
+  return { record: o, repaired: null };
+}
+
 // ---------- validation ----------
 
 // Why a tool result is not a usable extraction, or null when it is. Sonnet 5

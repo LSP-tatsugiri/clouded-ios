@@ -14,7 +14,7 @@
 import { callTool } from "../_shared/anthropic.ts";
 import { Db } from "../_shared/db.ts";
 import { promptHash, systemPrompt, TOOL } from "../_shared/prompt.ts";
-import { capabilityRows, type Extraction, invalidExtraction, makeSemantic, resolveExtraction } from "../_shared/resolve.ts";
+import { capabilityRows, type Extraction, invalidExtraction, makeSemantic, repairExtraction, resolveExtraction } from "../_shared/resolve.ts";
 import { ideaToRun, type WebhookPayload } from "../_shared/webhook.ts";
 
 declare const EdgeRuntime: { waitUntil(p: Promise<unknown>): void } | undefined;
@@ -52,15 +52,16 @@ export async function run(ideaId: string, db = new Db()): Promise<void> {
       model: MODEL, system, tool: TOOL, maxTokens: 4096,
       user: `Raw captured idea:\n\n"${idea.raw}"${idea.clarification ? `\n\nThe person later clarified: "${idea.clarification}"` : ""}`
     });
-    const meta = { stop_reason: r.stop_reason, input_tokens: r.usage?.input_tokens ?? null, output_tokens: r.usage?.output_tokens ?? null };
-    const why = r.stop_reason === "max_tokens" ? "output truncated (stop_reason=max_tokens)" : invalidExtraction(r.input);
+    const { record, repaired } = repairExtraction(r.input);
+    const meta = { stop_reason: r.stop_reason, input_tokens: r.usage?.input_tokens ?? null, output_tokens: r.usage?.output_tokens ?? null, repaired };
+    const why = r.stop_reason === "max_tokens" ? "output truncated (stop_reason=max_tokens)" : invalidExtraction(record);
     if (why) {
       console.error(`extract ${ideaId}: ${why}`);
-      await db.writeRun({ idea_id: ideaId, model: MODEL, prompt_hash, output: withMeta(r.input, meta), error: why });
+      await db.writeRun({ idea_id: ideaId, model: MODEL, prompt_hash, output: withMeta(record, meta), error: why });
       await db.markIdea(ideaId, { status: "failed" });
       return;
     }
-    output = r.input!;
+    output = record as Extraction;
     // raw output is on disk before anything else happens to it
     runId = await db.writeRun({ idea_id: ideaId, model: MODEL, prompt_hash, output: withMeta(structuredClone(output), meta) });
   } catch (err) {

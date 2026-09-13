@@ -5,7 +5,7 @@ import { assertEquals } from "jsr:@std/assert@1";
 import type { Skill } from "./prompt.ts";
 import {
   buildIndex, capabilityRows, type Capability, dueForReview, type Extraction, invalidExtraction,
-  lexical, record, type Registry, resolveExtraction, type SemanticFn
+  lexical, record, type Registry, repairExtraction, resolveExtraction, type SemanticFn
 } from "./resolve.ts";
 // The Node original, for parity on the pure parts.
 import { lexical as nodeLexical } from "../../../extraction/src/resolve.js";
@@ -132,6 +132,35 @@ Deno.test("invalidExtraction: accepts a good record, rejects the shapes Sonnet 5
   assertEquals(invalidExtraction({ clear: true, capabilities: [] }), "clear extraction with no capabilities");
   assertEquals(invalidExtraction(undefined), "no tool input");
   assertEquals(invalidExtraction("text"), "no tool input");
+});
+
+Deno.test("repairExtraction: decodes the two string-encoded shapes Sonnet 5 returned, leaves good input alone", () => {
+  const cap = { skill_id: "illustration-fundamentals", proposed_name: null, reason: "r", is_crux: true };
+  // shape 1 (apothecary): outer fields present, capabilities is a JSON string of {capabilities: [...]}
+  const a = repairExtraction({ clear: true, clarifying_question: null, objective: "art", domain: "art", capabilities: JSON.stringify({ capabilities: [cap] }) });
+  assertEquals(a.repaired, "capabilities was a JSON string (whole record)");
+  assertEquals(a.record, { clear: true, clarifying_question: null, objective: "art", domain: "art", capabilities: [cap] });
+  assertEquals(invalidExtraction(a.record), null);
+  // shape 2 (ledger): outer has only capabilities, which is the whole record as a string
+  const whole = { clear: true, clarifying_question: null, objective: "ledger", domain: "software", capabilities: [cap] };
+  const b = repairExtraction({ capabilities: JSON.stringify(whole) });
+  assertEquals(b.repaired, "capabilities was a JSON string (whole record)");
+  assertEquals(b.record, whole);
+  assertEquals(invalidExtraction(b.record), null);
+  // a plain stringified array
+  const c = repairExtraction({ clear: true, capabilities: JSON.stringify([cap]) });
+  assertEquals(c.repaired, "capabilities was a JSON string (array)");
+  assertEquals((c.record as Extraction).capabilities, [cap]);
+  // outer fields win over inner on conflict
+  const d = repairExtraction({ clear: false, capabilities: JSON.stringify({ clear: true, capabilities: [] }) });
+  assertEquals((d.record as Extraction).clear, false);
+  // untouched cases
+  const good = { clear: true, capabilities: [cap] };
+  assertEquals(repairExtraction(good), { record: good, repaired: null });
+  const junk = { clear: true, capabilities: "not json {" };
+  assertEquals(repairExtraction(junk), { record: junk, repaired: null });
+  assertEquals(invalidExtraction(junk), "capabilities is not an array");
+  assertEquals(repairExtraction(undefined), { record: undefined, repaired: null });
 });
 
 Deno.test("dueForReview: 2+ ideas or 2+ runs, never rejected or promoted", () => {

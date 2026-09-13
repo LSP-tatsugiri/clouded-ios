@@ -112,11 +112,18 @@ What differs from the script:
   against `max_tokens`, and at 1500 five of 19 runs came back truncated or
   double-encoded and were stored as extracted. `extraction/src/` sends the
   same, so the baseline re-run and the function stay in lockstep.
+- Sonnet 5 also, with thinking off and `stop_reason: tool_use`, sometimes
+  returns `capabilities` as a JSON-encoded string: the array itself, or the
+  whole record wrapped in it (2 of 5 re-runs on 2026-09-13). Both decode
+  cleanly, so `repairExtraction()` decodes them before validation and notes
+  it in `_meta.repaired`. The real fix is `strict: true` on the tool with
+  `additionalProperties: false` and `anyOf` nullables; that changes the tool
+  schema and so the prompt hash, so it waits for the baseline re-run.
 - `extraction_runs.output` carries a `_meta` key: `stop_reason`,
-  `input_tokens`, `output_tokens`. A `max_tokens` stop or a malformed record
-  (non-boolean `clear`, non-array `capabilities`, clear with zero
-  capabilities) is stored with both the partial output and an `error`, and
-  the idea is marked `failed`, never `extracted`.
+  `input_tokens`, `output_tokens`, `repaired`. A `max_tokens` stop or a
+  record that is still malformed after repair (non-boolean `clear`, non-array
+  `capabilities`, clear with zero capabilities) is stored with both the
+  output and an `error`, and the idea is marked `failed`, never `extracted`.
 
 Trigger and re-runs:
 
