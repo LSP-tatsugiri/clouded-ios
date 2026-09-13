@@ -182,16 +182,32 @@ This ordering is not a privacy nicety — it's load-bearing. The product depends
 you dumping half-formed, slightly embarrassing thoughts at 1am, and nobody does
 that into a feed their friends are already reading.
 
-Once shared, the gap display gains its second half: **which friend already has
-the capability you're missing.** A group of ten people has a much shorter
-distance to most ideas than any one of them does. This is what makes the product
-worth being an app rather than a notes file.
+Sharing serves three purposes, in this order:
+
+1. **Feedback.** A shared idea is something friends can react to and comment
+   on — "this exists already", "I'd use this", "the hard part is X, not Y".
+   The extraction gives you the machine's read; the group gives you the human
+   one.
+2. **Knowing what each other is thinking.** The group's shared ideas are a feed
+   of what your friends are chewing on. Seeing what they're thinking is
+   inspiration for your own ideas, and the reverse — half the point of sharing
+   is sparking something in someone else.
+3. **Skill matchmaking.** Once shared, the gap display gains its second half:
+   **which friend already has the capability you're missing.** A group of ten
+   people has a much shorter distance to most ideas than any one of them does.
+
+The third is the one the data model does for free and is what v1 ships; the
+first two are why anyone opens the app to look at someone else's idea, and they
+land right after v1 (see [Deferred](#deferred)). All three are what make the
+product worth being an app rather than a notes file.
 
 ### Views
 
 - **Closest to buildable** — the default, and the only one that matters at first.
 - Filter by domain, by crux type, by whether a friend can unblock it.
 - **Leverage ranking** — which single skill unlocks the most ideas.
+- **Group feed** *(after v1)* — what friends have shared, newest first, with
+  their comments. Read-mostly; this is the inspiration surface.
 
 ## Scope
 
@@ -208,6 +224,11 @@ worth being an app rather than a notes file.
 
 ### Deferred
 
+- **Comments on shared ideas and the group feed** — the feedback and
+  inspiration half of sharing. v1 ships with shared ideas *visible* to the
+  group; reacting to them and browsing what friends are thinking come right
+  after v1. Nothing in v1's data model has to change for this: comments are a
+  new table keyed on `ideas.id`, and the feed is a query over shared ideas.
 - **The idea web / graph view** — needs roughly 80 ideas before it means
   anything. With 12 ideas nothing connects and it looks broken; the edges should
   be *shared skills*, not thematic similarity, and that only gets interesting at
@@ -472,9 +493,16 @@ real ideas a month, which is ~35 after a year — a volume at which organization
 isn't a problem a text file can't solve. If that's the case, the evaluation half
 is the whole product and the sorting views can wait.
 
-**Wrong blocker.** This app assumes ideas die from missing knowledge. If they
-actually die from missing *time*, then "learn these two things" is accurate but
-useless, and what's needed is a prioritizer, not a tutor. Worth settling early.
+**Wrong blocker — settled (2026-09-13).** An earlier draft worried that ideas
+die from missing *time* rather than missing knowledge, in which case a
+prioritizer beats a tutor. The answer, from actual use: the first thing ideas
+die of is never being written down. Inspiration arrives as a split-second
+thought from something on the internet, in a conversation, or seen in passing,
+and the failure is having nowhere frictionless to put it. So the primary job is
+an *unclouded* capture workflow — see [Capture](#capture) — and the knowledge
+gap is the secondary job: it has to be readable at a glance, because "what
+would I need to learn" is what turns the backlog into a study list. Time
+prioritization stays out of scope.
 
 **Stale profiles.** Self-reported skill levels are wrong in both directions and
 nobody maintains them. Long-term, the profile should be inferred from what people
@@ -489,6 +517,8 @@ actually build and confirm, not left as a form to fill in.
 | Closed skill list passed into the prompt | Free-text capability names fragment the graph silently |
 | Proposed skills need human confirmation | The alternative is a table that grows garbage automatically |
 | Private by default | Shared-by-default capture changes what people are willing to write |
+| Sharing is for feedback and inspiration first, skill matching second | Skill matching falls out of the data model; feedback and seeing what friends are thinking are why anyone reads a shared idea. v1 scope unchanged — comments and feed follow v1 |
+| Capture friction is the primary blocker, knowledge gap secondary | Ideas die first from not being written down; the gap-at-a-glance is what makes the backlog a study list |
 | Graph view deferred | Meaningless below ~80 ideas; it's a query, not a subsystem |
 | Postgres only — no graph or vector DB | A join table is the graph; pgvector is one extension away |
 | `user_id` from day one | Retrofitting multi-tenancy is painful; the column is free now |
