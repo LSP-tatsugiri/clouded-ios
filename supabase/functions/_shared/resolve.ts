@@ -152,11 +152,28 @@ ${canon}
 PREVIOUS PROPOSALS:
 ${prev}`;
 
-    return await callTool<SemanticResult>({
-      model, system, tool: RESOLVE_TOOL, maxTokens: 300,
+    const r = await callTool<SemanticResult>({
+      model, system, tool: RESOLVE_TOOL, maxTokens: 1024,
       user: `Proposed capability: "${name}"\nWhy the idea needs it: ${reason}\nThe idea: "${ideaRaw}"`
     });
+    // a cut-off answer must not resolve anything; the caller treats a throw as "new"
+    if (r.stop_reason === "max_tokens") throw new Error("resolve_skill truncated (stop_reason=max_tokens)");
+    return r.input;
   };
+}
+
+// ---------- validation ----------
+
+// Why a tool result is not a usable extraction, or null when it is. Sonnet 5
+// has returned the whole record double-encoded as a string, and a clear idea
+// with an empty capability list; both used to be stored as "extracted".
+export function invalidExtraction(o: unknown): string | null {
+  if (!o || typeof o !== "object") return "no tool input";
+  const e = o as Partial<Extraction>;
+  if (typeof e.clear !== "boolean") return "clear is not a boolean";
+  if (!Array.isArray(e.capabilities)) return "capabilities is not an array";
+  if (e.clear && e.capabilities.length === 0) return "clear extraction with no capabilities";
+  return null;
 }
 
 // ---------- entry point ----------

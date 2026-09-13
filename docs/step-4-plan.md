@@ -107,6 +107,16 @@ What differs from the script:
 - `capabilityRows()` enforces what the unique indexes demand: one row per
   skill, one per proposed key, at most one crux (`crux_rank = 1`)
 - the model default is `claude-sonnet-5`; override with the `MODEL` secret
+- both API calls send `thinking: {type: "disabled"}` with `max_tokens` 4096
+  (extract) and 1024 (resolve). Sonnet 5 thinks by default, thinking counts
+  against `max_tokens`, and at 1500 five of 19 runs came back truncated or
+  double-encoded and were stored as extracted. `extraction/src/` sends the
+  same, so the baseline re-run and the function stay in lockstep.
+- `extraction_runs.output` carries a `_meta` key: `stop_reason`,
+  `input_tokens`, `output_tokens`. A `max_tokens` stop or a malformed record
+  (non-boolean `clear`, non-array `capabilities`, clear with zero
+  capabilities) is stored with both the partial output and an `error`, and
+  the idea is marked `failed`, never `extracted`.
 
 Trigger and re-runs:
 
@@ -151,6 +161,17 @@ deno check supabase/functions/extract/index.ts
    test that says Step 4 is done.
 3. RLS the boring way: two users, share an idea from one, confirm the other
    sees it and a third user doesn't. Confirm the anon key sees nothing.
+
+All of it is `supabase/scripts/acceptance.mjs` (`seed`, `wait`, `diff`,
+`rls`, `rerun`), run with `node --env-file=supabase/.env` and `--user <uuid>`.
+Keys live in gitignored `supabase/.env`; see the script header.
+
+First run, 2026-09-13, on `claude-sonnet-5` against the sonnet-4-5 baseline:
+19/19 extracted, RLS 20/20. The diff exposed the truncation defect above
+(5 malformed runs stored as extracted). Of the 14 honest runs: verdict
+agreed 14/14, exact skill set 6/11, mean overlap 76%, crux 7/11 — inside
+the wobble `stability.js` measured (crux 13/19 on the same model). Re-run
+the five after the fix, then rerun `diff`.
 
 ## Trello cards this closes
 

@@ -4,7 +4,7 @@
 
 import { createClient, type SupabaseClient } from "jsr:@supabase/supabase-js@2";
 import type { Skill } from "./prompt.ts";
-import type { CapabilityRow, Extraction, Registry, RegistryEntry } from "./resolve.ts";
+import type { CapabilityRow, Registry, RegistryEntry } from "./resolve.ts";
 
 export type Idea = {
   id: string;
@@ -55,7 +55,9 @@ export class Db {
   }
 
   // Every extraction ever, raw. Written before resolution so nothing is lost.
-  async writeRun(run: { idea_id: string; model: string; prompt_hash: string; output?: Extraction; error?: string }): Promise<string> {
+  // output is the tool input as returned plus a `_meta` key (stop_reason,
+  // token usage); on a bad run both output (partial) and error are set.
+  async writeRun(run: { idea_id: string; model: string; prompt_hash: string; output?: Record<string, unknown> | null; error?: string }): Promise<string> {
     const row = this.ok<{ id: string }>(
       await this.c.from("extraction_runs").insert({
         idea_id: run.idea_id, model: run.model, prompt_hash: run.prompt_hash,

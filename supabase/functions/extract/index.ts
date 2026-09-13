@@ -14,7 +14,7 @@
 import { callTool } from "../_shared/anthropic.ts";
 import { Db } from "../_shared/db.ts";
 import { promptHash, systemPrompt, TOOL } from "../_shared/prompt.ts";
-import { capabilityRows, type Extraction, makeSemantic, resolveExtraction } from "../_shared/resolve.ts";
+import { capabilityRows, type Extraction, invalidExtraction, makeSemantic, resolveExtraction } from "../_shared/resolve.ts";
 import { ideaToRun, type WebhookPayload } from "../_shared/webhook.ts";
 
 declare const EdgeRuntime: { waitUntil(p: Promise<unknown>): void } | undefined;
@@ -40,13 +40,29 @@ export async function run(ideaId: string, db = new Db()): Promise<void> {
   const system = systemPrompt(skills);
   const prompt_hash = await promptHash(MODEL, skills);
 
-  let output: Extraction | undefined;
+  // The run row keeps the tool input as returned plus _meta, so a truncated
+  // or malformed answer is diagnosable from the table.
+  const withMeta = (o: unknown, meta: Record<string, unknown>): Record<string, unknown> =>
+    o && typeof o === "object" ? { ...(o as Record<string, unknown>), _meta: meta } : { _meta: meta, raw: o ?? null };
+
+  let output: Extraction;
+  let runId: string;
   try {
-    output = await callTool<Extraction>({
-      model: MODEL, system, tool: TOOL, maxTokens: 1500,
+    const r = await callTool<Extraction>({
+      model: MODEL, system, tool: TOOL, maxTokens: 4096,
       user: `Raw captured idea:\n\n"${idea.raw}"${idea.clarification ? `\n\nThe person later clarified: "${idea.clarification}"` : ""}`
     });
-    if (!output) throw new Error("model did not return structured output");
+    const meta = { stop_reason: r.stop_reason, input_tokens: r.usage?.input_tokens ?? null, output_tokens: r.usage?.output_tokens ?? null };
+    const why = r.stop_reason === "max_tokens" ? "output truncated (stop_reason=max_tokens)" : invalidExtraction(r.input);
+    if (why) {
+      console.error(`extract ${ideaId}: ${why}`);
+      await db.writeRun({ idea_id: ideaId, model: MODEL, prompt_hash, output: withMeta(r.input, meta), error: why });
+      await db.markIdea(ideaId, { status: "failed" });
+      return;
+    }
+    output = r.input!;
+    // raw output is on disk before anything else happens to it
+    runId = await db.writeRun({ idea_id: ideaId, model: MODEL, prompt_hash, output: withMeta(structuredClone(output), meta) });
   } catch (err) {
     const error = (err as Error).message;
     console.error(`extract ${ideaId}: ${error}`);
@@ -54,9 +70,6 @@ export async function run(ideaId: string, db = new Db()): Promise<void> {
     await db.markIdea(ideaId, { status: "failed" });
     return;
   }
-
-  // raw output is on disk before anything else happens to it
-  const runId = await db.writeRun({ idea_id: ideaId, model: MODEL, prompt_hash, output: structuredClone(output) });
 
   try {
     const reg = await db.loadRegistry();

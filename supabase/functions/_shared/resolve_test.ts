@@ -4,7 +4,7 @@
 import { assertEquals } from "jsr:@std/assert@1";
 import type { Skill } from "./prompt.ts";
 import {
-  buildIndex, capabilityRows, type Capability, dueForReview, type Extraction,
+  buildIndex, capabilityRows, type Capability, dueForReview, type Extraction, invalidExtraction,
   lexical, record, type Registry, resolveExtraction, type SemanticFn
 } from "./resolve.ts";
 // The Node original, for parity on the pure parts.
@@ -119,6 +119,19 @@ Deno.test("capabilityRows: one crux, no duplicate proposed keys, nulls filled", 
   assertEquals(rows[2].proposed_key, "new-thing");
   assertEquals(rows[2].skill_id, null);
   assertEquals(rows[0].resolved_from, null);
+});
+
+Deno.test("invalidExtraction: accepts a good record, rejects the shapes Sonnet 5 has produced", () => {
+  const cap = { skill_id: "parametric-cad", proposed_name: null, reason: "r", is_crux: true };
+  assertEquals(invalidExtraction({ clear: true, clarifying_question: null, objective: "o", domain: "d", capabilities: [cap] }), null);
+  assertEquals(invalidExtraction({ clear: false, clarifying_question: "q?", objective: null, domain: null, capabilities: [] }), null);
+  // the whole record double-encoded as a string inside capabilities
+  assertEquals(invalidExtraction({ capabilities: "{\"clear\": true, \"capabilities\": [" }), "clear is not a boolean");
+  assertEquals(invalidExtraction({ clear: true, capabilities: "[]" }), "capabilities is not an array");
+  // a clear idea with nothing to build
+  assertEquals(invalidExtraction({ clear: true, capabilities: [] }), "clear extraction with no capabilities");
+  assertEquals(invalidExtraction(undefined), "no tool input");
+  assertEquals(invalidExtraction("text"), "no tool input");
 });
 
 Deno.test("dueForReview: 2+ ideas or 2+ runs, never rejected or promoted", () => {
