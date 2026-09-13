@@ -44,11 +44,17 @@ await Promise.all([worker(), worker(), worker(), worker()]);
 const runId = new Date().toISOString().slice(0, 16);
 const registry = loadRegistry();
 const fresh = new Set(todo.map((i) => i.id));
-for (const idea of ideas) if (fresh.has(idea.id) && cache[idea.id]) await resolveExtraction(cache[idea.id], idea, registry, runId);
-saveRegistry(registry);
-writeFileSync(CACHE, JSON.stringify(cache, null, 2));
 if (todo.length) console.log("\n");
-if (failed.length) console.error(`${failed.length} of ${ideas.length} ideas FAILED to extract and are missing below: ${failed.join(", ")}\n`);
+if (failed.length) {
+  // A partial cache written over the committed baseline is the same problem as
+  // an empty one: out/ is the baseline, so a run that lost any idea writes nothing.
+  console.error(`${failed.length} of ${ideas.length} ideas FAILED to extract: ${failed.join(", ")}`);
+  console.error(`out/extractions.json and out/proposed.json NOT written; fix the cause and run again. Report below is from the ${Object.keys(cache).length} that succeeded.\n`);
+} else {
+  for (const idea of ideas) if (fresh.has(idea.id) && cache[idea.id]) await resolveExtraction(cache[idea.id], idea, registry, runId);
+  saveRegistry(registry);
+  writeFileSync(CACHE, JSON.stringify(cache, null, 2));
+}
 
 // ---------- per-idea report, closest to buildable first ----------
 
