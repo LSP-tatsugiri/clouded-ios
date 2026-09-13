@@ -349,6 +349,26 @@ Review a proposal by editing its entry in `out/proposed.json`: add
 `skills.json` and set `"promoted": "<skill_id>"` so later matches resolve
 straight to it.
 
+### Re-running extraction in Supabase
+
+The same pipeline runs as the `extract` edge function (`supabase/functions/`),
+fired by a database webhook when an idea is inserted. `ideas.status` is one of
+`pending`, `extracted`, `failed`, and every attempt leaves a row in
+`extraction_runs` with either `output` or `error`. Nothing reads `status` back,
+so a failed idea needs no reset — just run it again:
+
+- **Direct call**, the normal way: POST to `/functions/v1/extract` with the
+  `x-webhook-secret` header and body `{"idea_id": "<uuid>"}`. Works for any
+  idea, mutates nothing, and is how the history re-run and Phase D acceptance
+  drive the function.
+- **Change `clarification`** on the row. This is the only UPDATE the function
+  acts on; it ignores every other column, including its own status writes, so
+  it cannot loop. Use it when there is a real clarification to add, since the
+  text goes into the prompt.
+- **Fresh insert** also works but leaves the failed row behind.
+
+Setup, secrets and the webhook definition are in `docs/step-4-plan.md`, Phase C.
+
 ### The development loop
 
 Edit the prompt in `extraction/src/extract.js`, run `npm run fresh`, read the output, repeat.
