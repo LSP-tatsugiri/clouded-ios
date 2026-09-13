@@ -469,8 +469,8 @@ singulation of small fasteners". The planned fix is to sort by crux status first
 1. ~~Extraction script against real ideas~~
 2. ~~Tune the prompt until capabilities are consistently checkable~~
 3. ~~Hand-curate the skills table from what the extractions produce~~ (ongoing via the registry)
-4. Supabase schema + the pipeline as an edge function ← **you are here**
-5. Web list view — sorted, filterable
+4. ~~Supabase schema + the pipeline as an edge function~~
+5. Web list view — sorted, filterable ← **you are here**
 6. iOS capture app + Share Extension
 7. Sharing and the friend skill pool
 8. *(later)* graph view, roadmaps, starter kits

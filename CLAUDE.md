@@ -53,8 +53,8 @@ Run: `cd extraction && npm start` (uses cached output) or `npm run fresh`
 1. Extraction script against real ideas — done
 2. Tune the prompt until capabilities are consistently checkable — done
 3. Hand-curate the skills table from what extraction produces — done; ongoing via `out/proposed.json`
-4. Supabase schema + pipeline as an edge function ← current, see `docs/step-4-plan.md`
-5. Web list view, sorted and filterable
+4. Supabase schema + pipeline as an edge function — done 2026-09-13, see `docs/step-4-plan.md`
+5. Web list view, sorted and filterable ← current, see `docs/step-5-plan.md`
 6. iOS capture app + Share Extension
 7. Sharing and the friend skill pool
 8. Later: graph view, roadmaps, starter kits
@@ -82,8 +82,18 @@ while out. Capture is the only phone-first part.
 - **Proposed skills drift in name, not concept.** Handled by `src/resolve.js`
   (lexical + semantic match + registry). Review proposals via
   `out/proposed.json`: add `"rejected": "<why>"` or `"promoted": "<skill_id>"`.
-- **Model is `claude-sonnet-5`** as of 2026-09-12. The committed baseline in
-  `out/` was produced on sonnet-4-5; re-run and recommit when credits allow.
+- **Model is `claude-sonnet-5`** as of 2026-09-12; the committed baseline in
+  `out/` is from sonnet-5 (2026-09-13, prompt `e3446a126ffc`). Same-prompt
+  wobble on it: crux identical 16/19, verdict 19/19, skill overlap 0.89.
+- **Sonnet 5 sometimes returns the tool input double-encoded** — the whole
+  record as a JSON string inside `capabilities`, about 1 call in 4. Both
+  `extract.js` and the edge function decode it (`repairExtraction`) and
+  reject anything still malformed. The proper fix, `strict: true` on the
+  tool, changes the schema and so the prompt hash; parked.
+- **Both API calls send `thinking: {type: "disabled"}`.** Sonnet 5 thinks by
+  default and thinking counts against `max_tokens`; the baseline was never
+  produced with thinking. Keep `extract.js`/`resolve.js` and
+  `supabase/functions/_shared/` in lockstep; the Deno tests assert it.
 
 ## Schema fixes needed before the schema is used
 

@@ -22,13 +22,15 @@
     "names": [
       "label-design",
       "label-design-printing",
-      "label-design-for-organizers"
+      "label-design-for-organizers",
+      "type-color-labeling"
     ],
     "reasons": [
       "create and apply color/type labels for each storage section",
       "create and apply color-coded labels or legends for type identification",
       "create type icons or labels that are legible at organizer scale and integrate into the print",
-      "create color-coded labels or color bands that clearly indicate which compartment holds which type"
+      "create color-coded labels or color bands that clearly indicate which compartment holds which type",
+      "map each Pokemon energy type to a distinct color/label scheme applied across the bin set"
     ],
     "ideas": [
       "pokemon-bin"
@@ -37,10 +39,11 @@
       "2026-09-12T21:00",
       "2026-09-12T21:01",
       "2026-09-12T21:02",
-      "2026-09-12T21:09"
+      "2026-09-12T21:09",
+      "2026-09-13T18:24"
     ],
     "crux_count": 0,
-    "rejected": "not a skill \u2014 a detail of one idea (reviewed 2026-09-12)"
+    "rejected": "not a skill — a detail of one idea (reviewed 2026-09-12)"
   },
   "vibration-dampening": {
     "names": [

@@ -178,12 +178,18 @@ First run, 2026-09-13, on `claude-sonnet-5` against the sonnet-4-5 baseline:
 (5 malformed runs stored as extracted). Of the 14 honest runs: verdict
 agreed 14/14, exact skill set 6/11, mean overlap 76%, crux 7/11.
 
-After the thinking fix and the repair step, all 19 honest: verdict 19/19,
-exact skill set 7/16, mean overlap 81%, crux 10/16, 0 proposed. Crux is
-inside the same-model wobble `stability.js` measured (13/19); exact skill set
-is below its ~3/4 figure, but this compares sonnet-5 against a sonnet-4-5
-baseline. The honest tie-breaker is `npm run fresh` on sonnet-5 (~$0.25) and
-a re-diff against that.
+After the thinking fix and the repair step, all 19 honest against the
+sonnet-4-5 baseline: verdict 19/19, exact skill set 7/16, mean overlap 81%,
+crux 10/16.
+
+**Closed 2026-09-13.** Baseline re-run on sonnet-5 (`npm run fresh`, then
+`stability.js 3`) and committed. Same-model wobble on sonnet-5: crux
+identical 16/19 (13/16 of the clear ideas), verdict 19/19, skill overlap
+0.89. Hosted vs that baseline: verdict 19/19, exact skill set 8/16, overlap
+87%, crux 13/16. The crux figure is identical to the within-model wobble and
+two of the three disagreeing ideas (pokemon-bin, dryer) are the ones
+`stability.js` flags as unstable. That is model wobble, not pipeline drift.
+Step 4 is done. Spend for the whole step: about $1.80.
 
 ## Trello cards this closes
 
