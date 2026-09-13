@@ -176,9 +176,14 @@ Keys live in gitignored `supabase/.env`; see the script header.
 First run, 2026-09-13, on `claude-sonnet-5` against the sonnet-4-5 baseline:
 19/19 extracted, RLS 20/20. The diff exposed the truncation defect above
 (5 malformed runs stored as extracted). Of the 14 honest runs: verdict
-agreed 14/14, exact skill set 6/11, mean overlap 76%, crux 7/11 — inside
-the wobble `stability.js` measured (crux 13/19 on the same model). Re-run
-the five after the fix, then rerun `diff`.
+agreed 14/14, exact skill set 6/11, mean overlap 76%, crux 7/11.
+
+After the thinking fix and the repair step, all 19 honest: verdict 19/19,
+exact skill set 7/16, mean overlap 81%, crux 10/16, 0 proposed. Crux is
+inside the same-model wobble `stability.js` measured (13/19); exact skill set
+is below its ~3/4 figure, but this compares sonnet-5 against a sonnet-4-5
+baseline. The honest tie-breaker is `npm run fresh` on sonnet-5 (~$0.25) and
+a re-diff against that.
 
 ## Trello cards this closes
 
