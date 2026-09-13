@@ -118,7 +118,7 @@ ${prev}`;
     method: "POST",
     headers: { "content-type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01" },
     body: JSON.stringify({
-      model: MODEL, max_tokens: 300, system, tools: [TOOL],
+      model: MODEL, max_tokens: 1024, thinking: { type: "disabled" }, system, tools: [TOOL],
       tool_choice: { type: "tool", name: "resolve_skill" },
       messages: [{ role: "user", content: `Proposed capability: "${name}"\nWhy the idea needs it: ${reason}\nThe idea: "${ideaRaw}"` }]
     })

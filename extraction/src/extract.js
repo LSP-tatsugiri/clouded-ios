@@ -98,7 +98,11 @@ export async function extract(raw, clarification) {
     },
     body: JSON.stringify({
       model: MODEL,
-      max_tokens: 1500,
+      // Sonnet 5 thinks by default and thinking counts against max_tokens; at
+      // 1500 the tool call came back truncated. The baseline never used
+      // thinking. Kept in lockstep with supabase/functions/_shared/anthropic.ts.
+      max_tokens: 4096,
+      thinking: { type: "disabled" },
       system: SYSTEM,
       tools: [TOOL],
       tool_choice: { type: "tool", name: "record_extraction" },
