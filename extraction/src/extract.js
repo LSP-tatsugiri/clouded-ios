@@ -115,7 +115,37 @@ export async function extract(raw, clarification) {
   const body = await res.json();
   const block = body.content.find((b) => b.type === "tool_use");
   if (!block) throw new Error("model did not return structured output");
-  return block.input;
+  const { record, repaired } = repairExtraction(block.input);
+  const why = body.stop_reason === "max_tokens" ? "output truncated (stop_reason=max_tokens)" : invalidExtraction(record);
+  if (why) throw new Error(`malformed extraction: ${why}`);
+  if (repaired) console.error(`\n  (${repaired})`);
+  return record;
+}
+
+// Sonnet 5 sometimes returns `capabilities` as a JSON-encoded string: either
+// the array itself, or the whole record wrapped in it. Both decode cleanly.
+// Same logic as supabase/functions/_shared/resolve.ts; the Deno tests import
+// this file and assert the two agree.
+export function repairExtraction(o) {
+  if (!o || typeof o !== "object") return { record: o, repaired: null };
+  if (typeof o.capabilities !== "string") return { record: o, repaired: null };
+  let parsed;
+  try { parsed = JSON.parse(o.capabilities); } catch { return { record: o, repaired: null }; }
+  if (Array.isArray(parsed)) return { record: { ...o, capabilities: parsed }, repaired: "capabilities was a JSON string (array)" };
+  if (parsed && typeof parsed === "object") {
+    const { capabilities: _drop, ...rest } = o;
+    return { record: { ...parsed, ...rest }, repaired: "capabilities was a JSON string (whole record)" };
+  }
+  return { record: o, repaired: null };
+}
+
+// Why a tool result is not a usable extraction, or null when it is.
+export function invalidExtraction(o) {
+  if (!o || typeof o !== "object") return "no tool input";
+  if (typeof o.clear !== "boolean") return "clear is not a boolean";
+  if (!Array.isArray(o.capabilities)) return "capabilities is not an array";
+  if (o.clear && o.capabilities.length === 0) return "clear extraction with no capabilities";
+  return null;
 }
 
 // changes whenever the prompt, the tool schema or the skills table change

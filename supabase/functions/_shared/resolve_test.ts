@@ -9,6 +9,7 @@ import {
 } from "./resolve.ts";
 // The Node original, for parity on the pure parts.
 import { lexical as nodeLexical } from "../../../extraction/src/resolve.js";
+import { invalidExtraction as nodeInvalid, repairExtraction as nodeRepair } from "../../../extraction/src/extract.js";
 
 const skills: Skill[] = JSON.parse(await Deno.readTextFile(new URL("../../../extraction/data/skills.json", import.meta.url)));
 const index = buildIndex(skills);
@@ -161,6 +162,26 @@ Deno.test("repairExtraction: decodes the two string-encoded shapes Sonnet 5 retu
   assertEquals(repairExtraction(junk), { record: junk, repaired: null });
   assertEquals(invalidExtraction(junk), "capabilities is not an array");
   assertEquals(repairExtraction(undefined), { record: undefined, repaired: null });
+});
+
+Deno.test("repair and validation agree with the Node original on every shape", () => {
+  const cap = { skill_id: "parametric-cad", proposed_name: null, reason: "r", is_crux: true };
+  const whole = { clear: true, clarifying_question: null, objective: "o", domain: "d", capabilities: [cap] };
+  const shapes: unknown[] = [
+    whole,
+    { ...whole, capabilities: JSON.stringify({ capabilities: [cap] }) },
+    { capabilities: JSON.stringify(whole) },
+    { clear: true, capabilities: JSON.stringify([cap]) },
+    { clear: false, capabilities: JSON.stringify({ clear: true, capabilities: [] }) },
+    { clear: true, capabilities: "not json {" },
+    { clear: true, capabilities: [] },
+    { capabilities: "{" },
+    undefined, "text", null
+  ];
+  for (const s of shapes) {
+    assertEquals(repairExtraction(s), nodeRepair(s), `repair(${JSON.stringify(s)})`);
+    assertEquals(invalidExtraction(repairExtraction(s).record), nodeInvalid(nodeRepair(s).record), `invalid(${JSON.stringify(s)})`);
+  }
 });
 
 Deno.test("dueForReview: 2+ ideas or 2+ runs, never rejected or promoted", () => {
