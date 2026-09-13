@@ -1,16 +1,24 @@
-import { readFileSync } from "node:fs";
-import { createHash } from "node:crypto";
+// The extraction prompt. Byte-identical to extraction/src/extract.js so the
+// committed baseline stays comparable; prompt_test.ts enforces that. Edit the
+// prompt in extract.js first, run the Node script, then copy here.
 
-const MODEL = process.env.MODEL || "claude-sonnet-4-5-20250929";
-const API = "https://api.anthropic.com/v1/messages";
+export type Skill = {
+  id: string;
+  name: string;
+  domain: string | null;
+  aliases: string[];
+  hazard: boolean;
+  sort_order: number | null;
+};
 
-const skills = JSON.parse(readFileSync(new URL("../data/skills.json", import.meta.url)));
+export function skillList(skills: Skill[]): string {
+  return skills
+    .map((s) => `- ${s.id}: ${s.name}${s.aliases?.length ? ` [also called: ${s.aliases.join(", ")}]` : ""}`)
+    .join("\n");
+}
 
-const skillList = skills
-  .map((s) => `- ${s.id}: ${s.name}${s.aliases?.length ? ` [also called: ${s.aliases.join(", ")}]` : ""}`)
-  .join("\n");
-
-const SYSTEM = `You analyse raw project ideas and report what it would actually take to build them.
+export function systemPrompt(skills: Skill[]): string {
+  return `You analyse raw project ideas and report what it would actually take to build them.
 
 Two hard rules:
 
@@ -46,14 +54,15 @@ null and set proposed_name to a kebab-case slug in the same style as the list
 ("vehicle-rigging", not "label design for organizers").
 
 CANONICAL SKILLS:
-${skillList}
+${skillList(skills)}
 
 Aim for 3-7 capabilities. List what is genuinely required, including the
 unglamorous mechanical or physical parts — those are usually what actually stops
 a project. If one capability is clearly the crux (the part most likely to kill
 the project), mark is_crux true on exactly that one.`;
+}
 
-const TOOL = {
+export const TOOL = {
   name: "record_extraction",
   description: "Record the analysis of one raw idea.",
   input_schema: {
@@ -85,41 +94,9 @@ const TOOL = {
   }
 };
 
-export async function extract(raw, clarification) {
-  const key = process.env.ANTHROPIC_API_KEY;
-  if (!key) throw new Error("ANTHROPIC_API_KEY is not set. Copy .env.example to .env and fill it in.");
-
-  const res = await fetch(API, {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      "x-api-key": key,
-      "anthropic-version": "2023-06-01"
-    },
-    body: JSON.stringify({
-      model: MODEL,
-      max_tokens: 1500,
-      system: SYSTEM,
-      tools: [TOOL],
-      tool_choice: { type: "tool", name: "record_extraction" },
-      messages: [{ role: "user", content: `Raw captured idea:\n\n"${raw}"${clarification ? `\n\nThe person later clarified: "${clarification}"` : ""}` }]
-    })
-  });
-
-  if (!res.ok) throw new Error(`API ${res.status}: ${await res.text()}`);
-
-  const body = await res.json();
-  const block = body.content.find((b) => b.type === "tool_use");
-  if (!block) throw new Error("model did not return structured output");
-  return block.input;
-}
-
 // changes whenever the prompt, the tool schema or the skills table change
-export const promptHash = createHash("sha256")
-  .update(MODEL + SYSTEM + JSON.stringify(TOOL))
-  .digest("hex")
-  .slice(0, 12);
-
-export { skills };
-// exported for the edge function's parity test (supabase/functions/_shared/prompt_test.ts)
-export { SYSTEM, TOOL };
+export async function promptHash(model: string, skills: Skill[]): Promise<string> {
+  const bytes = new TextEncoder().encode(model + systemPrompt(skills) + JSON.stringify(TOOL));
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("").slice(0, 12);
+}

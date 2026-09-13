@@ -87,23 +87,60 @@ source of truth.
 Then `supabase db push` and seed `skills` from `extraction/data/skills.json`
 (51 rows) with a small script.
 
-## Phase C — the edge function
+## Phase C — the edge function (built 2026-09-13)
 
-`supabase functions new extract`. Triggered by a database webhook on insert
-to `ideas` (Dashboard → Database → Webhooks, or `pg_net` in a migration).
+`supabase/functions/extract/` plus `supabase/functions/_shared/`. A port, not
+a rewrite: the two API calls are plain `fetch`, and the prompt, tool schema and
+lexical matcher are byte-identical to `extraction/src/` — `prompt_test.ts` and
+`resolve_test.ts` import the Node files under Deno and assert it. The only
+change to `extraction/` is two exports at the end of `extract.js` for that test.
 
-It is a port, not a rewrite. `extract.js` and `resolve.js` are plain `fetch`
-with no dependencies. Changes:
+What differs from the script:
 
-- `readFileSync(skills.json)` → `select * from skills`
-- `loadRegistry()` / `saveRegistry()` → `proposed_skills` reads and upserts
-- write to `extraction_runs` first, then `idea_capabilities`, so a failure
-  in resolution never loses the raw output
-- runs as service role; `supabase secrets set ANTHROPIC_API_KEY=...`
-- Deno, not Node: `Deno.env.get`, no `node:` imports
+- skills come from `select * from skills order by sort_order`; `sort_order` is
+  the skills.json index and exists because it is part of the prompt hash
+- the registry is `proposed_skills` rows; only entries a run touched are
+  upserted, and `rejected` / `promoted` are never written by the function
+- writes happen in a fixed order: `extraction_runs` (raw output, or the error),
+  then `idea_capabilities` (delete + insert), then the idea's status, then the
+  registry. A failure after the run row exists loses nothing.
+- `capabilityRows()` enforces what the unique indexes demand: one row per
+  skill, one per proposed key, at most one crux (`crux_rank = 1`)
+- the model default is `claude-sonnet-5`; override with the `MODEL` secret
 
-Keep the prompt strings byte-identical to `extraction/src/extract.js` so the
-baseline stays comparable. Keep `promptHash` and store it on the run row.
+Trigger and re-runs:
+
+- Dashboard webhook on `ideas`, events INSERT and UPDATE. The function ignores
+  every UPDATE except a changed `clarification`, which is what stops its own
+  status writes from looping. `webhook_test.ts` covers this.
+- Direct call with `{ "idea_id": "<uuid>" }` for re-runs and Phase D.
+- Auth is a shared secret in the `x-webhook-secret` header; `verify_jwt` is
+  off for this function in `config.toml`. The function replies 202 at once and
+  finishes in `EdgeRuntime.waitUntil`, because the webhook client times out
+  before the API call returns.
+
+Deploy (secrets never go in git):
+
+```
+supabase db push                                   # skills.sort_order + reseed
+supabase secrets set ANTHROPIC_API_KEY=... WEBHOOK_SECRET=...
+supabase functions deploy extract
+```
+
+Then Dashboard → Database → Webhooks → Create: table `ideas`, events Insert +
+Update, type Supabase Edge Function → `extract`, HTTP header
+`x-webhook-secret: <the same WEBHOOK_SECRET>`, timeout 5000 ms. Verify by
+inserting one idea in the SQL editor and watching `extraction_runs`,
+`idea_capabilities` and the idea's `status`.
+
+Local checks (needs Deno, `npm i -g deno`):
+
+```
+deno test --allow-read --allow-env supabase/functions/_shared/
+deno check supabase/functions/extract/index.ts
+```
+
+`supabase functions serve` needs Docker and is not available on this machine.
 
 ## Phase D — acceptance
 
