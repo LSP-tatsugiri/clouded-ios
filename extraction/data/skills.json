@@ -1,7 +1,9 @@
 [
   { "id": "parametric-cad", "name": "Model a part parametrically in CAD from measured dimensions", "domain": "fabrication", "aliases": ["CAD", "3D modeling", "Fusion 360", "OnShape", "enclosure design"] },
-  { "id": "print-tolerancing", "name": "Design a printed part to fit a real measured object", "domain": "fabrication", "aliases": ["tolerance fitting", "clearance fit", "friction fit"] },
+  { "id": "print-tolerancing", "name": "Measure a real object and design a printed part, clamp or fixture that fits it", "domain": "fabrication", "aliases": ["tolerance fitting", "clearance fit", "friction fit", "fixture design", "measure and model", "profile tracing", "custom cutout", "clamp to measured object", "measure and fixture design", "clamp design", "mount design", "attachment design"] },
+  { "id": "print-joinery", "name": "Design snap-fit, dovetail or modular joints between printed parts that assemble without fasteners", "domain": "fabrication", "aliases": ["joinery", "snap fit", "modular joints", "interlocking parts", "press fit assembly"] },
   { "id": "print-material-choice", "name": "Choose filament and print orientation for the part's service environment", "domain": "fabrication", "aliases": ["material selection", "PETG", "ASA", "print orientation"] },
+  { "id": "vibration-mount", "name": "Design a mount that holds a device rigid under vibration and impact", "domain": "fabrication", "aliases": ["vibration dampening", "anti-shake mount", "shock isolation", "camera mount stability"] },
   { "id": "mechanism-design", "name": "Design a multi-part linkage or moving mechanism that doesn't bind", "domain": "fabrication", "aliases": ["linkage design", "transformation mechanism", "kinematic design"] },
   { "id": "part-singulation", "name": "Mechanically separate one small part at a time from a hopper", "domain": "fabrication", "aliases": ["escapement", "vibratory feeder", "hopper design", "part feeding"] },
   { "id": "wet-enclosure", "name": "Design an enclosure that survives a wet or outdoor environment", "domain": "fabrication", "aliases": ["IP rating", "weatherproofing", "sealing"] },
@@ -15,9 +17,10 @@
   { "id": "stepper-control", "name": "Drive a stepper motor through a driver IC with acceleration control", "domain": "embedded", "aliases": ["stepper driver", "A4988", "TMC2209"] },
   { "id": "servo-control", "name": "Drive hobby servos, including sequencing several at once", "domain": "embedded", "aliases": ["servo", "PWM servo control"] },
   { "id": "bldc-foc", "name": "Run closed-loop BLDC motor control with field-oriented control", "domain": "embedded", "aliases": ["FOC", "SimpleFOC", "brushless control", "torque control"] },
+  { "id": "haptic-profiles", "name": "Design and tune virtual detent, spring and friction profiles that feel right to turn", "domain": "embedded", "aliases": ["haptic profile", "virtual detents", "haptic feedback design", "force feedback tuning"] },
   { "id": "pid-tuning", "name": "Tune a PID loop against real sensor feedback until it's stable", "domain": "embedded", "aliases": ["PID", "control loop tuning"] },
   { "id": "magnetic-encoder", "name": "Read absolute rotary position from a magnetic encoder", "domain": "embedded", "aliases": ["AS5600", "rotary encoder", "absolute position"] },
-  { "id": "load-cell", "name": "Calibrate a load cell and convert readings into counts or weight", "domain": "embedded", "aliases": ["HX711", "strain gauge", "weight sensing"] },
+  { "id": "load-cell", "name": "Calibrate a load cell and convert readings into counts or weight", "domain": "embedded", "aliases": ["HX711", "strain gauge", "weight sensing", "count parts by weight", "confirm a part was dispensed", "weight sensing", "smart scale"] },
   { "id": "power-budgeting", "name": "Size and isolate power rails for motors alongside logic", "domain": "embedded", "aliases": ["power supply design", "rail isolation"] },
   { "id": "mains-safety", "name": "Safely design around mains voltage and heating elements", "domain": "embedded", "aliases": ["mains wiring", "GFCI", "heating element"], "hazard": true },
   { "id": "airflow-thermal", "name": "Size a blower and heating element against an evaporation target", "domain": "embedded", "aliases": ["CFM sizing", "thermal design", "ducting"] },
@@ -37,6 +40,7 @@
   { "id": "swiftui-app", "name": "Build and ship a SwiftUI app to a device", "domain": "software", "aliases": ["iOS", "SwiftUI", "Swift", "mobile app"] },
   { "id": "ios-extensions", "name": "Add an iOS Share Extension or widget to an app", "domain": "software", "aliases": ["Share Extension", "app extension", "widget"] },
   { "id": "offline-sync", "name": "Write an offline-first local store that syncs when network returns", "domain": "software", "aliases": ["offline first", "sync queue", "conflict resolution"] },
+  { "id": "third-party-api", "name": "Integrate a third-party data API with keys, rate limits and error handling", "domain": "software", "aliases": ["external API", "stock price API", "price feed", "weather API", "API client"] },
   { "id": "llm-api", "name": "Call an LLM API and get reliable structured output back", "domain": "software", "aliases": ["LLM integration", "structured output", "prompt engineering"] },
   { "id": "embeddings-similarity", "name": "Use embeddings to match or deduplicate text", "domain": "software", "aliases": ["vector search", "pgvector", "semantic similarity"] },
   { "id": "device-server-protocol", "name": "Get an embedded device talking to a server over the network", "domain": "software", "aliases": ["IoT protocol", "MQTT", "device API"] },
@@ -48,8 +52,8 @@
 
   { "id": "ai-image-workflow", "name": "Drive an image model to a specific look on purpose", "domain": "art", "aliases": ["AI art", "ComfyUI", "Stable Diffusion", "img2img"] },
   { "id": "character-consistency", "name": "Keep a character visually consistent across many images", "domain": "art", "aliases": ["character sheet", "LoRA", "consistent character"] },
-  { "id": "illustration-fundamentals", "name": "Draw with working perspective, gesture and composition", "domain": "art", "aliases": ["drawing", "illustration", "composition"] },
+  { "id": "illustration-fundamentals", "name": "Draw with working perspective, gesture and composition", "domain": "art", "aliases": ["drawing", "illustration", "composition", "anatomy", "drawing from reference", "animal drawing"] },
 
-  { "id": "on-device-vision", "name": "Run a person or object detector on embedded hardware in real time", "domain": "vision", "aliases": ["computer vision", "YOLO", "MediaPipe", "person detection"] },
+  { "id": "on-device-vision", "name": "Run a person or object detector on embedded hardware in real time", "domain": "vision", "aliases": ["computer vision", "YOLO", "MediaPipe", "person detection", "count objects with a camera", "detect a part passing a camera"] },
   { "id": "tracking-smoothing", "name": "Turn noisy detections into smooth actuator targets", "domain": "vision", "aliases": ["filtering", "Kalman", "pan tilt tracking", "smoothing"] }
 ]

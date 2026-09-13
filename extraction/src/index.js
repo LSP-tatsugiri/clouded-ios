@@ -1,13 +1,18 @@
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
-import { extract, skills } from "./extract.js";
+import { extract, skills, promptHash } from "./extract.js";
 import { distanceOf, classify, profile } from "./distance.js";
+import { resolveExtraction, loadRegistry, saveRegistry, dueForReview } from "./resolve.js";
 
 const ideas = JSON.parse(readFileSync(new URL("../data/ideas.json", import.meta.url)));
 const CACHE = new URL("../out/extractions.json", import.meta.url);
 const force = process.argv.includes("--force");
 
 const skillName = Object.fromEntries(skills.map((s) => [s.id, s.name]));
-const cache = !force && existsSync(CACHE) ? JSON.parse(readFileSync(CACHE)) : {};
+// cache entries are keyed by idea id but stamped with the prompt hash, so a
+// prompt or skills-table change invalidates them without needing --force
+const stored = existsSync(CACHE) ? JSON.parse(readFileSync(CACHE)) : {};
+const cache = {};
+if (!force) for (const [id, ex] of Object.entries(stored)) if (ex._prompt === promptHash) cache[id] = ex;
 
 const todo = ideas.filter((i) => !cache[i.id]);
 console.log(`${ideas.length} ideas · ${todo.length} to extract · ${ideas.length - todo.length} cached\n`);
@@ -19,20 +24,31 @@ if (todo.length && !process.env.ANTHROPIC_API_KEY) {
 
 // small concurrency so a re-run is quick but we don't hammer the API
 const QUEUE = [...todo];
+const failed = [];
 async function worker() {
   while (QUEUE.length) {
     const idea = QUEUE.shift();
     try {
-      cache[idea.id] = await extract(idea.raw);
+      cache[idea.id] = { ...(await extract(idea.raw, idea.clarification)), _prompt: promptHash };
       process.stdout.write(".");
     } catch (err) {
+      failed.push(idea.id);
       console.error(`\n  ${idea.id}: ${err.message}`);
     }
   }
 }
 await Promise.all([worker(), worker(), worker(), worker()]);
+
+// ---------- resolve proposed capabilities against the table ----------
+// sequential on purpose: each resolution can see what earlier ones proposed
+const runId = new Date().toISOString().slice(0, 16);
+const registry = loadRegistry();
+const fresh = new Set(todo.map((i) => i.id));
+for (const idea of ideas) if (fresh.has(idea.id) && cache[idea.id]) await resolveExtraction(cache[idea.id], idea, registry, runId);
+saveRegistry(registry);
 writeFileSync(CACHE, JSON.stringify(cache, null, 2));
 if (todo.length) console.log("\n");
+if (failed.length) console.error(`${failed.length} of ${ideas.length} ideas FAILED to extract and are missing below: ${failed.join(", ")}\n`);
 
 // ---------- per-idea report, closest to buildable first ----------
 
@@ -88,9 +104,28 @@ for (const [key, ids] of ranked) {
   console.log(`      ${ids.join(", ")}`);
 }
 
-const proposed = Object.keys(unlocks).filter((k) => k.startsWith("proposed:"));
-if (proposed.length) {
-  console.log(`\n${proposed.length} proposed skills need your review before they join data/skills.json:`);
-  for (const p of proposed) console.log(`  - ${p.slice(9)}`);
+// ---------- resolution summary ----------
+
+const how = {};
+for (const r of clear) for (const cap of r.ex.capabilities) how[cap.resolved || "?"] = (how[cap.resolved || "?"] || 0) + 1;
+console.log(`\n${"=".repeat(72)}`);
+console.log("RESOLUTION — how each capability got its skill id");
+console.log("-".repeat(72));
+for (const [k, n] of Object.entries(how).sort((a, b) => b[1] - a[1])) console.log(`  ${String(n).padStart(3)}  ${k}`);
+const rescued = clear.flatMap((r) => r.ex.capabilities.filter((c) => c.resolved_from && c.skill_id).map((c) => `${r.id}: ${c.resolved_from} -> ${c.skill_id}`));
+if (rescued.length) { console.log("  proposed by the model, matched to an existing skill:"); for (const x of rescued) console.log(`    ${x}`); }
+
+const due = dueForReview(registry);
+const rejected = Object.values(registry).filter((e) => e.rejected).length;
+const promoted = Object.values(registry).filter((e) => e.promoted).length;
+const once = Object.keys(registry).length - due.length - rejected - promoted;
+console.log(`\n${"=".repeat(72)}`);
+console.log(`PROPOSED SKILLS DUE FOR REVIEW (${due.length}) — seen for 2+ ideas or in 2+ runs`);
+console.log("-".repeat(72));
+for (const [key, e] of due) {
+  console.log(`  ${key}   ideas: ${e.ideas.join(", ")}   runs: ${e.runs.length}${e.crux_count ? `   crux ×${e.crux_count}` : ""}`);
+  if (e.names.length > 1) console.log(`      also seen as: ${e.names.filter((n) => n !== key).join(", ")}`);
+  console.log(`      ${e.reasons[0]}`);
 }
-console.log();
+if (!due.length) console.log("  (none yet)");
+console.log(`\n${once} more proposal${once === 1 ? "" : "s"} seen only once — not listed; they surface if they recur. ${rejected} rejected, ${promoted} promoted to skills.\n`);

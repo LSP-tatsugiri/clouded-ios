@@ -41,3 +41,12 @@ fastlane/test_output
 .DS_Store
 *.swp
 *.lock
+
+# Supabase CLI state (contains linked project ref)
+supabase/.temp/
+supabase/.branches/
+
+# Env files (keys, URLs, passwords). Keep the examples.
+.env
+.env.*
+!.env.example

@@ -3,7 +3,7 @@
   { "id": "todo",        "raw": "personal todo list app idea" },
   { "id": "screws",      "raw": "screw dispenser and counter linked with a online database of all the parts that i have" },
   { "id": "blender-any", "raw": "blender animation" },
-  { "id": "coaster",     "raw": "pcb coaster" },
+  { "id": "coaster",     "raw": "pcb coaster", "clarification": "a smart coaster that senses the weight of the drink on it" },
   { "id": "rc-truck",    "raw": "rc truck" },
   { "id": "birds",       "raw": "drawing birds lining up on beach" },
   { "id": "fishtank",    "raw": "blender animation dish looking out a fishtank in Chinese restaurant" },
