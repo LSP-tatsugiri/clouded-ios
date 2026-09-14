@@ -108,6 +108,12 @@ revisiting when the friend pool grows.
 
 ## Phase C — the list
 
+- **Before porting, read `docs/refactor-extraction-core.md`.** An architecture
+  review on 2026-09-14 flagged this port as the third copy of the same logic.
+  `distance.js` is thirty lines of pure functions plus one line of import-time
+  I/O (`readFileSync(profile.json)`), and that one line is the only reason the
+  browser cannot import it directly. Taking held levels as a parameter instead
+  removes the need for both the copy and its parity test. Cheap now, not later.
 - `web/lib/distance.js`: port of `extraction/src/distance.js` (`classify`,
   `distanceOf`) plus the sort:
   1. crux status: held, then partial, then gap (a proposed crux counts as gap),
