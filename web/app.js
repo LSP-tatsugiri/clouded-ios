@@ -21,6 +21,11 @@ import { el, mount } from "./lib/dom.js";
 const LEVELS = ["none", "some", "solid"];
 const MARK = { have: "[x]", partial: "[~]", gap: "[ ]", proposed: "[?]" };
 
+// Declared before `state`, because state's initialiser calls currentRoute(),
+// which reads this. A const declared further down would still be in its
+// temporal dead zone at that point and throw on load.
+const ROUTES = new Set(["profile", "review"]);
+
 const app = document.getElementById("app");
 const state = {
   session: null,
@@ -38,11 +43,8 @@ const state = {
   busy: false
 };
 
-const ROUTES = new Set(["profile", "review"]);
-
-// Function declarations, not const arrows: `state` above calls currentRoute()
-// while it is being initialised, which is before any const on this line would
-// exist.
+// Function declarations, not const arrows, for the same reason ROUTES sits
+// above `state`: these run during that initialiser.
 function hashPath() { return location.hash.replace(/^#\/?/, ""); }
 
 function currentRoute() {
