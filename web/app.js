@@ -1,24 +1,33 @@
 // clouded — web client.
 //
-// Step 5 Phase A: sign in, list what you can see.
-// Step 5 Phase B: rate your skills, which is what distance is measured against.
+// Phase A: sign in, list what you can see.
+// Phase B: rate your skills, which is what distance is measured against.
+// Phase C: sort by distance, filter, and show which skill unlocks the most.
 //
-// The distance sort, the filters, the leverage panel and the idea page are
-// Phase C and D. The list is still in capture order and says so on screen, so
-// nothing here is mistaken for the ranking before distance.js exists.
+// classify / distanceOf / sortKey / leverage come from extraction/src/
+// distance.js, the same module the Node report uses, served through a mount in
+// serve.mjs rather than copied here. See docs/refactor-extraction-core.md.
 
-import { addIdea, db, ideas, mySkills, session, setSkillLevel, signIn, signOut, skills } from "./lib/db.js";
+import {
+  classify, compareKeys, cruxOf, cruxStatus, distanceOf, leverage, sortKey
+} from "/extraction/src/distance.js";
+import {
+  addIdea, capabilities, db, ideas, mySkills, session, setSkillLevel, signIn, signOut, skills
+} from "./lib/db.js";
 import { el, mount } from "./lib/dom.js";
 
 const LEVELS = ["none", "some", "solid"];
+const MARK = { have: "[x]", partial: "[~]", gap: "[ ]", proposed: "[?]" };
 
 const app = document.getElementById("app");
 const state = {
   session: null,
   route: currentRoute(),
   ideas: [],
-  skills: [],          // cached: 51 rows, seeded by migration, never changes at runtime
+  caps: [],
+  skills: [],          // 51 rows, seeded by migration, cached after first load
   levels: new Map(),   // skill_id -> none | some | solid
+  filters: { domain: "", crux: "", proposed: false },
   error: null,
   busy: false
 };
@@ -27,7 +36,12 @@ function currentRoute() {
   return location.hash.replace(/^#\/?/, "") === "profile" ? "profile" : "list";
 }
 
-// ---------------------------------------------------------------- chrome
+const skillName = (id) => state.skills.find((s) => s.id === id)?.name ?? id;
+
+// An "extraction" as distance.js expects it, assembled from the two tables.
+function extractionOf(idea, capsById) {
+  return { clear: idea.is_clear === true, capabilities: capsById.get(idea.id) ?? [] };
+}
 
 function header() {
   const tab = (href, label, route) =>
@@ -67,23 +81,124 @@ function signInView() {
 
 // ---------------------------------------------------------------- list
 
-function ideaRow(idea) {
+function capLabel(cap) {
+  return cap.skill_id ? skillName(cap.skill_id) : `${cap.proposed_key} (proposed)`;
+}
+
+function ideaRow({ idea, extraction }) {
+  const held = state.levels;
+  const d = distanceOf(extraction, held);
+  const crux = cruxOf(extraction);
+  const cruxClass = crux ? classify(crux, held) : null;
+  const anyProposed = extraction.capabilities.some((c) => !c.skill_id);
   const title = idea.objective || idea.raw;
+
+  const counts = d && [
+    `${d.gap} short`,
+    d.partial ? `${d.partial} partial` : null,
+    d.have ? `${d.have} held` : null
+  ].filter(Boolean).join(" · ");
+
   return el("li", { class: "idea" },
-    el("div", { class: "idea-title" }, title),
+    el("div", { class: "idea-head" },
+      el("div", { class: "idea-title" }, title),
+      d && el("span", { class: "counts" }, counts)
+    ),
     title !== idea.raw && el("div", { class: "idea-raw" }, idea.raw),
+
+    crux && el("div", { class: `crux ${cruxClass}` },
+      el("span", { class: "mark" }, MARK[cruxClass]),
+      el("span", { class: "crux-label" }, capLabel(crux)),
+      el("span", { class: "crux-tag" }, "the hard part")
+    ),
+
     el("div", { class: "meta" },
       idea.domain && el("span", { class: "tag" }, idea.domain),
-      idea.is_clear === false && el("span", { class: "tag warn" }, "needs a question"),
+      anyProposed && el("span", { class: "tag warn" }, "proposed skill"),
       idea.status !== "extracted" && el("span", { class: "tag warn" }, idea.status),
       idea.shared_to && el("span", { class: "tag" }, "shared")
     ),
-    idea.is_clear === false && idea.clarifying_question &&
-      el("p", { class: "question" }, idea.clarifying_question)
+
+    // the rest of the capabilities, crux first already shown above
+    el("ul", { class: "caps" },
+      extraction.capabilities.filter((c) => c !== crux).map((c) => {
+        const k = classify(c, held);
+        return el("li", { class: k },
+          el("span", { class: "mark" }, MARK[k]),
+          el("span", {}, capLabel(c))
+        );
+      })
+    )
+  );
+}
+
+function vagueRow(idea) {
+  return el("li", { class: "idea vague" },
+    el("div", { class: "idea-title" }, idea.raw),
+    idea.clarifying_question && el("p", { class: "question" }, idea.clarifying_question)
+  );
+}
+
+function filterBar(domains) {
+  const set = (k, v) => { state.filters[k] = v; render(); };
+  return el("div", { class: "filters" },
+    el("select", { onchange: (e) => set("domain", e.target.value) },
+      el("option", { value: "", selected: state.filters.domain === "" }, "any domain"),
+      domains.map((d) => el("option", { value: d, selected: state.filters.domain === d }, d))
+    ),
+    el("select", { onchange: (e) => set("crux", e.target.value) },
+      [["", "any crux"], ["have", "crux held"], ["partial", "crux partial"], ["gap", "crux is a gap"]]
+        .map(([v, label]) => el("option", { value: v, selected: state.filters.crux === v }, label))
+    ),
+    el("label", { class: "check" },
+      el("input", {
+        type: "checkbox",
+        checked: state.filters.proposed,
+        onchange: (e) => set("proposed", e.target.checked)
+      }),
+      el("span", {}, "has a proposed skill")
+    ),
+    (state.filters.domain || state.filters.crux || state.filters.proposed) &&
+      el("button", { class: "link", onclick: () => { state.filters = { domain: "", crux: "", proposed: false }; render(); } }, "clear")
+  );
+}
+
+function leveragePanel(items) {
+  const top = leverage(items, state.levels).slice(0, 10);
+  return el("aside", { class: "leverage" },
+    el("h2", {}, "Highest leverage"),
+    el("p", { class: "muted" }, "Learn this, and this many ideas move."),
+    el("ol", {}, top.map((e) => el("li", {},
+      el("span", { class: "n" }, String(e.ideaIds.length)),
+      el("span", {}, e.skillId ? skillName(e.skillId) : `${e.proposedName} (proposed)`)
+    ))),
+    !top.length && el("p", { class: "muted" }, "Nothing to learn — every capability is held.")
   );
 }
 
 function listView() {
+  const capsById = new Map();
+  for (const c of state.caps) {
+    if (!capsById.has(c.idea_id)) capsById.set(c.idea_id, []);
+    capsById.get(c.idea_id).push(c);
+  }
+
+  const rows = state.ideas.map((idea) => ({ idea, extraction: extractionOf(idea, capsById) }));
+  const clear = rows.filter((r) => r.idea.is_clear === true);
+  const vague = rows.filter((r) => r.idea.is_clear !== true);
+
+  // crux status first, then gaps, then partials, then title for a stable order
+  clear.sort((a, b) =>
+    compareKeys(sortKey(a.extraction, state.levels), sortKey(b.extraction, state.levels)) ||
+    (a.idea.objective || a.idea.raw).localeCompare(b.idea.objective || b.idea.raw));
+
+  const domains = [...new Set(state.ideas.map((i) => i.domain).filter(Boolean))].sort();
+  const f = state.filters;
+  const shown = clear.filter((r) =>
+    (!f.domain || r.idea.domain === f.domain) &&
+    (!f.crux || cruxStatus(r.extraction, state.levels) === f.crux) &&
+    (!f.proposed || r.extraction.capabilities.some((c) => !c.skill_id)));
+
   const add = el("form", {
     class: "add",
     onsubmit: (e) => {
@@ -98,13 +213,28 @@ function listView() {
     el("button", { type: "submit", disabled: state.busy }, "Add")
   );
 
+  const rated = state.levels.size;
+
   return el("div", {},
     header(),
     add,
     state.error && el("p", { class: "error" }, state.error),
+    filterBar(domains),
     el("p", { class: "muted" },
-      `${state.ideas.length} ideas · capture order, until the distance sort lands`),
-    el("ul", { class: "ideas" }, state.ideas.map(ideaRow))
+      `${shown.length} of ${clear.length} ideas · closest to buildable first` +
+      (rated ? "" : " · rate your skills on the Profile tab to make this mean anything")),
+    el("div", { class: "columns" },
+      el("div", {},
+        el("ul", { class: "ideas" }, shown.map(ideaRow)),
+        !shown.length && el("p", { class: "muted" }, "No idea matches those filters."),
+        vague.length > 0 && el("section", { class: "vague-section" },
+          el("h2", {}, `Too vague to extract (${vague.length})`),
+          el("p", { class: "muted" }, "The app should ask, not guess."),
+          el("ul", { class: "ideas" }, vague.map((r) => vagueRow(r.idea)))
+        )
+      ),
+      leveragePanel(clear.map((r) => ({ id: r.idea.id, extraction: r.extraction })))
+    )
   );
 }
 
@@ -115,17 +245,12 @@ function listView() {
 const status = el("span", { class: "status" }, "");
 const tally = el("p", { class: "muted" }, "");
 
-function countLevels() {
+function refreshTally() {
   const n = { none: 0, some: 0, solid: 0, unrated: 0 };
   for (const s of state.skills) {
     const lv = state.levels.get(s.id);
     if (lv) n[lv]++; else n.unrated++;
   }
-  return n;
-}
-
-function refreshTally() {
-  const n = countLevels();
   const rated = state.skills.length - n.unrated;
   tally.textContent =
     `${rated} of ${state.skills.length} rated · ${n.solid} solid · ${n.some} some · ${n.none} none`;
@@ -146,9 +271,7 @@ function levelControl(skill) {
   return el("div", { class: "seg-group", role: "radiogroup", "aria-label": skill.name },
     LEVELS.map((lv) => el("label", { class: "seg" },
       el("input", {
-        type: "radio",
-        name: `lvl-${skill.id}`,
-        value: lv,
+        type: "radio", name: `lvl-${skill.id}`, value: lv,
         checked: current === lv,
         onchange: () => save(skill.id, lv)
       }),
@@ -171,7 +294,6 @@ function skillRow(skill) {
 }
 
 function profileView() {
-  // skills arrive ordered by sort_order; keep that order inside each domain
   const byDomain = new Map();
   for (const s of state.skills) {
     const d = s.domain || "other";
@@ -182,8 +304,7 @@ function profileView() {
 
   return el("div", {},
     header(),
-    el("p", { class: "muted" },
-      "Be honest. An inflated profile makes every distance wrong."),
+    el("p", { class: "muted" }, "Be honest. An inflated profile makes every distance wrong."),
     el("div", { class: "tally-row" }, tally, status),
     state.error && el("p", { class: "error" }, state.error),
     [...byDomain].map(([domain, list]) => el("section", { class: "domain" },
@@ -209,18 +330,22 @@ async function run(fn) {
 
 async function load() {
   if (!state.session) {
-    state.ideas = []; state.skills = []; state.levels = new Map();
+    state.ideas = []; state.caps = []; state.skills = []; state.levels = new Map();
     return;
   }
-  if (state.route === "profile") {
-    const [table, mine] = await Promise.all([
-      state.skills.length ? state.skills : skills(),
-      mySkills(state.session.user.id)
-    ]);
-    state.skills = table;
-    state.levels = new Map(mine.map((r) => [r.skill_id, r.level]));
-  } else {
-    state.ideas = await ideas();
+  // both views need the skill table and the profile: the list to classify, the
+  // profile to show what is set
+  const [table, mine] = await Promise.all([
+    state.skills.length ? state.skills : skills(),
+    mySkills(state.session.user.id)
+  ]);
+  state.skills = table;
+  state.levels = new Map(mine.map((r) => [r.skill_id, r.level]));
+
+  if (state.route === "list") {
+    const [ideaRows, capRows] = await Promise.all([ideas(), capabilities()]);
+    state.ideas = ideaRows;
+    state.caps = capRows;
   }
 }
 

@@ -1,9 +1,13 @@
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { extract, skills, promptHash } from "./extract.js";
-import { distanceOf, classify, profile } from "./distance.js";
+import { distanceOf, classify } from "./distance.js";
 import { resolveExtraction, loadRegistry, saveRegistry, dueForReview } from "./resolve.js";
 
 const ideas = JSON.parse(readFileSync(new URL("../data/ideas.json", import.meta.url)));
+// distance.js is pure and takes the profile as a parameter, so the levels are
+// read here. Anything not listed counts as "none".
+const profile = JSON.parse(readFileSync(new URL("../data/profile.json", import.meta.url)));
+const held = profile.skills || {};
 const CACHE = new URL("../out/extractions.json", import.meta.url);
 const force = process.argv.includes("--force");
 
@@ -65,16 +69,19 @@ const rows = ideas
 const clear = rows.filter((r) => r.ex.clear);
 const vague = rows.filter((r) => !r.ex.clear);
 
-clear.sort((a, b) => distanceOf(a.ex).score - distanceOf(b.ex).score);
+// Still the flat score here. The crux-first sort lives in distance.js and the
+// web list uses it; this report is the prompt-tuning tool, and changing what
+// it prints would only make old runs harder to compare.
+clear.sort((a, b) => distanceOf(a.ex, held).score - distanceOf(b.ex, held).score);
 
 for (const r of clear) {
-  const d = distanceOf(r.ex);
+  const d = distanceOf(r.ex, held);
   console.log(`\n${"=".repeat(72)}`);
   console.log(`${r.raw}`);
   console.log(`${d.gap} short${d.partial ? ` · ${d.partial} partial` : ""}${d.have ? ` · ${d.have} held` : ""}`);
   console.log("-".repeat(72));
   for (const cap of r.ex.capabilities) {
-    const c = classify(cap);
+    const c = classify(cap, held);
     const mark = { have: "[x]", partial: "[~]", gap: "[ ]", proposed: "[?]" }[c];
     const label = cap.skill_id ? skillName[cap.skill_id] || cap.skill_id : `${cap.proposed_name}  (proposed)`;
     console.log(`  ${mark} ${label}${cap.is_crux ? "   <-- crux" : ""}`);
@@ -93,7 +100,7 @@ if (vague.length) {
 const unlocks = {};
 for (const r of clear) {
   for (const cap of r.ex.capabilities) {
-    if (classify(cap) === "have") continue;
+    if (classify(cap, held) === "have") continue;
     const key = cap.skill_id || `proposed:${cap.proposed_name}`;
     (unlocks[key] ||= []).push(r.id);
   }

@@ -4,8 +4,7 @@
 //   node web/serve.mjs 8080
 //
 // A server is needed because ES modules do not load over file://. This one is
-// for local development only: it binds to 127.0.0.1 and serves this one
-// directory, and there is no reason to put it on a network.
+// for local development only and serves two directories to this one machine.
 
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
@@ -14,6 +13,16 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = fileURLToPath(new URL(".", import.meta.url));
 const PORT = Number(process.argv[2]) || 5173;
+
+// The browser can only fetch inside the served root, so the shared pure
+// modules are mounted rather than copied (docs/refactor-extraction-core.md).
+// Narrow on purpose: extraction/.env holds the Anthropic key and sits one
+// level above extraction/src/, so it is not reachable through this mount.
+// Step 7 hosting has to reproduce this mapping, or serve the file from a path
+// the page can reach.
+const MOUNTS = [
+  ["/extraction/src/", fileURLToPath(new URL("../extraction/src/", import.meta.url))]
+];
 
 const TYPES = {
   ".html": "text/html; charset=utf-8",
@@ -26,6 +35,27 @@ const TYPES = {
   ".ico": "image/x-icon"
 };
 
+// normalize() resolves ".." first, so anything still climbing out is an
+// attempt at traversal rather than a stray path segment.
+function safeRel(p) {
+  const rel = normalize(p).replace(/^[/\\]+/, "");
+  return rel.split(sep).includes("..") ? null : rel;
+}
+
+// Prefixes are matched before normalize(), because normalize() rewrites "/"
+// to "\" on Windows and the mount keys are URL paths.
+function resolvePath(decoded) {
+  for (const [prefix, base] of MOUNTS) {
+    if (decoded.startsWith(prefix)) {
+      const rel = safeRel(decoded.slice(prefix.length));
+      return rel ? join(base, rel) : null;
+    }
+  }
+  const rel = safeRel(decoded);
+  if (rel === null) return null;
+  return join(ROOT, rel === "" ? "index.html" : rel);
+}
+
 // Everything is inside the try: a throw out here takes the whole server down,
 // and one malformed request should not end the session.
 const server = createServer(async (req, res) => {
@@ -33,12 +63,9 @@ const server = createServer(async (req, res) => {
     // Collapse leading slashes first. "//" parses as a protocol-relative URL
     // with an empty host, which throws, and any page can request it.
     const target = (req.url || "/").replace(/^\/+/, "/");
-    const pathname = new URL(target, "http://localhost").pathname;
-    const rel = normalize(decodeURIComponent(pathname)).replace(/^[/\\]+/, "");
-    // normalize() resolves ".." first, so anything still climbing out is an
-    // attempt at traversal rather than a stray path segment
-    if (rel.split(sep).includes("..")) { res.writeHead(403).end("forbidden"); return; }
-    const path = join(ROOT, rel === "" ? "index.html" : rel);
+    const decoded = decodeURIComponent(new URL(target, "http://localhost").pathname);
+    const path = resolvePath(decoded);
+    if (path === null) { res.writeHead(403).end("forbidden"); return; }
 
     const body = await readFile(path);
     res.writeHead(200, {

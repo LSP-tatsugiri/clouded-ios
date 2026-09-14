@@ -186,10 +186,18 @@ crux 10/16.
 `stability.js 3`) and committed. Same-model wobble on sonnet-5: crux
 identical 16/19 (13/16 of the clear ideas), verdict 19/19, skill overlap
 0.89. Hosted vs that baseline: verdict 19/19, exact skill set 8/16, overlap
-87%, crux 13/16. The crux figure is identical to the within-model wobble and
-two of the three disagreeing ideas (pokemon-bin, dryer) are the ones
-`stability.js` flags as unstable. That is model wobble, not pipeline drift.
-Step 4 is done. Spend for the whole step: about $1.80.
+87%, **crux 14/16**. Both remaining disagreements (`todo`, `pokemon-bin`)
+are ideas `stability.js` already flags as unstable, so this is model wobble
+rather than pipeline drift. Step 4 is done. Spend: about $1.80.
+
+**Corrected 2026-09-14.** That crux figure first read 13/16. A test written
+during Step 5 Phase C found why: the model marks *two* cruxes on roughly one
+idea in ten, and `dryer` is one of them (`airflow-thermal` then
+`mains-safety`). `acceptance.mjs` took the last marked capability while
+`capabilityRows()` keeps the first, so the two sides were compared on
+different capabilities and `dryer` was scored as a disagreement it never
+was. Both now use `cruxOf()` from `extraction/src/distance.js`. The database
+was always right; only the comparison was wrong.
 
 ## Trello cards this closes
 

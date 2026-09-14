@@ -16,6 +16,7 @@
 // cleans up. Only seed and rerun spend API credits.
 
 import { readFileSync } from "node:fs";
+import { cruxOf } from "../../extraction/src/distance.js";
 
 const need = (k) => { const v = process.env[k]; if (!v) { console.error(`${k} is missing from supabase/.env`); process.exit(1); } return v; };
 const BASE = need("SUPABASE_URL").replace(/\/$/, "");
@@ -89,14 +90,17 @@ async function wait() {
 
 // ---------------------------------------------------------------- diff
 
-function summarise(caps, { skillKey, propKey, cruxKey }) {
+// The crux comes from the shared module rather than a loop here. It has to:
+// the model marks two cruxes on roughly one idea in ten, and picking the last
+// on one side while the database keeps the first reported a disagreement that
+// was never there.
+function summarise(caps, { skillKey, propKey }) {
   const skills = new Set(), proposed = new Set();
-  let crux = null;
   for (const c of caps) {
     if (c[skillKey]) skills.add(c[skillKey]); else if (c[propKey]) proposed.add(c[propKey]);
-    if (cruxKey(c)) crux = c[skillKey] || c[propKey];
   }
-  return { skills, proposed, crux };
+  const crux = cruxOf({ capabilities: caps });
+  return { skills, proposed, crux: crux ? (crux[skillKey] || crux[propKey]) : null };
 }
 
 async function diff() {
@@ -122,8 +126,8 @@ async function diff() {
       console.log(`${idea.id.padEnd(13)} ${String(b.clear).padEnd(5)}/${String(db.is_clear).padEnd(5)} ${clearMatch ? "=" : "≠"}  (vague)`);
       continue;
     }
-    const B = summarise(b.capabilities, { skillKey: "skill_id", propKey: "proposed_name", cruxKey: (c) => c.is_crux });
-    const D = summarise(capsBy[db.id] || [], { skillKey: "skill_id", propKey: "proposed_key", cruxKey: (c) => c.crux_rank === 1 });
+    const B = summarise(b.capabilities, { skillKey: "skill_id", propKey: "proposed_name" });
+    const D = summarise(capsBy[db.id] || [], { skillKey: "skill_id", propKey: "proposed_key" });
     const same = [...B.skills].filter((s) => D.skills.has(s));
     const added = [...D.skills].filter((s) => !B.skills.has(s));
     const missing = [...B.skills].filter((s) => !D.skills.has(s));

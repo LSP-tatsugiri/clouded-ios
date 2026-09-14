@@ -151,6 +151,89 @@ button.link {
   font-size: 0.9rem;
 }
 
+/* list: filters, columns, leverage */
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+select {
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 0.3rem 0.5rem;
+  color: var(--fg);
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.check { flex-direction: row; align-items: center; gap: 0.35rem; font-size: 0.85rem; }
+.check input { width: auto; }
+
+.columns { display: grid; grid-template-columns: 1fr 14rem; gap: 2rem; align-items: start; }
+
+@media (max-width: 48rem) {
+  .columns { grid-template-columns: 1fr; }
+  .leverage { order: -1; }
+}
+
+.leverage {
+  position: sticky;
+  top: 1rem;
+  padding: 0.9rem 1rem;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.leverage h2 { font-size: 0.95rem; margin: 0; }
+.leverage .muted { margin: 0.2rem 0 0.6rem; font-size: 0.8rem; }
+.leverage ol { margin: 0; padding: 0; list-style: none; font-size: 0.85rem; }
+.leverage li { display: flex; gap: 0.5rem; padding: 0.2rem 0; }
+.leverage .n { color: var(--accent); font-weight: 600; min-width: 1.2rem; text-align: right; }
+
+/* list: idea rows */
+
+.idea-head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; }
+.counts { font-size: 0.78rem; color: var(--muted); white-space: nowrap; }
+
+.mark {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.crux {
+  display: flex;
+  align-items: baseline;
+  gap: 0.45rem;
+  margin-top: 0.5rem;
+  padding: 0.35rem 0.5rem;
+  border-left: 3px solid var(--line);
+  background: var(--card);
+  font-size: 0.9rem;
+}
+
+.crux.have { border-left-color: var(--accent); }
+.crux.partial { border-left-color: var(--warn-fg); }
+.crux.gap, .crux.proposed { border-left-color: var(--error); }
+
+.crux-label { flex: 1; }
+.crux-tag { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+
+.caps { list-style: none; margin: 0.45rem 0 0; padding: 0; }
+.caps li { display: flex; gap: 0.45rem; font-size: 0.85rem; color: var(--muted); padding: 0.1rem 0; }
+.caps li.have .mark { color: var(--accent); }
+
+.vague-section { margin-top: 2.5rem; }
+.vague-section h2 { font-size: 0.95rem; margin: 0; }
+.vague-section .muted { margin: 0.2rem 0 0; }
+.idea.vague .idea-title { font-weight: 400; color: var(--muted); }
+
 /* nav */
 
 nav { display: flex; align-items: baseline; gap: 1rem; }

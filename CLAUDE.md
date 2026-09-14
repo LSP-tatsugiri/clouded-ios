@@ -93,6 +93,14 @@ while out. Capture is the only phone-first part.
 - **Model is `claude-sonnet-5`** as of 2026-09-12; the committed baseline in
   `out/` is from sonnet-5 (2026-09-13, prompt `e3446a126ffc`). Same-prompt
   wobble on it: crux identical 16/19, verdict 19/19, skill overlap 0.89.
+- **The model sometimes marks two cruxes**, despite the invariant saying
+  exactly one. It happened 5 times across 4 committed runs of 19 ideas, about
+  1 idea in 10; `dryer` does it in the committed baseline. The database is
+  safe (a partial unique index enforces one `crux_rank = 1`, and
+  `capabilityRows()` keeps the first), but anything reading the JSON must pick
+  deterministically: use `cruxOf()` from `distance.js`, never an ad-hoc loop.
+  Reading the last on one side and the first on the other invented a false
+  disagreement in the Phase D numbers once already.
 - **Sonnet 5 sometimes returns the tool input double-encoded** — the whole
   record as a JSON string inside `capabilities`, about 1 call in 4. Both
   `extract.js` and the edge function decode it (`repairExtraction`) and

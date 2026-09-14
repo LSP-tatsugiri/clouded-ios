@@ -121,22 +121,36 @@ revisiting when the friend pool grows.
   `acceptance.mjs rls`. "Flipping a level changes the list order" cannot hold
   yet, because the list has no distance sort until Phase C. Re-check it there.
 
-## Phase C — the list
+## Phase C — the list (built 2026-09-14)
 
-- **Before porting, read `docs/refactor-extraction-core.md`.** An architecture
-  review on 2026-09-14 flagged this port as the third copy of the same logic.
-  `distance.js` is thirty lines of pure functions plus one line of import-time
-  I/O (`readFileSync(profile.json)`), and that one line is the only reason the
-  browser cannot import it directly. Taking held levels as a parameter instead
-  removes the need for both the copy and its parity test. Cheap now, not later.
-- `web/lib/distance.js`: port of `extraction/src/distance.js` (`classify`,
-  `distanceOf`) plus the sort:
-  1. crux status: held, then partial, then gap (a proposed crux counts as gap),
-  2. gap count (proposed capabilities count as gaps, as in the script),
-  3. partial count, then title.
-  A Node test (`node --test web/lib/`) asserts `classify` and `distanceOf`
-  agree with `extraction/src/distance.js` on the committed baseline, and
-  pins the sort on hand-built cases.
+- **No second copy of distance.** The architecture review's candidate 2 was
+  taken: `extraction/src/distance.js` lost its one line of import-time I/O
+  (`readFileSync(profile.json)`) and now takes `held` as a parameter, so the
+  browser imports the same module the Node report uses. `web/lib/distance.js`
+  was never created, and there is no parity test to keep in step.
+  `serve.mjs` mounts `/extraction/src/` read-only to make it reachable;
+  the mount is deliberately narrow because `extraction/.env` sits one level
+  above, and that is verified, not assumed. **Step 7 hosting must reproduce
+  this mapping.**
+- `distance.js` gained `cruxOf`, `cruxStatus`, `sortKey`, `compareKeys` and
+  `leverage`, all pure, and accepts `held` as a `Map` or a plain object so the
+  browser and the script can each pass what they already have. It also accepts
+  both field spellings, `is_crux`/`proposed_name` from the baseline JSON and
+  `crux_rank`/`proposed_key` from the database.
+- The sort: crux status (held, then partial, then gap; a proposed crux counts
+  as gap), then gap count, then partial count, then title.
+- `extraction/src/distance.test.js`, 19 tests via `node --test`. Note the
+  file, not the directory: `node --test extraction/src/` executes `index.js`
+  and runs the whole report.
+- **A test found a real bug in a published number.** The model marks two
+  cruxes on about one idea in ten, and `acceptance.mjs` was taking the last
+  while `capabilityRows()` keeps the first, which scored `dryer` as a
+  disagreement that never existed. Both now call `cruxOf()`. Phase D's crux
+  figure is corrected from 13/16 to 14/16 in `docs/step-4-plan.md`, and the
+  double-marking is recorded in `CLAUDE.md`.
+- The Node report keeps the flat score sort. It is the prompt-tuning tool, and
+  changing what it prints would only make old runs harder to compare; `npm
+  start` output is byte-identical after the parameterisation.
 - Row: title (`raw`, or `objective` when present), crux name with its
   status mark, `N short · M partial · K held`, domain, and `[?]` when any
   capability is still proposed. Vague ideas (`is_clear = false`) sit in
