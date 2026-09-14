@@ -50,3 +50,6 @@ supabase/.branches/
 .env
 .env.*
 !.env.example
+
+# Web client config (project URL + anon key). Keep the example.
+web/config.js

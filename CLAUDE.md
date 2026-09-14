@@ -4,8 +4,9 @@ An idea database that reports how far each idea is from something the owner coul
 actually build. Read `README.md` for the full design; this file is the short list
 of things to keep true while writing code. `docs/design-review.md` holds the
 open questions and the reasoning behind the product decisions.
-`docs/step-4-plan.md` is the current build step (Supabase schema + edge
-function) with its open decisions — read it before touching `supabase/`.
+`docs/step-4-plan.md` covers Supabase and the edge function — read it before
+touching `supabase/`. `docs/step-5-plan.md` is the current build step (the
+web list view) and records its decisions.
 
 Audience: the author plus ~10 friends. No growth, revenue, or public users.
 Optimise for low friction and few moving parts, not for scale.
@@ -41,12 +42,19 @@ These are load-bearing. Changing one is a product decision, not a refactor.
   into gaps; `src/stability.js` measures run-to-run wobble; `data/skills.json`
   is the canonical table (51 entries); `schema.sql` is the starting point for
   the Supabase migration; `out/` is committed on purpose.
+- `supabase/` — `migrations/` is the schema, `functions/extract/` is the
+  pipeline as a Deno edge function with its tests in `functions/_shared/`,
+  `scripts/` holds the seed and acceptance drivers. Keys live in gitignored
+  `supabase/.env`.
+- `web/` — the web client. Plain ES modules, no bundler, no framework;
+  `@supabase/supabase-js` from a pinned CDN. `config.js` is gitignored.
 - `/` — the iOS app. Empty on purpose; capture is built last, because what an
   entry stores depends on what extraction produces.
 
 Run: `cd extraction && npm start` (uses cached output) or `npm run fresh`
 (re-extracts everything after a prompt change). Needs `ANTHROPIC_API_KEY` in
-`extraction/.env`.
+`extraction/.env`. The web client is `node web/serve.mjs`; the Deno tests are
+`deno test --allow-read --allow-env supabase/functions/_shared/`.
 
 ## Build order
 

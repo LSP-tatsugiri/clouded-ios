@@ -22,7 +22,13 @@ web client; nothing here is built yet.
 - Trello board: https://trello.com/b/eSTxmwz7/clouded. Commit messages name
   what shipped.
 
-## Decisions still open (decide before Phase A)
+## Decisions (made 2026-09-14)
+
+All four recommendations below were accepted as written: seed `user_skills`
+with a script now and a profile page in Phase B; show one crux, not a ranked
+top-2; keep the anon key in a gitignored `web/config.js`; plain ES modules
+with no bundler. The reasoning is kept because the crux decision is worth
+revisiting when the friend pool grows.
 
 1. **Seeding `user_skills` from `profile.json`.** Options:
    (a) a one-off script, `supabase/scripts/seed-profile.mjs --user <uuid>`,
@@ -65,18 +71,32 @@ web client; nothing here is built yet.
    framework buys nothing here and adds a build step to every change. If
    the group feed (deferred) ever needs it, that is the time.
 
-## Phase A — scaffold and sign-in
+## Phase A — scaffold and sign-in (built 2026-09-14)
 
-- `web/index.html`, `web/app.js`, `web/lib/db.js` (client from `config.js`),
-  `web/lib/distance.js` (see Phase C), `web/style.css`. One page, hash
-  routing between list / idea / profile.
-- Sign-in with email + password against Supabase Auth (the test user
-  already exists; magic links need an SMTP setup and can wait). Signed-out
-  shows only the sign-in form.
-- `supabase/scripts/seed-profile.mjs` per decision 1(a). Run it once for the
-  author.
-- Acceptance: sign in as `test@clouded.dev`, see 19 idea titles; the anon
-  key alone sees the sign-in form and nothing else.
+- `web/`: `index.html`, `app.js`, `style.css`, `lib/db.js` (the client and
+  every query), `lib/dom.js` (an `el()` helper whose string children become
+  text nodes, so idea text can never inject markup), `config.example.js`.
+  `config.js` is gitignored and generated from `supabase/.env`.
+- `web/serve.mjs`: a no-dependency static server bound to 127.0.0.1, because
+  ES modules will not load over `file://`. `node web/serve.mjs` →
+  http://localhost:5173. This replaces the `npx serve` in the sketch above;
+  one fewer install, and it refuses path traversal.
+- Sign-in is email + password against Supabase Auth; signed out, the page is
+  only the form. Magic links need SMTP and can wait.
+- `supabase/scripts/seed-profile.mjs --user <uuid> [--dry-run]` upserts
+  `profile.json` into `user_skills` through the service role. Unknown skill
+  ids are skipped with a warning; a level outside none/some/solid is a hard
+  error, because a typo would quietly become a wrong distance. Run once for
+  the author: 14 of 14 rows, 0 skipped.
+- No hash routing yet — there is one view, so adding a router before the
+  second view would be furniture. It arrives with the profile page.
+- The list is deliberately in capture order and says so on screen, so
+  nothing is mistaken for the ranking before `distance.js` exists.
+- Verified from here: every file parses; the server returns the right status
+  and content type for each route and 404s encoded traversal without leaking
+  repo files; the exact `ideas` select the client issues returns 19 rows
+  with the expected columns; the anon key alone returns 0.
+  Still needs a human: the browser sign-in itself.
 
 ## Phase B — profile page
 
