@@ -43,10 +43,14 @@ export async function capabilities() {
     .select("idea_id, skill_id, proposed_key, reason, crux_rank, resolved"), "capabilities");
 }
 
+// RLS hides rows rather than refusing them, so a stranger's link and a
+// mistyped id both come back as no row, not an error.
 export async function idea(id) {
-  return ok(await db.from("ideas")
+  const row = ok(await db.from("ideas")
     .select("id, user_id, raw, clarification, objective, domain, is_clear, clarifying_question, status, shared_to, created_at")
-    .eq("id", id).single(), "idea");
+    .eq("id", id).maybeSingle(), "idea");
+  if (!row) throw new Error("No such idea, or it is not shared with you.");
+  return row;
 }
 
 // resolved_from and resolve_why are only fetched here, on the one page that

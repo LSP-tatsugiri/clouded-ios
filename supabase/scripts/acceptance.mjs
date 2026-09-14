@@ -8,15 +8,19 @@
 //   node --env-file=supabase/.env supabase/scripts/acceptance.mjs diff  --user <uuid>
 //   node --env-file=supabase/.env supabase/scripts/acceptance.mjs rls   --user <uuid>
 //   node --env-file=supabase/.env supabase/scripts/acceptance.mjs rerun <idea_id>
+//   node --env-file=supabase/.env supabase/scripts/acceptance.mjs list  --user <uuid>
 //
 // seed inserts extraction/data/ideas.json under --user (skips raws already
 // there); the webhook extracts them. wait polls until none are pending. diff
 // compares idea_capabilities with extraction/out/extractions.json. rls creates
 // two throwaway users, shares one idea to a group, checks who sees what, and
-// cleans up. Only seed and rerun spend API credits.
+// cleans up. list prints the reference for the web list (docs/step-5-plan.md
+// Phase C): the sorted order and the leverage top 10 for --user's profile,
+// from the same rows and the same distance.js the browser imports. Only seed
+// and rerun spend API credits.
 
 import { readFileSync } from "node:fs";
-import { cruxOf } from "../../extraction/src/distance.js";
+import { compareKeys, cruxOf, cruxStatus, distanceOf, leverage, sortKey } from "../../extraction/src/distance.js";
 
 const need = (k) => { const v = process.env[k]; if (!v) { console.error(`${k} is missing from supabase/.env`); process.exit(1); } return v; };
 const BASE = need("SUPABASE_URL").replace(/\/$/, "");
@@ -192,7 +196,9 @@ async function rls() {
     const bSkills = await b("user_skills?select=user_id,skill_id");
     check("B sees A's skill profile (shared group)", bSkills.some((r) => r.user_id === USER && r.skill_id === "parametric-cad"), `${bSkills.length} rows`);
     check("B can read the skills table", (await b("skills?select=id&limit=1")).length === 1);
-    check("B cannot read proposed_skills", await denied(b("proposed_skills?select=key")));
+    // since 20260914063115 authenticated has select behind is_curator(): a
+    // non-curator gets an empty result, not a permission error
+    check("B (not a curator) reads no proposed_skills", (await b("proposed_skills?select=key")).length === 0);
     check("B cannot read extraction_runs", (await b("extraction_runs?select=id")).length === 0);
     check("B cannot insert an idea as A", await denied(rest("ideas", { method: "POST", body: { user_id: USER, raw: "forged" }, token: bTok, apikey: ANON })));
 
@@ -220,6 +226,56 @@ async function rls() {
   if (failed) process.exit(1);
 }
 
+// ---------------------------------------------------------------- list
+
+// The same computation web/app.js does, through the service role instead of
+// the signed-in session, so the browser can be checked against it by eye.
+async function list() {
+  requireUser();
+  const [ideas, allCaps, mine, skills] = await Promise.all([
+    rest(`ideas?select=id,raw,objective,domain,is_clear,status&user_id=eq.${USER}&order=created_at.asc`),
+    rest("idea_capabilities?select=idea_id,skill_id,proposed_key,crux_rank"),
+    rest(`user_skills?select=skill_id,level&user_id=eq.${USER}`),
+    rest("skills?select=id,name")
+  ]);
+  const ids = new Set(ideas.map((i) => i.id));
+  const capsById = new Map();
+  for (const c of allCaps) {
+    if (!ids.has(c.idea_id)) continue;
+    if (!capsById.has(c.idea_id)) capsById.set(c.idea_id, []);
+    capsById.get(c.idea_id).push(c);
+  }
+  const held = new Map(mine.map((r) => [r.skill_id, r.level]));
+  const name = new Map(skills.map((s) => [s.id, s.name]));
+  const title = (i) => i.objective || i.raw;
+  const skillLabel = (id, proposed) => id ? name.get(id) ?? id : `proposed: ${proposed}`;
+
+  const rows = ideas.map((idea) => ({
+    idea, extraction: { clear: idea.is_clear === true, capabilities: capsById.get(idea.id) ?? [] }
+  }));
+  const clear = rows.filter((r) => r.idea.is_clear === true);
+  const vague = rows.filter((r) => r.idea.is_clear !== true);
+  clear.sort((a, b) =>
+    compareKeys(sortKey(a.extraction, held), sortKey(b.extraction, held)) ||
+    title(a.idea).localeCompare(title(b.idea)));
+
+  const mark = { have: "held", partial: "partial", gap: "gap", proposed: "gap?" };
+  console.log(`profile: ${mine.length} rated skills\n\nclear ideas in list order (${clear.length}):`);
+  for (const [n, r] of clear.entries()) {
+    const d = distanceOf(r.extraction, held);
+    const crux = cruxOf(r.extraction);
+    const flag = r.extraction.capabilities.some((c) => !c.skill_id) ? "  [?]" : "";
+    console.log(`  ${String(n + 1).padStart(2)}. ${title(r.idea).slice(0, 44).padEnd(44)}  ${(mark[cruxStatus(r.extraction, held)] ?? "-").padEnd(7)}  ${d.gap} short · ${d.partial} partial · ${d.have} held  ${r.idea.domain ?? ""}${flag}`);
+    console.log(`      crux: ${crux ? skillLabel(crux.skill_id, crux.proposed_key) : "(none)"}`);
+  }
+  console.log(`\nvague or unranked (${vague.length}):`);
+  for (const r of vague) console.log(`  ${r.idea.status.padEnd(9)} ${title(r.idea).slice(0, 60)}`);
+
+  console.log("\nhighest leverage (top 10):");
+  const top = leverage(clear.map((r) => ({ id: r.idea.id, extraction: r.extraction })), held).slice(0, 10);
+  for (const e of top) console.log(`  ${String(e.ideaIds.length).padStart(2)}  ${skillLabel(e.skillId, e.proposedName)}`);
+}
+
 // ---------------------------------------------------------------- rerun
 
 async function rerun() {
@@ -233,6 +289,6 @@ async function rerun() {
   console.log(res.status, await res.text());
 }
 
-const cmds = { seed, wait, diff, rls, rerun };
+const cmds = { seed, wait, diff, rls, rerun, list };
 if (!cmds[cmd]) { console.error(`usage: acceptance.mjs <${Object.keys(cmds).join("|")}>`); process.exit(1); }
 await cmds[cmd]();

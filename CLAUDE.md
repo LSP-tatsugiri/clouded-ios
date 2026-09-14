@@ -5,8 +5,9 @@ actually build. Read `README.md` for the full design; this file is the short lis
 of things to keep true while writing code. `docs/design-review.md` holds the
 open questions and the reasoning behind the product decisions.
 `docs/step-4-plan.md` covers Supabase and the edge function — read it before
-touching `supabase/`. `docs/step-5-plan.md` is the current build step (the
-web list view) and records its decisions.
+touching `supabase/`. `docs/step-5-plan.md` covers the web client and records
+what each phase decided and verified — read it before touching `web/`. Step 6
+(iOS capture) is current and has no plan yet.
 
 Audience: the author plus ~10 friends. No growth, revenue, or public users.
 Optimise for low friction and few moving parts, not for scale.
@@ -46,8 +47,11 @@ These are load-bearing. Changing one is a product decision, not a refactor.
   pipeline as a Deno edge function with its tests in `functions/_shared/`,
   `scripts/` holds the seed and acceptance drivers. Keys live in gitignored
   `supabase/.env`.
-- `web/` — the web client. Plain ES modules, no bundler, no framework;
-  `@supabase/supabase-js` from a pinned CDN. `config.js` is gitignored.
+- `web/` — the web client: list, idea page, profile, curator review. Plain ES
+  modules, no bundler, no framework; `@supabase/supabase-js` from a pinned
+  CDN. `config.js` is gitignored. It imports `extraction/src/distance.js`
+  directly (one copy of the distance logic), which `serve.mjs` serves by
+  mounting `/extraction/src/` read-only — hosting must reproduce that mapping.
 - `/` — the iOS app. Empty on purpose; capture is built last, because what an
   entry stores depends on what extraction produces.
 
@@ -62,8 +66,8 @@ Run: `cd extraction && npm start` (uses cached output) or `npm run fresh`
 2. Tune the prompt until capabilities are consistently checkable — done
 3. Hand-curate the skills table from what extraction produces — done; ongoing via `out/proposed.json`
 4. Supabase schema + pipeline as an edge function — done 2026-09-13, see `docs/step-4-plan.md`
-5. Web list view, sorted and filterable ← current, see `docs/step-5-plan.md`
-6. iOS capture app + Share Extension
+5. Web list view, sorted and filterable — done 2026-09-14, see `docs/step-5-plan.md`
+6. iOS capture app + Share Extension ← current, no plan yet
 7. Sharing and the friend skill pool
 8. Later: graph view, roadmaps, starter kits
 
@@ -75,8 +79,9 @@ while out. Capture is the only phone-first part.
 - **Distance is a flat count of gaps.** "Pick PETG for heat" and "mechanical
   singulation of small fasteners" both count 1, and the model is capped at 3–7
   capabilities, so a weekend project and a six-month one can score the same.
-  Planned fix: sort by crux status first (held / partial / gap), then by gap
-  count. Consider a per-capability flag for "learnable from a tutorial" vs
+  The web list sorts by crux status first (held / partial / gap), then by gap
+  count (`sortKey` in `distance.js`), which fixes the ordering but not the
+  size. Consider a per-capability flag for "learnable from a tutorial" vs
   "needs real iteration".
 - **The leverage ranking is biased by how the taxonomy is split.** `skills.json`
   has 15 embedded skills but 6 fabrication ones, and the prompt says to map

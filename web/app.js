@@ -443,7 +443,12 @@ function answerBox(idea) {
 
 function ideaView() {
   const d = state.detail;
-  if (!d) return el("div", {}, header(), el("p", { class: "muted" }, "Loading…"));
+  // no detail and an error means the load failed (not visible, no such id):
+  // the error must show here or the page says "Loading…" forever
+  if (!d) return el("div", {}, header(),
+    state.error
+      ? el("p", { class: "error" }, state.error, " ", el("a", { href: "#/" }, "← all ideas"))
+      : el("p", { class: "muted" }, "Loading…"));
 
   const { idea, caps, runs, groups } = d;
   const extraction = { clear: idea.is_clear === true, capabilities: caps };

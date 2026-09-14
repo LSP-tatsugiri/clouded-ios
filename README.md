@@ -390,6 +390,23 @@ so a failed idea needs no reset — just run it again:
 
 Setup, secrets and the webhook definition are in `docs/step-4-plan.md`, Phase C.
 
+### Running the web client
+
+[`web/`](web) is the list, the idea page and the profile page: plain ES
+modules, no bundler, `@supabase/supabase-js` from a pinned CDN. It imports
+`extraction/src/distance.js` directly, so there is one copy of the distance
+logic; `web/serve.mjs` mounts `/extraction/src/` read-only to make that work.
+
+```bash
+cp web/config.example.js web/config.js   # project URL + anon key from supabase/.env
+node web/serve.mjs                       # http://localhost:5173
+```
+
+Sign in with email and password. The acceptance checks behind the list are in
+`supabase/scripts/acceptance.mjs` (`list` prints the reference order and
+leverage ranking for a user; `rls` verifies who can see what); the decisions
+and what each phase verified are in `docs/step-5-plan.md`.
+
 ### The development loop
 
 Edit the prompt in `extraction/src/extract.js`, run `npm run fresh`, read the output, repeat.
@@ -461,8 +478,9 @@ measured.
 
 **A flat gap count is not size.** Every gap counts 1 and the model is capped at
 3–7 capabilities, so "pick PETG for heat" weighs the same as "mechanical
-singulation of small fasteners". The planned fix is to sort by crux status first
-(held / partial / gap), then by gap count.
+singulation of small fasteners". The web list now sorts by crux status first
+(held / partial / gap), then by gap count, which fixes the ordering the count
+gets wrong; the count itself is still not a size.
 
 ## Build order
 
@@ -470,8 +488,8 @@ singulation of small fasteners". The planned fix is to sort by crux status first
 2. ~~Tune the prompt until capabilities are consistently checkable~~
 3. ~~Hand-curate the skills table from what the extractions produce~~ (ongoing via the registry)
 4. ~~Supabase schema + the pipeline as an edge function~~
-5. Web list view — sorted, filterable ← **you are here**
-6. iOS capture app + Share Extension
+5. ~~Web list view — sorted, filterable~~
+6. iOS capture app + Share Extension ← **you are here**
 7. Sharing and the friend skill pool
 8. *(later)* graph view, roadmaps, starter kits
 

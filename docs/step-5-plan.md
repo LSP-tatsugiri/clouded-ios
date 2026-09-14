@@ -212,7 +212,7 @@ revisiting when the friend pool grows.
   idea move into the sorted list; add an idea and see it extracted; the
   anon key can do neither.
 
-## Phase E — acceptance and close
+## Phase E — acceptance and close (done 2026-09-14)
 
 1. Fresh sign-in, seeded profile, 19 ideas: order matches the reference,
    leverage matches, filters reduce the list correctly.
@@ -220,6 +220,47 @@ revisiting when the friend pool grows.
    what `acceptance.mjs rls` says they should.
 3. Commit `web/`, update `CLAUDE.md` layout and build order, README "you
    are here" to Step 6.
+
+What was done:
+
+- `acceptance.mjs list --user <uuid>` is the reference Phase C named but
+  never built: the same rows, the same `distance.js`, the same sort and
+  `leverage()` as `app.js`, printed. Against it, after a fresh sign-in as the
+  test user: all 16 clear ideas in the same order, the 3 vague ones in their
+  section, leverage top 10 identical in count and order. Filters: Blender
+  domain → 3, crux gap → 16, crux held and partial → 0 (every crux is a gap
+  for this profile), "has a proposed skill" → 0, a combined filter → 1,
+  reset → 16.
+- **Phase B's deferred check closed.** Setting `gacha-systems` to solid on
+  the profile page moved the mobile game from row 16 to row 1 with "crux
+  held", and the "crux held" filter returned exactly it. The row was then
+  deleted through the service role, since the page writes `none` rather than
+  deleting.
+- `rls` was 19/20: "B cannot read proposed_skills" expected a permission
+  error, but since `20260914063115_curators_and_promotion.sql` re-granted
+  select to `authenticated` behind `is_curator()`, a non-curator gets an
+  empty 200. Confirmed empty with a fresh probe user (the only curator is the
+  test user); the check now asserts zero rows, like the `extraction_runs`
+  one. 20/20.
+- In the browser, with a throwaway group mate B and stranger C created through
+  the auth admin API rather than the dashboard: B sees exactly the one shared
+  idea, its 7 capabilities on the idea page, a leverage panel built from just
+  those, an empty profile, and no Review tab. C sees `0 of 0 ideas`. Both
+  users, the group and the share were removed afterwards; one user, no
+  groups, nothing shared.
+- **A bug C found.** Opening a shared idea's URL as C showed "Loading…"
+  forever: `fetchIdea` threw, `run()` put the message in `state.error`, but
+  `ideaView()` returned early on a null `state.detail` without painting it —
+  and the message would have been PostgREST's `.single()` complaint anyway.
+  `db.idea()` now uses `maybeSingle()` and throws "No such idea, or it is not
+  shared with you."; the early return shows the error with a link back.
+  Verified for both the hidden idea and a made-up id.
+- The two console errors during the run were the Chrome automation
+  extension's own ("message channel closed"), not the app's.
+
+Step 5 is closed. Step 6 (iOS capture) has no plan yet; when it is written,
+the capture path to build against is `addIdea()` in `web/lib/db.js` — one
+insert of `raw`, everything else downstream.
 
 ## Not in this step
 
