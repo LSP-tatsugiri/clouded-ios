@@ -98,13 +98,28 @@ revisiting when the friend pool grows.
   with the expected columns; the anon key alone returns 0.
   Still needs a human: the browser sign-in itself.
 
-## Phase B — profile page
+## Phase B — profile page (built 2026-09-14)
 
-- All 51 skills grouped by `domain`, each a three-state control
-  (none / some / solid) writing to `user_skills` (`upsert`, `on conflict
-  (user_id, skill_id)`). `hazard` skills carry a marker.
-- Acceptance: flipping a level changes the list order on the next render;
-  reload shows the saved levels; a second user's levels are not visible.
+- All 51 skills grouped by `domain`, in `sort_order` within each group, each
+  with a three-state control (none / some / solid) that upserts `user_skills`
+  on `(user_id, skill_id)`. `mains-safety` carries the hazard marker.
+- Hash routing arrives here, as Phase A said it would: `#/` is the list,
+  `#/profile` the profile, with a tab in the header.
+- `none` is written as a row rather than deleting it. `classify()` treats an
+  absent row and `none` identically, so this is only about honesty: a row says
+  the skill was rated, no row says it was never looked at. The tally counts
+  unrated separately for that reason.
+- Saving does not re-render. A radio change writes in the background and
+  updates a status line and the tally in place, because re-rendering would
+  pull focus out of the control being used.
+- Verified as the signed-in user through the anon key, not the service role:
+  51 skills readable, 7 domains in `sort_order`, 14 own levels and 37 unrated,
+  and an upsert accepted by RLS (201) then removed to restore state. Browser
+  smoke test clean, no console errors.
+- **Acceptance, partly deferred.** "Reload shows the saved levels" and "a
+  second user's levels are not visible" hold; the latter is already covered by
+  `acceptance.mjs rls`. "Flipping a level changes the list order" cannot hold
+  yet, because the list has no distance sort until Phase C. Re-check it there.
 
 ## Phase C — the list
 

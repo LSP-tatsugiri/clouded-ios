@@ -64,3 +64,13 @@ export async function mySkills(userId) {
 export async function addIdea(raw) {
   return ok(await db.from("ideas").insert({ raw }).select("id").single(), "addIdea");
 }
+
+// A level of "none" is written rather than deleting the row. classify() treats
+// an absent row and "none" identically, so this is only about honesty: a row
+// says the skill was rated, no row says it was never looked at.
+export async function setSkillLevel(userId, skillId, level) {
+  return ok(await db.from("user_skills")
+    .upsert({ user_id: userId, skill_id: skillId, level, updated_at: new Date().toISOString() },
+            { onConflict: "user_id,skill_id" })
+    .select("skill_id, level").single(), "setSkillLevel");
+}
