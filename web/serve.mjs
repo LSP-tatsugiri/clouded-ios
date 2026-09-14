@@ -26,25 +26,39 @@ const TYPES = {
   ".ico": "image/x-icon"
 };
 
-createServer(async (req, res) => {
-  const url = new URL(req.url, "http://localhost");
-  const rel = normalize(decodeURIComponent(url.pathname)).replace(/^[/\\]+/, "");
-  // normalize() resolves ".." first, so anything still climbing out is an
-  // attempt at traversal rather than a stray path segment
-  if (rel.split(sep).includes("..")) { res.writeHead(403).end("forbidden"); return; }
-  const path = join(ROOT, rel === "" ? "index.html" : rel);
-
+// Everything is inside the try: a throw out here takes the whole server down,
+// and one malformed request should not end the session.
+const server = createServer(async (req, res) => {
   try {
+    // Collapse leading slashes first. "//" parses as a protocol-relative URL
+    // with an empty host, which throws, and any page can request it.
+    const target = (req.url || "/").replace(/^\/+/, "/");
+    const pathname = new URL(target, "http://localhost").pathname;
+    const rel = normalize(decodeURIComponent(pathname)).replace(/^[/\\]+/, "");
+    // normalize() resolves ".." first, so anything still climbing out is an
+    // attempt at traversal rather than a stray path segment
+    if (rel.split(sep).includes("..")) { res.writeHead(403).end("forbidden"); return; }
+    const path = join(ROOT, rel === "" ? "index.html" : rel);
+
     const body = await readFile(path);
     res.writeHead(200, {
       "content-type": TYPES[extname(path)] ?? "application/octet-stream",
       "cache-control": "no-store"
     }).end(body);
   } catch (err) {
+    // TypeError: unparseable URL. URIError: bad percent-encoding.
+    const bad = err instanceof TypeError || err instanceof URIError;
     const missing = err.code === "ENOENT" || err.code === "EISDIR";
-    res.writeHead(missing ? 404 : 500).end(missing ? "not found" : "error");
+    const code = bad ? 400 : missing ? 404 : 500;
+    res.writeHead(code).end(bad ? "bad request" : missing ? "not found" : "error");
   }
-}).listen(PORT, "127.0.0.1", () => {
+});
+
+// Listening without a host binds dual-stack, so both ::1 and 127.0.0.1 answer.
+// On Windows `localhost` resolves to ::1 first, and binding 127.0.0.1 alone
+// made the browser fail to connect. HOST=127.0.0.1 narrows it back if wanted.
+const HOST = process.env.HOST;
+server.listen(PORT, HOST, () => {
   console.log(`clouded → http://localhost:${PORT}`);
   console.log("ctrl-c to stop");
 });
