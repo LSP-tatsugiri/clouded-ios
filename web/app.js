@@ -12,7 +12,8 @@ import {
   classify, compareKeys, cruxOf, cruxStatus, distanceOf, leverage, sortKey
 } from "/extraction/src/distance.js";
 import {
-  addIdea, capabilities, db, ideas, mySkills, session, setSkillLevel, signIn, signOut, skills
+  addIdea, amCurator, capabilities, db, ideas, mySkills, promoteSkill, proposedSkills,
+  rejectSkill, session, setSkillLevel, signIn, signOut, skills
 } from "./lib/db.js";
 import { el, mount } from "./lib/dom.js";
 
@@ -28,12 +29,16 @@ const state = {
   skills: [],          // 51 rows, seeded by migration, cached after first load
   levels: new Map(),   // skill_id -> none | some | solid
   filters: { domain: "", crux: "", proposed: false },
+  curator: null,       // null = not yet checked
+  proposals: [],
   error: null,
   busy: false
 };
 
+const ROUTES = new Set(["profile", "review"]);
 function currentRoute() {
-  return location.hash.replace(/^#\/?/, "") === "profile" ? "profile" : "list";
+  const h = location.hash.replace(/^#\/?/, "");
+  return ROUTES.has(h) ? h : "list";
 }
 
 const skillName = (id) => state.skills.find((s) => s.id === id)?.name ?? id;
@@ -51,6 +56,8 @@ function header() {
     el("nav", {},
       tab("#/", "Ideas", "list"),
       tab("#/profile", "Profile", "profile"),
+      // only a curator sees this; the policy enforces it regardless
+      state.curator === true && tab("#/review", "Review", "review"),
       el("button", { class: "link", onclick: () => run(signOut) }, "Sign out")
     )
   );
@@ -314,10 +321,114 @@ function profileView() {
   );
 }
 
+// ---------------------------------------------------------------- review
+
+// A proposal is the model asking for a skill the table does not have. Nothing
+// is created automatically, which is the invariant; this is the human step.
+function proposalCard(p) {
+  const settled = p.promoted || p.rejected;
+
+  const form = el("form", {
+    class: "promote",
+    onsubmit: (e) => {
+      e.preventDefault();
+      const f = form.elements;
+      run(async () => {
+        await promoteSkill({
+          key: p.key,
+          skillId: f.skillId.value.trim(),
+          name: f.name.value.trim(),
+          domain: f.domain.value.trim(),
+          aliases: f.aliases.value.split(",").map((s) => s.trim()).filter(Boolean),
+          hazard: f.hazard.checked
+        });
+        await load();
+      });
+    }
+  },
+    el("label", {}, "Skill id",
+      el("input", { name: "skillId", value: p.key, required: true, autocomplete: "off" })),
+    el("label", {}, "Name — a checkable task, not a depth label",
+      el("input", {
+        name: "name", required: true, autocomplete: "off",
+        placeholder: "Measure a real object and design a part that fits it"
+      })),
+    el("label", {}, "Domain",
+      el("input", {
+        name: "domain", autocomplete: "off", list: "domains",
+        placeholder: [...new Set(state.skills.map((s) => s.domain).filter(Boolean))][0] ?? ""
+      })),
+    el("label", {}, "Aliases, comma separated",
+      el("input", { name: "aliases", value: p.names.join(", "), autocomplete: "off" })),
+    el("label", { class: "check" },
+      el("input", { type: "checkbox", name: "hazard" }),
+      el("span", {}, "involves a real hazard")),
+    el("button", { type: "submit", disabled: state.busy }, "Promote to a skill")
+  );
+
+  const reject = el("form", {
+    class: "reject",
+    onsubmit: (e) => {
+      e.preventDefault();
+      const why = reject.elements.why.value.trim();
+      if (!why) return;
+      run(async () => { await rejectSkill(p.key, why); await load(); });
+    }
+  },
+    el("input", { name: "why", placeholder: "Why this is not a skill", autocomplete: "off" }),
+    el("button", { class: "secondary", type: "submit", disabled: state.busy }, "Reject")
+  );
+
+  return el("article", { class: settled ? "proposal settled" : "proposal" },
+    el("div", { class: "idea-head" },
+      el("div", { class: "idea-title" }, p.key),
+      el("span", { class: "counts" },
+        `${p.idea_ids.length} idea${p.idea_ids.length === 1 ? "" : "s"} · ${p.run_count} run${p.run_count === 1 ? "" : "s"}` +
+        (p.crux_count ? ` · crux ×${p.crux_count}` : ""))
+    ),
+    p.names.length > 1 && el("div", { class: "idea-raw" }, `also seen as: ${p.names.filter((n) => n !== p.key).join(", ")}`),
+    p.reasons.length > 0 && el("ul", { class: "caps" },
+      p.reasons.map((r) => el("li", {}, el("span", { class: "mark" }, "·"), el("span", {}, r)))),
+
+    p.promoted && el("p", { class: "tag" }, `promoted to ${p.promoted}`),
+    p.rejected && el("p", { class: "tag warn" }, `rejected: ${p.rejected}`),
+    !settled && form,
+    !settled && reject
+  );
+}
+
+function reviewView() {
+  if (state.curator !== true) {
+    return el("div", {}, header(),
+      el("p", { class: "muted" }, "Skill review is for curators. This account is not one."));
+  }
+  const open = state.proposals.filter((p) => !p.promoted && !p.rejected);
+  const settled = state.proposals.filter((p) => p.promoted || p.rejected);
+
+  return el("div", {},
+    header(),
+    el("p", { class: "muted" },
+      "The model proposes a skill when nothing in the table covers a capability. " +
+      "Nothing is created until you say so."),
+    state.error && el("p", { class: "error" }, state.error),
+    el("datalist", { id: "domains" },
+      [...new Set(state.skills.map((s) => s.domain).filter(Boolean))].map((d) => el("option", { value: d }))),
+    el("h2", { class: "section" }, `Waiting for review (${open.length})`),
+    open.length
+      ? el("div", { class: "proposals" }, open.map(proposalCard))
+      : el("p", { class: "muted" }, "Nothing proposed. Every capability matched a skill already in the table."),
+    settled.length > 0 && el("details", { class: "settled-block" },
+      el("summary", {}, `Already decided (${settled.length})`),
+      el("div", { class: "proposals" }, settled.map(proposalCard))
+    )
+  );
+}
+
 // ---------------------------------------------------------------- plumbing
 
 function render() {
   if (!state.session) return void mount(app, signInView());
+  if (state.route === "review") return void mount(app, reviewView());
   mount(app, state.route === "profile" ? profileView() : listView());
 }
 
@@ -331,8 +442,11 @@ async function run(fn) {
 async function load() {
   if (!state.session) {
     state.ideas = []; state.caps = []; state.skills = []; state.levels = new Map();
+    state.curator = null; state.proposals = [];
     return;
   }
+  // checked once per session; the tab and the policy both depend on it
+  if (state.curator === null) state.curator = await amCurator(state.session.user.id);
   // both views need the skill table and the profile: the list to classify, the
   // profile to show what is set
   const [table, mine] = await Promise.all([
@@ -346,6 +460,8 @@ async function load() {
     const [ideaRows, capRows] = await Promise.all([ideas(), capabilities()]);
     state.ideas = ideaRows;
     state.caps = capRows;
+  } else if (state.route === "review") {
+    state.proposals = state.curator ? await proposedSkills() : [];
   }
 }
 

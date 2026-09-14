@@ -88,8 +88,13 @@ while out. Capture is the only phone-first part.
 - **Screenshots are untested.** They are described as the main input, but
   `extract.js` is text-only. Test real screenshots before designing capture.
 - **Proposed skills drift in name, not concept.** Handled by `src/resolve.js`
-  (lexical + semantic match + registry). Review proposals via
-  `out/proposed.json`: add `"rejected": "<why>"` or `"promoted": "<skill_id>"`.
+  (lexical + semantic match + registry). Two places to review them, and they
+  do not sync: locally, edit `out/proposed.json` and add `"rejected": "<why>"`
+  or `"promoted": "<skill_id>"`; in the app, the Review tab reads
+  `proposed_skills` and calls `promote_proposed_skill` / `reject_proposed_skill`.
+  Promotion there also repoints the capabilities that were waiting on the
+  proposal, which the local flow does not do. Only a curator sees either the
+  tab or the table; grant with `supabase/scripts/grant-curator.mjs`.
 - **Model is `claude-sonnet-5`** as of 2026-09-12; the committed baseline in
   `out/` is from sonnet-5 (2026-09-13, prompt `e3446a126ffc`). Same-prompt
   wobble on it: crux identical 16/19, verdict 19/19, skill overlap 0.89.

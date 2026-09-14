@@ -65,6 +65,42 @@ export async function addIdea(raw) {
   return ok(await db.from("ideas").insert({ raw }).select("id").single(), "addIdea");
 }
 
+// ---------------------------------------------------------------- curation
+
+// True when the signed-in user may review proposed skills. The policy only
+// lets you see your own row, so an empty result means "not a curator" rather
+// than "the table is empty".
+export async function amCurator(userId) {
+  const { data, error } = await db.from("curators").select("user_id").eq("user_id", userId).maybeSingle();
+  if (error) throw new Error(`amCurator: ${error.message}`);
+  return data !== null;
+}
+
+// Curators only; the policy returns nothing to anyone else.
+export async function proposedSkills() {
+  return ok(await db.from("proposed_skills")
+    .select("key, names, reasons, idea_ids, run_count, crux_count, rejected, promoted, created_at")
+    .order("run_count", { ascending: false }), "proposedSkills");
+}
+
+// Both of these are security definer functions: promoting touches skills,
+// idea_capabilities and proposed_skills together, and a curator is not granted
+// write access to those tables directly.
+export async function promoteSkill({ key, skillId, name, domain, aliases, hazard }) {
+  const { error } = await db.rpc("promote_proposed_skill", {
+    p_key: key, p_skill_id: skillId, p_name: name,
+    p_domain: domain || null, p_aliases: aliases ?? [], p_hazard: !!hazard
+  });
+  if (error) throw new Error(error.message);
+}
+
+export async function rejectSkill(key, why) {
+  const { error } = await db.rpc("reject_proposed_skill", { p_key: key, p_why: why });
+  if (error) throw new Error(error.message);
+}
+
+// ---------------------------------------------------------------- writes
+
 // A level of "none" is written rather than deleting the row. classify() treats
 // an absent row and "none" identically, so this is only about honesty: a row
 // says the skill was rated, no row says it was never looked at.

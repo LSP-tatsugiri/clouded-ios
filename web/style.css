@@ -234,6 +234,44 @@ select {
 .vague-section .muted { margin: 0.2rem 0 0; }
 .idea.vague .idea-title { font-weight: 400; color: var(--muted); }
 
+/* review */
+
+.section { font-size: 0.95rem; margin: 1.5rem 0 0.75rem; }
+.proposals { display: flex; flex-direction: column; gap: 1rem; }
+
+.proposal {
+  padding: 1rem;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--accent);
+  border-radius: 8px;
+}
+
+.proposal.settled { border-left-color: var(--line); opacity: 0.75; }
+.proposal .caps li { color: var(--muted); }
+.proposal .tag { display: inline-block; margin: 0.5rem 0 0; }
+
+.promote {
+  display: grid;
+  gap: 0.6rem;
+  margin-top: 0.9rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--line);
+}
+
+.promote input[type="text"], .promote input:not([type]) { width: 100%; }
+.promote .check { flex-direction: row; align-items: center; gap: 0.35rem; }
+.promote button { justify-self: start; }
+
+.reject { display: flex; gap: 0.5rem; margin-top: 0.6rem; }
+.reject input { flex: 1; }
+
+button.secondary { color: var(--fg); background: none; border: 1px solid var(--line); }
+button.secondary:hover { background: var(--line); }
+
+.settled-block { margin-top: 2rem; }
+.settled-block summary { cursor: pointer; font-size: 0.9rem; color: var(--muted); margin-bottom: 0.75rem; }
+
 /* nav */
 
 nav { display: flex; align-items: baseline; gap: 1rem; }
