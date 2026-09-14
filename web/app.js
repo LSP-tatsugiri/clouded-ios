@@ -39,6 +39,7 @@ const state = {
   proposals: [],
   detail: null,        // { idea, caps, runs, groups } for the idea page
   waiting: "",         // progress text while an answer re-runs extraction
+  extracting: new Map(), // idea_id -> { stage, seconds } while the list watches a new idea
   error: null,
   busy: false
 };
@@ -156,6 +157,18 @@ function ideaRow({ idea, extraction }) {
   );
 }
 
+// A row the list is still waiting on. The bar is indeterminate on purpose:
+// extraction is one API call of unknown length, and a bar that creeps to 90%
+// and waits would be a time estimate in disguise. The stages are real events.
+function extractingRow(idea, { stage, seconds }) {
+  const text = stage === "saving" ? "saving the result…" : `extracting… ${seconds}s`;
+  return el("li", { class: "idea extracting" },
+    el("div", { class: "idea-title" }, idea.raw),
+    el("div", { class: "progress" }, el("div", { class: "progress-bar" })),
+    el("p", { class: "muted" }, text)
+  );
+}
+
 function vagueRow(idea) {
   return el("li", { class: "idea vague" },
     el("a", { href: `#/idea/${idea.id}`, class: "idea-title" }, idea.raw),
@@ -209,8 +222,11 @@ function listView() {
   }
 
   const rows = state.ideas.map((idea) => ({ idea, extraction: extractionOf(idea, capsById) }));
-  const clear = rows.filter((r) => r.idea.is_clear === true);
-  const vague = rows.filter((r) => r.idea.is_clear !== true);
+  // ideas being watched sit above the list, outside the filters, until they land
+  const extracting = rows.filter((r) => state.extracting.has(r.idea.id));
+  const settled = rows.filter((r) => !state.extracting.has(r.idea.id));
+  const clear = settled.filter((r) => r.idea.is_clear === true);
+  const vague = settled.filter((r) => r.idea.is_clear !== true);
 
   // crux status first, then gaps, then partials, then title for a stable order
   clear.sort((a, b) =>
@@ -231,6 +247,7 @@ function listView() {
       const input = add.elements.raw;
       const raw = input.value.trim();
       if (!raw) return;
+      // load() sees the new row as pending and starts watching it
       run(async () => { await addIdea(raw); input.value = ""; await load(); });
     }
   },
@@ -252,6 +269,8 @@ function listView() {
       (rated ? "" : " · rate your skills on the Profile tab to make this mean anything")),
     el("div", { class: "columns" },
       el("div", {},
+        extracting.length > 0 && el("ul", { class: "ideas" },
+          extracting.map((r) => extractingRow(r.idea, state.extracting.get(r.idea.id)))),
         el("ul", { class: "ideas" }, shown.map(ideaRow)),
         !shown.length && el("p", { class: "muted" }, "No idea matches those filters."),
         vague.length > 0 && el("section", { class: "vague-section" },
@@ -354,23 +373,46 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 // failure in resolution cannot lose the raw output. Reloading the moment the
 // run appears therefore races those later writes and can show the previous
 // verdict. So: wait for the run, then wait for the idea row to agree with it.
-async function awaitRerun(ideaId, since) {
+// How long a wait for extraction lasts before giving up: 60 polls, 2 s apart.
+const WATCH_POLLS = 60, WATCH_TICK_MS = 2000, WATCH_WINDOW_MS = WATCH_POLLS * WATCH_TICK_MS;
+
+// onProgress({ stage, seconds }) is called on every tick: the idea page turns
+// it into a line of text, the list into the bar on the new idea's row.
+async function awaitRerun(ideaId, since, onProgress) {
   let run = null;
-  for (let i = 0; i < 60 && !run; i++) {
-    await sleep(2000);
-    state.waiting = `waiting for extraction… ${(i + 1) * 2}s`;
-    render();
+  for (let i = 0; i < WATCH_POLLS && !run; i++) {
+    await sleep(WATCH_TICK_MS);
+    onProgress({ stage: "extracting", seconds: (i + 1) * WATCH_TICK_MS / 1000 });
     [run] = await runsFor(ideaId, since);
   }
   if (!run || run.error) return run;
 
-  state.waiting = "saving the result…";
-  render();
+  onProgress({ stage: "saving", seconds: null });
   for (let i = 0; i < 10; i++) {
     if ((await fetchIdea(ideaId)).is_clear === run.clear) break;
     await sleep(1000);
   }
   return run;
+}
+
+// Watch a just-added (or still pending) idea from the list until its
+// extraction lands, then reload so the row takes its sorted place. Runs
+// unawaited so the list stays usable meanwhile.
+async function watch(ideaId, since) {
+  if (state.extracting.has(ideaId)) return;
+  state.extracting.set(ideaId, { stage: "extracting", seconds: 0 });
+  render();
+  try {
+    const got = await awaitRerun(ideaId, since, (p) => { state.extracting.set(ideaId, p); render(); });
+    if (!got) state.error = "Extraction has not landed yet. Reload in a moment.";
+    else if (got.error) state.error = `Extraction failed: ${got.error}`;
+  } catch (err) {
+    state.error = err.message;
+  } finally {
+    state.extracting.delete(ideaId);
+    if (state.route === "list") await load().catch((err) => { state.error = err.message; });
+    render();
+  }
 }
 
 function capabilityDetail(cap) {
@@ -422,7 +464,10 @@ function answerBox(idea) {
         const since = new Date().toISOString();
         await setClarification(idea.id, text);
         state.waiting = "waiting for extraction…";
-        const got = await awaitRerun(idea.id, since);
+        const got = await awaitRerun(idea.id, since, ({ stage, seconds }) => {
+          state.waiting = stage === "saving" ? "saving the result…" : `waiting for extraction… ${seconds}s`;
+          render();
+        });
         state.waiting = "";
         if (!got) state.error = "The re-run has not landed yet. Reload in a moment.";
         else if (got.error) state.error = `Extraction failed: ${got.error}`;
@@ -643,6 +688,14 @@ async function load() {
     const [ideaRows, capRows] = await Promise.all([ideas(), capabilities()]);
     state.ideas = ideaRows;
     state.caps = capRows;
+    // A pending row is watched from here, whether it was just added or the
+    // page was reloaded mid-extraction; `since` is the insert, which is what
+    // fired the webhook. Older than the wait window means the webhook never
+    // delivered, and re-watching it would loop: leave it as a pending row.
+    const fresh = Date.now() - WATCH_WINDOW_MS;
+    for (const i of ideaRows) {
+      if (i.status === "pending" && Date.parse(i.created_at) > fresh) watch(i.id, i.created_at);
+    }
   } else if (state.route === "review") {
     state.proposals = state.curator ? await proposedSkills() : [];
   } else if (state.route === "idea") {
