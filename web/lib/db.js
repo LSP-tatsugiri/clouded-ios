@@ -43,6 +43,37 @@ export async function capabilities() {
     .select("idea_id, skill_id, proposed_key, reason, crux_rank, resolved"), "capabilities");
 }
 
+export async function idea(id) {
+  return ok(await db.from("ideas")
+    .select("id, user_id, raw, clarification, objective, domain, is_clear, clarifying_question, status, shared_to, created_at")
+    .eq("id", id).single(), "idea");
+}
+
+// resolved_from and resolve_why are only fetched here, on the one page that
+// shows how a capability got its skill id.
+export async function capabilitiesFor(ideaId) {
+  return ok(await db.from("idea_capabilities")
+    .select("id, skill_id, proposed_key, reason, crux_rank, resolved, resolved_from, resolve_why")
+    .eq("idea_id", ideaId), "capabilitiesFor");
+}
+
+// Every attempt ever, newest first. `since` finds the run an answer triggered:
+// the webhook does not reset status, so a new row is the only reliable signal.
+export async function runsFor(ideaId, since) {
+  // `clear` is the run's own verdict, pulled out of the stored tool output.
+  // The page needs it to tell when the idea row has caught up with the run.
+  let q = db.from("extraction_runs")
+    .select("id, created_at, model, prompt_hash, error, clear:output->clear")
+    .eq("idea_id", ideaId).order("created_at", { ascending: false });
+  if (since) q = q.gt("created_at", since);
+  return ok(await q, "runsFor");
+}
+
+// Empty until Step 7 builds group management; the share control says so.
+export async function myGroups() {
+  return ok(await db.from("groups").select("id, name").order("name"), "myGroups");
+}
+
 export async function skills() {
   return ok(await db.from("skills")
     .select("id, name, domain, aliases, hazard, sort_order")
@@ -63,6 +94,20 @@ export async function mySkills(userId) {
 // the policy rejects anything else, so it is not sent.
 export async function addIdea(raw) {
   return ok(await db.from("ideas").insert({ raw }).select("id").single(), "addIdea");
+}
+
+// The only UPDATE the webhook acts on, so writing this re-runs extraction and
+// costs an API call. `raw` is never touched: a trigger rejects that outright.
+export async function setClarification(id, clarification) {
+  return ok(await db.from("ideas").update({ clarification }).eq("id", id).select("id").single(),
+    "setClarification");
+}
+
+// null puts the idea back to private. UPDATE on ideas is revoked and granted
+// column by column, so these are the only two columns this client can change.
+export async function setShare(id, groupId) {
+  return ok(await db.from("ideas").update({ shared_to: groupId }).eq("id", id).select("id").single(),
+    "setShare");
 }
 
 // ---------------------------------------------------------------- curation

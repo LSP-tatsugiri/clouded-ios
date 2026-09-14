@@ -12,8 +12,9 @@ import {
   classify, compareKeys, cruxOf, cruxStatus, distanceOf, leverage, sortKey
 } from "/extraction/src/distance.js";
 import {
-  addIdea, amCurator, capabilities, db, ideas, mySkills, promoteSkill, proposedSkills,
-  rejectSkill, session, setSkillLevel, signIn, signOut, skills
+  addIdea, amCurator, capabilities, capabilitiesFor, db, idea as fetchIdea, ideas, myGroups,
+  mySkills, promoteSkill, proposedSkills, rejectSkill, runsFor, session, setClarification,
+  setShare, setSkillLevel, signIn, signOut, skills
 } from "./lib/db.js";
 import { el, mount } from "./lib/dom.js";
 
@@ -31,14 +32,28 @@ const state = {
   filters: { domain: "", crux: "", proposed: false },
   curator: null,       // null = not yet checked
   proposals: [],
+  detail: null,        // { idea, caps, runs, groups } for the idea page
+  waiting: "",         // progress text while an answer re-runs extraction
   error: null,
   busy: false
 };
 
 const ROUTES = new Set(["profile", "review"]);
+
+// Function declarations, not const arrows: `state` above calls currentRoute()
+// while it is being initialised, which is before any const on this line would
+// exist.
+function hashPath() { return location.hash.replace(/^#\/?/, ""); }
+
 function currentRoute() {
-  const h = location.hash.replace(/^#\/?/, "");
+  const h = hashPath();
+  if (h.startsWith("idea/")) return "idea";
   return ROUTES.has(h) ? h : "list";
+}
+
+function currentIdeaId() {
+  const h = hashPath();
+  return h.startsWith("idea/") ? h.slice(5) : null;
 }
 
 const skillName = (id) => state.skills.find((s) => s.id === id)?.name ?? id;
@@ -108,7 +123,7 @@ function ideaRow({ idea, extraction }) {
 
   return el("li", { class: "idea" },
     el("div", { class: "idea-head" },
-      el("div", { class: "idea-title" }, title),
+      el("a", { href: `#/idea/${idea.id}`, class: "idea-title" }, title),
       d && el("span", { class: "counts" }, counts)
     ),
     title !== idea.raw && el("div", { class: "idea-raw" }, idea.raw),
@@ -141,8 +156,9 @@ function ideaRow({ idea, extraction }) {
 
 function vagueRow(idea) {
   return el("li", { class: "idea vague" },
-    el("div", { class: "idea-title" }, idea.raw),
-    idea.clarifying_question && el("p", { class: "question" }, idea.clarifying_question)
+    el("a", { href: `#/idea/${idea.id}`, class: "idea-title" }, idea.raw),
+    idea.clarifying_question && el("p", { class: "question" }, idea.clarifying_question),
+    el("p", { class: "muted" }, el("a", { href: `#/idea/${idea.id}`, class: "tab" }, "answer this →"))
   );
 }
 
@@ -217,7 +233,9 @@ function listView() {
     }
   },
     el("input", { name: "raw", placeholder: "An idea, in as few words as you like", autocomplete: "off" }),
-    el("button", { type: "submit", disabled: state.busy }, "Add")
+    el("button", { type: "submit", disabled: state.busy }, "Add"),
+    // adding runs extraction server-side, which is a paid API call
+    el("span", { class: "muted cost" }, "extracts on save · ~1¢")
   );
 
   const rated = state.levels.size;
@@ -318,6 +336,163 @@ function profileView() {
       el("h2", {}, domain),
       el("ul", { class: "skills" }, list.map(skillRow))
     ))
+  );
+}
+
+// ---------------------------------------------------------------- idea page
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// The webhook fires on a changed clarification, but it does not reset status,
+// so a new extraction_runs row is the only reliable signal that the re-run
+// happened.
+//
+// Seeing that row is not the same as seeing the result. The function writes
+// the run first, then the capabilities, then the idea row, precisely so a
+// failure in resolution cannot lose the raw output. Reloading the moment the
+// run appears therefore races those later writes and can show the previous
+// verdict. So: wait for the run, then wait for the idea row to agree with it.
+async function awaitRerun(ideaId, since) {
+  let run = null;
+  for (let i = 0; i < 60 && !run; i++) {
+    await sleep(2000);
+    state.waiting = `waiting for extraction… ${(i + 1) * 2}s`;
+    render();
+    [run] = await runsFor(ideaId, since);
+  }
+  if (!run || run.error) return run;
+
+  state.waiting = "saving the result…";
+  render();
+  for (let i = 0; i < 10; i++) {
+    if ((await fetchIdea(ideaId)).is_clear === run.clear) break;
+    await sleep(1000);
+  }
+  return run;
+}
+
+function capabilityDetail(cap) {
+  const k = classify(cap, state.levels);
+  const isCrux = cap.crux_rank === 1;
+  return el("li", { class: `capdetail ${k}${isCrux ? " is-crux" : ""}` },
+    el("div", { class: "capdetail-head" },
+      el("span", { class: "mark" }, MARK[k]),
+      el("span", { class: "capdetail-name" }, capLabel(cap)),
+      isCrux && el("span", { class: "crux-tag" }, "the hard part")
+    ),
+    cap.reason && el("p", { class: "capdetail-reason" }, cap.reason),
+    el("details", { class: "resolution" },
+      el("summary", {}, `resolved: ${cap.resolved}`),
+      el("dl", {},
+        cap.resolved_from && [el("dt", {}, "proposed as"), el("dd", {}, cap.resolved_from)],
+        cap.resolve_why && [el("dt", {}, "because"), el("dd", {}, cap.resolve_why)],
+        el("dt", {}, "skill id"), el("dd", {}, cap.skill_id ?? `${cap.proposed_key} (not in the table)`)
+      )
+    )
+  );
+}
+
+function shareControl(idea, groups) {
+  return el("div", { class: "share" },
+    el("label", {}, "Shared with",
+      el("select", {
+        onchange: (e) => run(async () => {
+          await setShare(idea.id, e.target.value || null);
+          await load();
+        })
+      },
+        el("option", { value: "", selected: !idea.shared_to }, "Private"),
+        groups.map((g) => el("option", { value: g.id, selected: idea.shared_to === g.id }, g.name))
+      )),
+    !groups.length && el("p", { class: "muted" },
+      "No groups yet. Sharing needs one, and group management arrives in step 7.")
+  );
+}
+
+function answerBox(idea) {
+  const form = el("form", {
+    class: "answer",
+    onsubmit: (e) => {
+      e.preventDefault();
+      const text = form.elements.clarification.value.trim();
+      if (!text) return;
+      run(async () => {
+        const since = new Date().toISOString();
+        await setClarification(idea.id, text);
+        state.waiting = "waiting for extraction…";
+        const got = await awaitRerun(idea.id, since);
+        state.waiting = "";
+        if (!got) state.error = "The re-run has not landed yet. Reload in a moment.";
+        else if (got.error) state.error = `Extraction failed: ${got.error}`;
+        await load();
+      });
+    }
+  },
+    el("label", {}, "Your answer",
+      el("textarea", {
+        name: "clarification", rows: 2, required: true,
+        placeholder: "Say what the thing actually is"
+      })),
+    el("p", { class: "muted" }, "Answering re-runs extraction. That is one API call, about a cent."),
+    el("button", { type: "submit", disabled: state.busy }, state.busy ? "Working…" : "Answer and re-extract")
+  );
+  return form;
+}
+
+function ideaView() {
+  const d = state.detail;
+  if (!d) return el("div", {}, header(), el("p", { class: "muted" }, "Loading…"));
+
+  const { idea, caps, runs, groups } = d;
+  const extraction = { clear: idea.is_clear === true, capabilities: caps };
+  const dist = distanceOf(extraction, state.levels);
+  const crux = cruxOf(extraction);
+  const ordered = crux ? [crux, ...caps.filter((c) => c !== crux)] : caps;
+
+  const counts = dist && [
+    `${dist.gap} short`,
+    dist.partial ? `${dist.partial} partial` : null,
+    dist.have ? `${dist.have} held` : null
+  ].filter(Boolean).join(" · ");
+
+  return el("div", {},
+    header(),
+    el("p", {}, el("a", { href: "#/", class: "tab" }, "← all ideas")),
+
+    el("h2", { class: "detail-title" }, idea.objective || idea.raw),
+    el("p", { class: "idea-raw" }, `captured as: ${idea.raw}`),
+    idea.clarification && el("p", { class: "idea-raw" }, `you clarified: ${idea.clarification}`),
+
+    el("div", { class: "meta" },
+      idea.domain && el("span", { class: "tag" }, idea.domain),
+      dist && el("span", { class: "tag" }, counts),
+      idea.status !== "extracted" && el("span", { class: "tag warn" }, idea.status)
+    ),
+
+    state.error && el("p", { class: "error" }, state.error),
+    state.waiting && el("p", { class: "muted" }, state.waiting),
+
+    idea.is_clear === false && el("section", { class: "question-block" },
+      el("h3", {}, "Too vague to extract"),
+      idea.clarifying_question && el("p", { class: "question" }, idea.clarifying_question),
+      answerBox(idea)
+    ),
+
+    caps.length > 0 && el("section", {},
+      el("h3", {}, "What it would take"),
+      el("ul", { class: "capdetails" }, ordered.map(capabilityDetail))
+    ),
+
+    shareControl(idea, groups),
+
+    el("details", { class: "runs" },
+      el("summary", {}, `Extraction history (${runs.length})`),
+      el("ul", { class: "caps" }, runs.map((r) => el("li", {},
+        el("span", { class: "mark" }, r.error ? "✕" : "·"),
+        el("span", {}, `${new Date(r.created_at).toLocaleString()} · ${r.model} · ${r.prompt_hash}` +
+          (r.error ? ` · ${r.error.slice(0, 80)}` : ""))
+      )))
+    )
   );
 }
 
@@ -429,6 +604,7 @@ function reviewView() {
 function render() {
   if (!state.session) return void mount(app, signInView());
   if (state.route === "review") return void mount(app, reviewView());
+  if (state.route === "idea") return void mount(app, ideaView());
   mount(app, state.route === "profile" ? profileView() : listView());
 }
 
@@ -462,12 +638,20 @@ async function load() {
     state.caps = capRows;
   } else if (state.route === "review") {
     state.proposals = state.curator ? await proposedSkills() : [];
+  } else if (state.route === "idea") {
+    const id = currentIdeaId();
+    const [one, caps, runs, groups] = await Promise.all([
+      fetchIdea(id), capabilitiesFor(id), runsFor(id), myGroups()
+    ]);
+    state.detail = { idea: one, caps, runs, groups };
   }
 }
 
 addEventListener("hashchange", () => {
   state.route = currentRoute();
   status.textContent = "";
+  state.detail = null;
+  state.waiting = "";
   run(load);
 });
 

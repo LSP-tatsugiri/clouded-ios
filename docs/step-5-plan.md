@@ -166,7 +166,34 @@ revisiting when the friend pool grows.
   `distance.js` and the sort above (`supabase/scripts/acceptance.mjs list`
   can print that reference).
 
-## Phase D — the idea page and the two writes
+## Phase D — the idea page and the two writes (built 2026-09-14)
+
+- `#/idea/<id>`: capabilities with held / partial / gap / proposed marks, the
+  crux first and labelled, each with its reason, and `resolved` /
+  `resolved_from` / `resolve_why` behind a disclosure. Extraction history in a
+  second disclosure, failed runs included.
+- The clarifying question, with a box that writes `ideas.clarification`. Both
+  writes go through column-level grants: `raw` and `objective` are refused
+  with 403, verified.
+- Share select, writing `shared_to`. Empty until step 7 creates a group, and
+  it says so rather than looking broken.
+- Both paid actions now say so on screen: adding an idea and answering a
+  question each cost roughly a cent.
+- **A write-order race, found and fixed.** The function writes
+  `extraction_runs`, then capabilities, then the idea row, so that a failure
+  in resolution cannot lose raw output. Polling for the new run and reloading
+  immediately therefore races the later writes and shows the previous
+  verdict — which is exactly what happened on the first live test. The page
+  now waits for the run, then waits for `ideas.is_clear` to agree with that
+  run's own verdict, read as `output->clear`.
+- Verified live end to end on a throwaway idea, twice, about 6 cents: insert
+  extracted it as vague with a question; writing a clarification fired the
+  webhook, produced a second run with 35 more input tokens (the clarification
+  entering the prompt), and turned it into 5 capabilities with a crux. The
+  throwaway was deleted; 19 ideas and 81 capabilities remain.
+- A browser check caught a fatal load error before commit: `hashPath` was a
+  `const` arrow used by `currentRoute()` during `state`'s initialiser, so the
+  module threw on load. Both are function declarations now.
 
 - Capabilities with held / partial / gap / proposed marks, the crux first
   and labelled, each with its `reason`. Resolution details (`resolved`,
