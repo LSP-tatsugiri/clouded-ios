@@ -180,6 +180,21 @@ Mac's disk once; delete both when space runs out, they are caches.
 - Verified: the same rows as the web, in `created_at desc`; an answer on
   the phone produces a new run visible on the web.
 
+**Done 2026-09-15.** `ios/Shared/Records.swift` holds the row types plus
+`cruxOf`/`classify` mirrored from `distance.js` (the list needs the crux's
+mark, which is a per-row lookup, not the sort; decision 7 stands).
+`ios/clouded/IdeasModel.swift` loads own ideas newest-first, capabilities
+for those ids, skill names and the owner's levels; polls every 3 s while a
+row is pending; `answer()` writes `clarification` and ports `awaitRerun`
+(a run newer than the answer, then the row agreeing with the run's
+verdict). `HomeView.swift` is the list with a pull-to-refresh and an
+answer sheet that repeats the web's cost line. Verified on the phone: the
+rows match the web's order (`created_at desc`); refresh works; answering
+"rc truck" wrote the clarification, produced a new `extraction_runs` row
+(`clear: true`, the 09-13 run was `false`) and the row updated in place.
+Rows shared to a group by friends are not on the phone (the query filters
+`user_id`, as `web/lib/db.js ideas()` does since Step 7).
+
 ## Phase D — capture and the Share Extension (Mac)
 
 - In-app capture screen: the sentence (dictation is the keyboard's),
