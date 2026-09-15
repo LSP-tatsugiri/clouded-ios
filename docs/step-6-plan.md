@@ -79,9 +79,11 @@ existing shape — text in `raw`, media in side columns — the right one.
 14. **The app lives in `ios/`**, not at the repo root as `CLAUDE.md` once
     planned; the root now has four siblings and an Xcode tree among them
     would be a mess. `CLAUDE.md` is updated in Phase A.
-15. **iOS 17 minimum.** Bundle id `dev.clouded.app`, extension
-    `dev.clouded.app.share`, App Group `group.dev.clouded`, shared Keychain
-    access group. Hard to change later; chosen now.
+15. **iOS 17 minimum.** Bundle id `com.monoesport.clouded`, extension
+    `com.monoesport.clouded.share`, App Group `group.com.monoesport.clouded`,
+    shared Keychain access group. Reverse-DNS of `monoesport.com`, which the
+    owner controls (the web client is hosted at `clouded.monoesport.com`,
+    see `docs/hosting.md`). Hard to change later; chosen now.
 16. **Web changes in this step are two**: the idea page shows the image
     (signed URL, the bucket is private) and the source link; the list row
     gets a marker for "has image".
@@ -107,6 +109,11 @@ existing shape — text in `raw`, media in side columns — the right one.
   link; `ideaRow` shows a small marker when `image_path` is set.
 - `CLAUDE.md`: layout gains `ios/`, the root line goes; build order marks 6
   current with this plan.
+- **Work on branch `step-6`, and pull `main` into it before touching
+  `web/`.** Hosting (`docs/hosting.md`) is being built on `main` in parallel
+  from the Windows machine: a sign-up tab in `web/app.js` and `web/lib/db.js`,
+  an `allowed_emails` migration, `web/build.mjs`. Migrations from both
+  branches are pushed together with `supabase db push` from the Mac.
 
 ## Phase B — app scaffold and sign-in (Mac)
 
