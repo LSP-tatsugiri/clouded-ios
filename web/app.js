@@ -753,12 +753,46 @@ function waifuView() {
   if (!still) scene.muted = true;
 
   requestAnimationFrame(() => input.focus());
-  return el("div", { class: "waifu", "data-tod": band },
+  const placing = new URLSearchParams(location.search).has("place");
+  return el("div", { class: placing ? "waifu placing" : "waifu", "data-tod": band },
     scene,
     header(),
     bubble,
-    form
+    form,
+    placing && placementTool(bubble)
   );
+}
+
+// ?place=1: drag the bubble to where it should sit and read the CSS off the
+// readout; releasing copies it to the clipboard. Dev-only, for choosing the
+// position on a new scene without guessing percentages (docs/waifu-view-plan.md).
+function placementTool(bubble) {
+  const readout = el("pre", { class: "waifu-readout" }, "drag the bubble");
+  let drag = null;
+  const pct = (n, of) => `${(n / of * 100).toFixed(1)}%`;
+  const css = () => {
+    const r = bubble.getBoundingClientRect();
+    return `.waifu-bubble { left: ${pct(r.left, innerWidth)}; top: ${pct(r.top, innerHeight)}; width: ${pct(r.width, innerWidth).replace("%", "vw")}; }`;
+  };
+  bubble.style.cursor = "move";
+  bubble.addEventListener("pointerdown", (e) => {
+    const r = bubble.getBoundingClientRect();
+    drag = { dx: e.clientX - r.left, dy: e.clientY - r.top };
+    bubble.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  });
+  bubble.addEventListener("pointermove", (e) => {
+    if (!drag) return;
+    bubble.style.left = `${e.clientX - drag.dx}px`;
+    bubble.style.top = `${e.clientY - drag.dy}px`;
+    readout.textContent = css();
+  });
+  bubble.addEventListener("pointerup", () => {
+    drag = null;
+    readout.textContent = css() + "\n(copied)";
+    navigator.clipboard?.writeText(css()).catch(() => {});
+  });
+  return readout;
 }
 
 // ---------------------------------------------------------------- idea page

@@ -141,3 +141,20 @@
   .waifu-bar { flex-wrap: wrap; padding-top: 3rem; }
   .waifu-input { max-width: none; flex-basis: 100%; }
 }
+
+/* ?place=1: the bubble is draggable and the readout shows its CSS */
+.waifu-readout {
+  position: absolute;
+  left: 1.5rem;
+  top: 4rem;
+  margin: 0;
+  padding: 0.6rem 0.8rem;
+  font: 0.8rem/1.4 ui-monospace, Consolas, monospace;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.7);
+  border-radius: 0.5rem;
+  white-space: pre-wrap;
+  max-width: 24rem;
+  user-select: all;
+}
+.waifu.placing .waifu-bubble { user-select: none; outline: 2px dashed rgba(47, 111, 94, 0.9); }
