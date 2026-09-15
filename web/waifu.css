@@ -59,8 +59,9 @@
   position: absolute;
   inset: 0;
   clip-path: url(#waifu-cloud);
-  /* white and mostly opaque; still frosted, so the scene shows through faintly */
-  background: rgba(255, 255, 255, 0.82);
+  /* white, near-solid at the top and thinning toward the tail; still
+     frosted, so the scene shows through faintly where it thins */
+  background: linear-gradient(rgba(255, 255, 255, 0.96), rgba(255, 255, 255, 0.7));
   backdrop-filter: blur(12px) saturate(120%);
   -webkit-backdrop-filter: blur(12px) saturate(120%);
 }
@@ -71,14 +72,17 @@
   height: 100%;
   overflow: visible;
   fill: none;
-  stroke: rgba(255, 255, 255, 0.9);
-  stroke-width: 1.5px;
+  /* the thick comic outline from the reference */
+  stroke: #15161a;
+  stroke-width: 3px;
+  stroke-linejoin: round;
   pointer-events: none;
 }
 /* inset, not padding: percentage padding resolves against the scene's
    width, an absolute inset against the bubble's. More room at the bottom,
    where the tail is. */
 .waifu-bubble-text {
+  font-family: var(--waifu-font, inherit);
   position: absolute;
   left: 12%; right: 16%; top: 13%; bottom: 24%;
   display: grid;

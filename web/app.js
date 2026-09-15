@@ -770,7 +770,8 @@ function waifuView() {
 
   requestAnimationFrame(() => input.focus());
   const placing = new URLSearchParams(pageParams()).has("place");
-  return el("div", { class: placing ? "waifu placing" : "waifu", "data-tod": band },
+  const font = previewFont(new URLSearchParams(pageParams()).get("font"));
+  return el("div", { class: placing ? "waifu placing" : "waifu", "data-tod": band, style: font ? `--waifu-font: "${font}", sans-serif` : null },
     scene,
     header(),
     bubble,
@@ -784,10 +785,10 @@ function waifuView() {
 // right pointing at her, three lumps back along the bottom. Static markup,
 // so a fragment is fine here; el() cannot make namespaced SVG elements.
 const CLOUD_PATH =
-  "M 0.03 0.45 A 0.13 0.19 0 0 1 0.18 0.14 A 0.14 0.17 0 0 1 0.38 0.07 " +
+  "M 0.04 0.46 A 0.15 0.2 0 0 1 0.18 0.14 A 0.14 0.17 0 0 1 0.38 0.07 " +
   "A 0.07 0.08 0 0 1 0.5 0.1 A 0.15 0.16 0 0 1 0.72 0.15 A 0.12 0.18 0 0 1 0.87 0.44 " +
   "A 0.1 0.13 0 0 1 0.82 0.66 C 0.9 0.68 0.97 0.72 1 0.8 C 0.92 0.81 0.84 0.8 0.75 0.77 " +
-  "A 0.12 0.12 0 0 1 0.55 0.8 A 0.12 0.12 0 0 1 0.34 0.8 A 0.11 0.14 0 0 1 0.17 0.73 A 0.12 0.16 0 0 1 0.03 0.45 Z";
+  "A 0.12 0.12 0 0 1 0.55 0.8 A 0.12 0.12 0 0 1 0.34 0.8 A 0.11 0.14 0 0 1 0.17 0.73 A 0.16 0.2 0 0 1 0.04 0.46 Z";
 
 function cloudSvg() {
   const t = document.createElement("template");
@@ -796,6 +797,26 @@ function cloudSvg() {
     `<defs><clipPath id="waifu-cloud" clipPathUnits="objectBoundingBox"><path d="${CLOUD_PATH}"/></clipPath></defs>` +
     `<path d="${CLOUD_PATH}" vector-effect="non-scaling-stroke"/></svg>`;
   return t.content.firstElementChild;
+}
+
+// ?font=<key>: try a bubble font from Google Fonts without editing CSS. The
+// stylesheet is added once per font; the scene sets --waifu-font from it.
+const FONTS = {
+  "comic-neue": "Comic Neue", bangers: "Bangers", "yusei-magic": "Yusei Magic",
+  "mochiy-pop": "Mochiy Pop One", "patrick-hand": "Patrick Hand", kalam: "Kalam",
+  "permanent-marker": "Permanent Marker", "zen-kurenaido": "Zen Kurenaido"
+};
+function previewFont(key) {
+  const family = FONTS[key];
+  if (!family) return null;
+  const id = `font-${key}`;
+  if (!document.getElementById(id)) {
+    document.head.append(el("link", {
+      id, rel: "stylesheet",
+      href: `https://fonts.googleapis.com/css2?family=${family.replace(/ /g, "+")}:wght@400;700&display=swap`
+    }));
+  }
+  return family;
 }
 
 // ?place=1: drag the bubble to where it should sit and read the CSS off the
