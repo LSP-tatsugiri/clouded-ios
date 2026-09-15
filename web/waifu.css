@@ -1,0 +1,100 @@
+/* The #/waifu scene (docs/waifu-view-plan.md). Every rule is scoped under
+   .waifu so style.css stays untouched. The layout follows the frame, not the
+   other way round (decision 10): the bubble sits over the dark doorway beside
+   her head; the input rides a dark bar along the bottom over the step. */
+
+.waifu {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background: #0b0d12;
+  color: #f2f1ec;
+}
+
+.waifu-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* keep her and the doorway when the viewport is narrower than the frame */
+  object-position: 60% 50%;
+}
+
+/* the app header, floated over the top edge and made legible on the frame */
+.waifu header {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  margin: 0;
+  padding: 0.75rem 1.25rem 2rem;
+  background: linear-gradient(rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0));
+  border: 0;
+}
+.waifu header h1,
+.waifu .tab,
+.waifu button.link { color: #f2f1ec; }
+.waifu .tab.on { border-bottom-color: #f2f1ec; }
+
+/* the doorway: ~37–55% across, 5–55% down on the 16:9 frame */
+.waifu-bubble {
+  position: absolute;
+  left: 37%;
+  top: 14%;
+  width: min(22rem, 20vw);
+  min-width: 13rem;
+  margin: 0;
+  padding: 0.9rem 1.1rem;
+  font-size: 1.15rem;
+  line-height: 1.4;
+  background: rgba(10, 12, 18, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 1rem 1rem 1rem 0.25rem;
+  backdrop-filter: blur(6px);
+}
+.waifu-bubble a { color: #f2f1ec; }
+
+/* the step: a dark bar the input and its cost notice sit on */
+.waifu-bar {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  display: flex;
+  align-items: flex-end;
+  gap: 0.75rem;
+  padding: 3rem 1.25rem 1.25rem;
+  background: linear-gradient(rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.78) 45%);
+}
+.waifu-input {
+  flex: 1;
+  max-width: 44rem;
+  resize: none;
+  padding: 0.7rem 0.9rem;
+  font: inherit;
+  font-size: 1.05rem;
+  color: #f2f1ec;
+  background: rgba(20, 22, 30, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 0.6rem;
+}
+.waifu-input::placeholder { color: rgba(242, 241, 236, 0.55); }
+.waifu-input:focus-visible {
+  outline: 2px solid #f2f1ec;
+  outline-offset: 2px;
+}
+.waifu-bar button[type="submit"] {
+  background: #f2f1ec;
+  color: #0b0d12;
+  border: 0;
+}
+.waifu-bar .cost {
+  color: rgba(242, 241, 236, 0.65);
+  align-self: center;
+  white-space: nowrap;
+}
+
+/* narrow: the doorway moves under object-position, so the bubble anchors to
+   the top-left instead and the bar stacks */
+@media (max-width: 52rem) {
+  .waifu-bubble { left: 1rem; right: 1rem; top: 4.5rem; width: auto; min-width: 0; }
+  .waifu-bar { flex-wrap: wrap; }
+  .waifu-input { max-width: none; flex-basis: 100%; }
+}

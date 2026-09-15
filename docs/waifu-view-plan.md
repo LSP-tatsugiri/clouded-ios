@@ -141,3 +141,27 @@ layout mentions `waifu.css`, `lib/waifu.js`, `assets/`. Commit, deploy.
 ## 6. Open questions
 
 None for v1. The deferred list is the next grilling.
+
+## What was verified (2026-09-15)
+
+Phases A–C built in one pass; D on deploy.
+
+- `#/waifu` renders the scene with the poster, the header floated over the
+  top edge, the bubble on the doorway beside her head, the input bar on the
+  step with "Tell her" and the ~1¢ notice. `#/` loads neither asset (network
+  tab: `waifu.css` and `lib/waifu.js` load with the app, as every module
+  does; `scene.*` do not).
+- One capture from the scene (~1¢): "Got it. I'll hold on to that. See it
+  on the list." with the link; the box cleared and kept focus; the first
+  keystroke put her opener back. The row landed extracted, clear, private,
+  crux `power-budgeting`, seven capabilities — the same shape as a list-box
+  capture.
+- `bandFor` at 00:59 → night, 01:00 → late, 04:59 → late, 05:00 → dawn,
+  20:00 → night, 23:00 → night; `?band=night` forces the band and its line
+  (`data-tod="night"`); no line contains a digit or a time word (checked by
+  regex over every string in `lib/waifu.js`).
+- **Not verified here:** the loop actually playing, and the reduced-motion
+  poster. The automation browser on this PC could not decode any mp4 that
+  day (a public known-good file also stuck), so the `<video>` was checked
+  for presence and `muted` only. First real look is on the deployed site,
+  and on a phone.

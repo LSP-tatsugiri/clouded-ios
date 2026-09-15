@@ -50,7 +50,9 @@ These are load-bearing. Changing one is a product decision, not a refactor.
   `scripts/` holds the seed and acceptance drivers. Keys live in gitignored
   `supabase/.env`.
 - `web/` — the web client: list, idea page, profile, curator review, the
-  Group tab (feed, members, invites) and friend pages. Plain ES
+  Group tab (feed, members, invites) and friend pages, plus the unlisted
+  `#/waifu` capture scene (`waifu.css`, `lib/waifu.js`, `assets/` — see
+  `docs/waifu-view-plan.md`). Plain ES
   modules, no bundler, no framework; `@supabase/supabase-js` from a pinned
   CDN. `config.js` is gitignored. It imports `extraction/src/distance.js`
   directly (one copy of the distance logic), which `serve.mjs` serves by

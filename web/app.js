@@ -19,6 +19,7 @@ import {
   signUp, skills, skillsFor
 } from "./lib/db.js";
 import { el, mount } from "./lib/dom.js";
+import { FAILED, SAVED, SENDING, bandFor, forcedBand, opener } from "./lib/waifu.js";
 
 const LEVELS = ["none", "some", "solid"];
 const MARK = { have: "[x]", partial: "[~]", gap: "[ ]", proposed: "[?]" };
@@ -26,7 +27,7 @@ const MARK = { have: "[x]", partial: "[~]", gap: "[ ]", proposed: "[?]" };
 // Declared before `state`, because state's initialiser calls currentRoute(),
 // which reads this. A const declared further down would still be in its
 // temporal dead zone at that point and throw on load.
-const ROUTES = new Set(["profile", "review", "group"]);
+const ROUTES = new Set(["profile", "review", "group", "waifu"]);
 
 const app = document.getElementById("app");
 const state = {
@@ -48,6 +49,7 @@ const state = {
   feed: [],            // shared ideas from every group, newest first (decision 12)
   feedSort: "newest",  // "newest" | "closest"
   friend: null,        // { profile, levels } for the friend profile page
+  waifu: { phase: "asking", ideaId: null, line: null }, // #/waifu: asking | sending | saved | failed
   authMode: "signin",  // "signin" | "create" on the sign-in card
   waiting: "",         // progress text while an answer re-runs extraction
   extracting: new Map(), // idea_id -> { stage, seconds } while the list watches a new idea
@@ -695,6 +697,70 @@ function inviteForm(g) {
   return form;
 }
 
+// ---------------------------------------------------------------- waifu
+
+// One scene, unlisted (docs/waifu-view-plan.md). She asks, you answer, she
+// says she has it and links to the idea. The bubble is updated in place
+// rather than through render(): a re-render would rebuild the textarea and
+// drop what you are typing.
+function waifuView() {
+  const w = state.waifu;
+  const band = forcedBand(location.search) ?? bandFor(new Date());
+  if (w.band !== band || !w.line) { w.band = band; w.line = opener(band); }
+  if (w.phase === "sending") w.phase = "asking";   // a render mid-send means a route change; start over
+
+  const bubble = el("p", { class: "waifu-bubble" }, w.phase === "saved" ? SAVED : w.phase === "failed" ? FAILED : w.line);
+  const say = (text, link) => {
+    bubble.replaceChildren(text);
+    if (link) bubble.append(" ", el("a", { href: `#/idea/${link}` }, "See it on the list."));
+  };
+  if (w.phase === "saved" && w.ideaId) say(SAVED, w.ideaId);
+
+  const input = el("textarea", {
+    class: "waifu-input", rows: 2, placeholder: "An idea, in as few words as you like",
+    autocomplete: "off",
+    onkeydown: (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); form.requestSubmit(); } },
+    oninput: () => { if (w.phase !== "asking" && w.phase !== "sending") { w.phase = "asking"; say(w.line); } }
+  });
+  const button = el("button", { type: "submit" }, "Tell her");
+  const form = el("form", {
+    class: "waifu-bar",
+    onsubmit: async (e) => {
+      e.preventDefault();
+      const raw = input.value.trim();
+      if (!raw || w.phase === "sending") return;
+      w.phase = "sending"; button.disabled = true; say(SENDING);
+      try {
+        const { id } = await addIdea(raw);
+        w.phase = "saved"; w.ideaId = id; input.value = ""; say(SAVED, id);
+      } catch {
+        w.phase = "failed"; say(FAILED);           // the text stays in the box
+      } finally {
+        button.disabled = false; input.focus();
+      }
+    }
+  },
+    input, button,
+    el("span", { class: "muted cost" }, "extracts on save · ~1¢")
+  );
+
+  // The poster stands in when motion is unwelcome; otherwise the loop, muted
+  // (autoplay needs it; the track is stripped), inline on phones.
+  const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const scene = still
+    ? el("img", { class: "waifu-video", src: "assets/scene.jpg", alt: "" })
+    : el("video", { class: "waifu-video", autoplay: true, loop: true, playsinline: true, poster: "assets/scene.jpg", src: "assets/scene.mp4" });
+  if (!still) scene.muted = true;
+
+  requestAnimationFrame(() => input.focus());
+  return el("div", { class: "waifu", "data-tod": band },
+    scene,
+    header(),
+    bubble,
+    form
+  );
+}
+
 // ---------------------------------------------------------------- idea page
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -1014,6 +1080,7 @@ function render() {
   if (state.route === "idea") return void mount(app, ideaView());
   if (state.route === "group") return void mount(app, groupView());
   if (state.route === "friend") return void mount(app, friendView());
+  if (state.route === "waifu") return void mount(app, waifuView());
   mount(app, state.route === "profile" ? profileView() : listView());
 }
 
