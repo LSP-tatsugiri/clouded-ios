@@ -275,6 +275,18 @@ fails silently and the idea shows without its picture — re-share it.
 - The distance sort on the phone — decision 7.
 - Retrying a failed image upload from the app — decision 9.
 - Profile, sharing, review on the phone — decision 6.
+  Not scheduled anywhere (2026-09-15); the README's rule is to port only
+  what use shows is reached for while out. If that happens, the
+  candidates, smallest and most phone-shaped first:
+  1. Share an idea to a group from the detail screen — one picker writing
+     `shared_to`, which the client may already update; the action that
+     follows capture.
+  2. The group feed — a second list, `sharedIdeas()` ported, reusing the
+     row and the detail screen.
+  3. The skill profile — 51 three-way pickers; rarely changes, the web is
+     fine for it.
+  4. Group management (create, invite, members) — admin work, least
+     phone-shaped.
 - Widgets, Action Button, lock-screen capture — after the share sheet is
   proven to get used.
 

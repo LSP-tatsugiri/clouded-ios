@@ -82,6 +82,9 @@ Run: `cd extraction && npm start` (uses cached output) or `npm run fresh`
 6. iOS capture app + Share Extension — done 2026-09-15 on the Mac, see `docs/step-6-plan.md`
 7. Sharing and the friend skill pool — done 2026-09-15 on the web, see `docs/step-7-plan.md`
 8. Later: graph view, roadmaps, starter kits
+9. Later, unscheduled: phone ports of Step 7 (share-to-group, feed,
+   profile) — only what use shows is reached for while out; candidates
+   sized in `docs/step-6-plan.md` under "Not in this step"
 
 Build on the web first. Port to the phone only what actually gets reached for
 while out. Capture is the only phone-first part.

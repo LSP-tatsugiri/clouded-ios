@@ -513,6 +513,8 @@ gets wrong; the count itself is still not a size.
 6. ~~iOS capture app + Share Extension~~ (`docs/step-6-plan.md`)
 7. ~~Sharing and the friend skill pool~~ (web; `docs/step-7-plan.md`)
 8. *(later)* graph view, roadmaps, starter kits
+9. *(later, unscheduled)* phone ports of sharing, the feed, the profile —
+   only what use shows is reached for while out
 
 Capture is built last despite being the most important feature, because
 everything about it — what an entry stores, what the list shows, what a tap
