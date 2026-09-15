@@ -142,6 +142,32 @@ tripped the test's positive control once. The bucket is also capped at
 - Verified: build on device with a free Apple ID; sign in; relaunch; still
   signed in; the extension target loads and can read the token.
 
+**Done 2026-09-15** on the owner's iPhone 12 Pro (iOS 18.4.1), Personal
+Team `MRQYR447Q9`, free Apple ID. The open risk is closed: the personal
+team's profiles carry `com.apple.security.application-groups =
+[group.com.monoesport.clouded]` on both targets (checked with `codesign -d
+--entitlements`). There is no separate `keychain-access-groups`
+entitlement; the App Group is used as the keychain access group, which
+iOS allows. Verified by the owner on the phone: sign-in as the test user;
+force-quit and relaunch → still signed in; share a screenshot → "clouded"
+in the share sheet → "Signed in as test@clouded.dev". Two things the phone
+needed before any of it, both owner-only: Developer Mode (the toggle in
+Settings → Privacy & Security only appears after Xcode itself has
+connected to the phone — `xcodebuild` alone does not make it show) and
+trusting the developer certificate (Settings → General → VPN & Device
+Management) before the first launch. Build and install from `ios/`:
+
+    xcodebuild build -project clouded.xcodeproj -scheme clouded \
+      -destination 'id=<udid>' -derivedDataPath Build \
+      -allowProvisioningUpdates -allowProvisioningDeviceRegistration
+    xcrun devicectl device install app --device <udid> \
+      Build/Build/Products/Debug-iphoneos/clouded.app
+
+`generic/platform=iOS` cannot register the device; the `id=` destination
+can. The udid is in `xcrun devicectl list devices`. `ios/Build/` is now
+gitignored. The device build plus Xcode's own DerivedData filled the
+Mac's disk once; delete both when space runs out, they are caches.
+
 ## Phase C — the list (Mac)
 
 - Newest-first list of own ideas: sentence, status tag, crux with mark once

@@ -51,6 +51,9 @@ web/config.js
 # iOS build config (project URL, anon key, Apple team). Keep the example.
 ios/Config.xcconfig
 
+# xcodebuild -derivedDataPath Build (the handoff's build commands)
+ios/Build/
+
 # Claude Code: settings.json is shared (plugins + marketplaces); local is per machine
 .claude/settings.local.json
 
