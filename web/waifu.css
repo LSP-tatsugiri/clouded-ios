@@ -4,6 +4,9 @@
    her head; the input rides a dark bar along the bottom over the step. */
 
 .waifu {
+  /* the bubble's face and base text size; ?place=1 has a slider for the size */
+  --waifu-font: "Yusei Magic", sans-serif;
+  --waifu-text: 20px;
   position: fixed;
   inset: 0;
   overflow: hidden;
@@ -82,16 +85,17 @@
    width, an absolute inset against the bubble's. More room at the bottom,
    where the tail is. */
 .waifu-bubble-text {
-  font-family: var(--waifu-font, inherit);
+  font-family: var(--waifu-font);
   position: absolute;
   left: 12%; right: 16%; top: 13%; bottom: 24%;
   display: grid;
   place-items: center;
-  font-size: 1.05rem;
-  font-weight: 500;
-  line-height: 1.4;
+  font-size: var(--waifu-text);
+  font-weight: 400;
+  line-height: 1.35;
   text-align: center;
   color: #15161a;
+  overflow: hidden;
 }
 .waifu-bubble-text a {
   color: #2f6f5e;
@@ -178,4 +182,11 @@
 .waifu.placing .waifu-bubble { user-select: none; outline: 2px dashed rgba(47, 111, 94, 0.9); }
 /* the clipped glass does not hit-test outside the cloud, so the whole box
    takes the drag while placing */
+.waifu-size {
+  position: absolute;
+  left: 1.5rem;
+  top: 9.5rem;
+  width: 16rem;
+  accent-color: #2f6f5e;
+}
 .waifu.placing .waifu-bubble::before { content: ""; position: absolute; inset: 0; z-index: 1; }

@@ -719,15 +719,28 @@ function waifuView() {
   // A comic cloud (docs/waifu-view-plan.md, decision 11): the glass layer is
   // clipped to a path in objectBoundingBox units so it scales with the
   // bubble, and the same path is stroked on top as the thin rim.
-  const text = el("span", { class: "waifu-bubble-text" });
+  const line = el("span", { class: "waifu-bubble-line" });
+  const text = el("span", { class: "waifu-bubble-text" }, line);
   const bubble = el("div", { class: "waifu-bubble" },
     el("div", { class: "waifu-bubble-glass" }),
     cloudSvg(),
     text
   );
-  const say = (line, link) => {
-    text.replaceChildren(line);
-    if (link) text.append(" ", el("a", { href: `#/idea/${link}` }, "See it on the list."));
+  // A longer line shrinks to fit the cloud rather than spilling out of it:
+  // start from the CSS size and step down until the text box fits.
+  const fit = () => {
+    text.style.fontSize = "";
+    let px = parseFloat(getComputedStyle(text).fontSize);
+    while (line.offsetHeight > text.clientHeight && px > 11) {
+      px -= 1;
+      text.style.fontSize = `${px}px`;
+    }
+  };
+  state.waifu.fit = fit;
+  const say = (words, link) => {
+    line.replaceChildren(words);
+    if (link) line.append(" ", el("a", { href: `#/idea/${link}` }, "See it on the list."));
+    requestAnimationFrame(fit);
   };
   say(w.phase === "saved" ? SAVED : w.phase === "failed" ? FAILED : w.line);
   if (w.phase === "saved" && w.ideaId) say(SAVED, w.ideaId);
@@ -770,15 +783,22 @@ function waifuView() {
 
   requestAnimationFrame(() => input.focus());
   const placing = new URLSearchParams(pageParams()).has("place");
-  const font = previewFont(new URLSearchParams(pageParams()).get("font"));
-  return el("div", { class: placing ? "waifu placing" : "waifu", "data-tod": band, style: font ? `--waifu-font: "${font}", sans-serif` : null },
+  // Yusei Magic is the bubble's face (chosen 2026-09-15); ?font= tries another.
+  // Loaded here, not in index.html, so no other route fetches it.
+  const font = previewFont(new URLSearchParams(pageParams()).get("font") ?? "yusei-magic");
+  const view = el("div", { class: placing ? "waifu placing" : "waifu", "data-tod": band, style: `--waifu-font: "${font}", sans-serif` },
     scene,
     header(),
     bubble,
-    form,
-    placing && placementTool(bubble)
+    form
   );
+  if (placing) view.append(placementTool(bubble, view));
+  return view;
 }
+
+// The bubble refits its text when the window changes size; one listener,
+// pointing at whichever view is current.
+addEventListener("resize", () => state.waifu.fit?.());
 
 // The cloud outline in a 0–1 box, drawn clockwise from the left edge: five
 // lumps over the top, two down the right, the swoosh tail at the bottom
@@ -822,14 +842,24 @@ function previewFont(key) {
 // ?place=1: drag the bubble to where it should sit and read the CSS off the
 // readout; releasing copies it to the clipboard. Dev-only, for choosing the
 // position on a new scene without guessing percentages (docs/waifu-view-plan.md).
-function placementTool(bubble) {
-  const readout = el("pre", { class: "waifu-readout" }, "drag the bubble");
+function placementTool(bubble, view) {
+  const readout = el("pre", { class: "waifu-readout" }, "drag the bubble · slide for text size");
   let drag = null;
   const pct = (n, of) => `${(n / of * 100).toFixed(1)}%`;
+  const textPx = () => Math.round(parseFloat(getComputedStyle(view).getPropertyValue("--waifu-text")) || 20);
   const css = () => {
     const r = bubble.getBoundingClientRect();
-    return `.waifu-bubble { left: ${pct(r.left, innerWidth)}; top: ${pct(r.top, innerHeight)}; width: ${pct(r.width, innerWidth).replace("%", "vw")}; }`;
+    return `.waifu-bubble { left: ${pct(r.left, innerWidth)}; top: ${pct(r.top, innerHeight)}; width: ${pct(r.width, innerWidth).replace("%", "vw")}; }\n` +
+      `.waifu { --waifu-text: ${textPx()}px; }`;
   };
+  const copy = () => { readout.textContent = css() + "\n(copied)"; navigator.clipboard?.writeText(css()).catch(() => {}); };
+  // the slider sets the base size; fit() may still shrink a long line below it
+  const slider = el("input", {
+    type: "range", min: 12, max: 36, step: 1, value: textPx(), class: "waifu-size",
+    oninput: (e) => { view.style.setProperty("--waifu-text", `${e.target.value}px`); state.waifu.fit?.(); readout.textContent = css(); },
+    onchange: copy
+  });
+  bubble.after(slider);
   bubble.style.cursor = "move";
   bubble.addEventListener("pointerdown", (e) => {
     const r = bubble.getBoundingClientRect();
@@ -843,11 +873,7 @@ function placementTool(bubble) {
     bubble.style.top = `${e.clientY - drag.dy}px`;
     readout.textContent = css();
   });
-  bubble.addEventListener("pointerup", () => {
-    drag = null;
-    readout.textContent = css() + "\n(copied)";
-    navigator.clipboard?.writeText(css()).catch(() => {});
-  });
+  bubble.addEventListener("pointerup", () => { drag = null; copy(); });
   return readout;
 }
 
