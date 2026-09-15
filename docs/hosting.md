@@ -69,8 +69,12 @@ Vercel, next to the owner's other project on the same account.
    no redirect); it is where password-reset links will point later.
 7. **Check:** open https://clouded.monoesport.com, sign in as the test user,
    the list loads. Open the URL in a private window, "Create an account"
-   with an email that is not listed: it must refuse with "That address isn't
-   invited yet".
+   with an email that is not listed: it must refuse with "Couldn't create the
+   account. The usual reason: this address isn't invited yet". (The wording
+   hedges because GoTrue hides the trigger's message behind a generic
+   "Database error saving new user" under the auth API version supabase-js
+   uses; the raw endpoint returns `P0001 this address is not invited yet`,
+   which `acceptance.mjs rls` checks.)
 
 ## Day to day
 

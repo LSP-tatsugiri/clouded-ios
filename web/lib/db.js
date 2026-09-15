@@ -27,8 +27,13 @@ export async function signIn(email, password) {
 export async function signUp(email, password) {
   const { error } = await db.auth.signUp({ email, password });
   if (error) {
-    // the trigger's message arrives wrapped in a generic auth error
-    if (/not invited/i.test(error.message)) throw new Error("That address isn't invited yet. Ask for an invite, then try again.");
+    // The trigger raises "this address is not invited yet", but under the auth
+    // API version supabase-js sends, GoTrue hides database errors behind
+    // "Database error saving new user". That is the only database error a
+    // sign-up can hit here, so name the likely cause without claiming it.
+    if (/not invited|database error saving new user/i.test(error.message)) {
+      throw new Error("Couldn't create the account. The usual reason: this address isn't invited yet — ask for an invite, then try again.");
+    }
     throw new Error(error.message);
   }
 }
