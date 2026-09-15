@@ -6,7 +6,7 @@
 .waifu {
   /* the bubble's face and base text size; ?place=1 has a slider for the size */
   --waifu-font: "Yusei Magic", sans-serif;
-  --waifu-text: 20px;
+  --waifu-text: 23px;
   position: fixed;
   inset: 0;
   overflow: hidden;
@@ -50,8 +50,8 @@
    as the rim, since a clipped element cannot draw its own border. */
 .waifu-bubble {
   position: absolute;
-  left: 33%;
-  top: 15%;
+  left: 31.3%;
+  top: 14.4%;
   width: 18.3vw;
   min-width: 16rem;
   aspect-ratio: 1.55;
