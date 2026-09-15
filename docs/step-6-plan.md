@@ -108,6 +108,20 @@ existing shape — text in `raw`, media in side columns — the right one.
 - `CLAUDE.md`: layout gains `ios/`, the root line goes; build order marks 6
   current with this plan.
 
+**Done 2026-09-15** (migration `20260915034222_media_and_source.sql`, on
+branch `step-6`). Two departures from the text above: the storage SELECT
+policy is `exists (select 1 from ideas where id = <id parsed from path>)`
+under the caller's RLS rather than a restatement with `my_group_ids()`, so it
+cannot drift from the ideas visibility; and `rls` inserts one idea to prove
+`source_url` is insertable, so each run costs one extraction (~$0.01).
+Verified: `rls` 27/27; a signed URL fetched as the test user returns the
+object; a stranger and anon get 400/404 (storage hides, it does not 403);
+the idea page shows the picture and the `from:` link, the list row the
+marker. Learned: the storage API refuses `x-upsert` from authenticated
+users under RLS — irrelevant to the app (one new object per idea) but it
+tripped the test's positive control once. The bucket is also capped at
+10 MiB and `image/jpeg` only, which the plan did not say.
+
 ## Phase B — app scaffold and sign-in (Mac)
 
 - `ios/clouded.xcodeproj` with two targets, `clouded` (app) and
