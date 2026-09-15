@@ -40,15 +40,15 @@
 .waifu .tab.on, .waifu .tab:hover { opacity: 1; border-bottom-color: #fff; }
 
 /* the chat bubble: a comic cloud (docs/waifu-view-plan.md, decision 11) in
-   the input's material — frosted dark glass, thin white rim, white text —
+   frosted white glass, mostly opaque, thin white rim, black text —
    placed with ?place=1, its swoosh tail at the bottom-right pointing at her.
    The glass layer is clipped to the cloud path (an objectBoundingBox
    clipPath in the SVG the view builds), and the same path is stroked on top
    as the rim, since a clipped element cannot draw its own border. */
 .waifu-bubble {
   position: absolute;
-  left: 32.6%;
-  top: 26.2%;
+  left: 33%;
+  top: 15%;
   width: 18.3vw;
   min-width: 16rem;
   aspect-ratio: 1.55;
@@ -59,9 +59,10 @@
   position: absolute;
   inset: 0;
   clip-path: url(#waifu-cloud);
-  background: rgba(255, 255, 255, 0.14);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  /* white and mostly opaque; still frosted, so the scene shows through faintly */
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(12px) saturate(120%);
+  -webkit-backdrop-filter: blur(12px) saturate(120%);
 }
 .waifu-bubble-edge {
   position: absolute;
@@ -70,7 +71,7 @@
   height: 100%;
   overflow: visible;
   fill: none;
-  stroke: rgba(255, 255, 255, 0.5);
+  stroke: rgba(255, 255, 255, 0.9);
   stroke-width: 1.5px;
   pointer-events: none;
 }
@@ -86,11 +87,10 @@
   font-weight: 500;
   line-height: 1.4;
   text-align: center;
-  color: #fff;
-  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+  color: #15161a;
 }
 .waifu-bubble-text a {
-  color: #fff;
+  color: #2f6f5e;
   font-weight: 600;
   text-decoration: underline;
   text-underline-offset: 0.15em;
