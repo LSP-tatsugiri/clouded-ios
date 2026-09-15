@@ -254,9 +254,13 @@ async function rls() {
     check("inviting an unlisted email leaves a pending invite", (await rpc(aTok, "invite", { p_group_id: gid, p_email: dEmail })) === "invited");
     check("A sees the pending invite", (await a(`group_invites?select=email&group_id=eq.${gid}`)).some((r) => r.email === dEmail));
     check("B does not see it", (await b(`group_invites?select=email`)).length === 0);
+    // The invite already allowlisted dEmail, so this is the sign-up itself,
+    // minus the public endpoint: GoTrue refuses a .test address as
+    // undeliverable once the row is accepted, and a real domain would get a
+    // real confirmation email. The admin create fires the same auth.users
+    // trigger, which is what is under test.
     D = { email: dEmail, password: pw() };
-    const dUser = await signUp(dEmail).then((r) => r.user ?? r);
-    D.id = dUser.id;
+    D.id = (await auth("admin/users", { method: "POST", body: { email: dEmail, password: D.password, email_confirm: true } })).id;
     check("the invited email can sign up", !!D.id);
     check("and lands in the group with no accept step", (await rest(`group_members?select=user_id&group_id=eq.${gid}&user_id=eq.${D.id}`)).length === 1);
     check("the pending invite is consumed", (await rest(`group_invites?select=email&email=eq.${encodeURIComponent(dEmail)}`)).length === 0);

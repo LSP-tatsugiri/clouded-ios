@@ -157,6 +157,28 @@ same step** (the step-6 file must be in this checkout first).
 - Verified: dry-run clean, `supabase migration list` shows the file
   applied, acceptance green, committed and pushed.
 
+**Done 2026-09-15** (`a025b34`, migration `20260915071927`). Two things
+learned building it:
+
+- Creating a group now makes the creator a member by trigger.
+  `my_group_ids()` and `shares_group_with()` read `group_members` only, so
+  a creator without a row would not see their friends' profiles or skills.
+  The harness used to insert that row by hand.
+- **GoTrue refuses an undeliverable address once the row is accepted.**
+  An allowlisted `rls-d@clouded.test` gets `email_address_invalid` from
+  the public sign-up endpoint (the domain has no MX), while an unlisted
+  one fails earlier at the allowlist trigger, which is why the older check
+  never saw it. Autoconfirm is off, so a real domain would get a real
+  confirmation email. The harness therefore creates the invited user
+  through the admin API, which fires the same `auth.users` trigger. The
+  public path is still covered by the "unlisted refused" check and by the
+  live sign-up verified in Step 5. Consequence for friends: none — they
+  have real addresses — but the hosted project's built-in mailer is
+  rate-limited, so invite people a few at a time rather than ten at once.
+
+`acceptance.mjs rls`: 45/45 (22 before, 23 new). Cleanup verified: no
+throwaway users, groups, shares or allowlist rows left behind.
+
 ## Phase B — group tab: create, invite, members
 
 - Route `group` in `ROUTES`, tab "Group" in the nav.
