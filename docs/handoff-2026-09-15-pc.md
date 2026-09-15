@@ -78,14 +78,12 @@ v1 in the README) comes into scope now that the URL is live.
 
 ## Small things left open
 
-- Two test ideas added during the progress-bar work are still in the
-  owner's set ("3D printed phone stand…", "wall clock… stepper motor").
-  Delete through the service role if the owner asks.
-- `Claude outputs/` at the repo root is untracked and undecided.
-- The Mac's merge of `main` into `step-6` was not pushed when this was
-  written (`origin/step-6` still ends at `fce4d0b`).
 - The owner is on voice input; short confirmations like "ok" or a single
   word are answers to the last question asked, not new instructions.
+
+Closed before this handoff was picked up: the two test ideas are deleted
+(23 ideas remain), `Claude outputs/` is tracked, and the Mac has pushed
+its merge of `main` into `step-6` (`39c3972`).
 
 ## First prompt to give the new session
 
