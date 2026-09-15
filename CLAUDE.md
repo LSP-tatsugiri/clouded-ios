@@ -43,7 +43,7 @@ These are load-bearing. Changing one is a product decision, not a refactor.
   tool schema; `src/resolve.js` matches proposed capabilities to the table and
   keeps the proposal registry; `src/distance.js` turns capabilities plus profile
   into gaps; `src/stability.js` measures run-to-run wobble; `data/skills.json`
-  is the canonical table (51 entries); `schema.sql` is the starting point for
+  is the canonical table (52 entries; `design` added 2026-09-15 for `ui-mockup`); `schema.sql` is the starting point for
   the Supabase migration; `out/` is committed on purpose.
 - `supabase/` — `migrations/` is the schema, `functions/extract/` is the
   pipeline as a Deno edge function with its tests in `functions/_shared/`,
