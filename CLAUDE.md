@@ -132,6 +132,38 @@ In `extraction/schema.sql`:
 - `user_skills` is readable with `using (true)`, making every profile public.
 - `skills` has no RLS enabled, so it is writable through the API.
 
+## Working rules for the agent
+
+Learned the hard way; keep them true on every machine.
+
+- **Say the API cost before spending it.** Anything that calls the
+  Anthropic API on the owner's key — extraction runs, stability runs,
+  acceptance seeds, edge-function re-runs, adding an idea — costs prepaid
+  credit, and the balance has hit zero once (2026-09-13). Before running
+  such a thing, state the per-call and total estimate in dollars and how
+  many calls it makes. One extraction is about $0.01 (system prompt ~2,600
+  tokens for the 51-skill list, ~450 out; Sonnet 5 at $2/M in, $10/M out)
+  plus ~$0.006 per semantic resolve call.
+- **Some Supabase CLI steps are the owner's to run**, in a real terminal:
+  `supabase login` (needs a TTY), `supabase db push` (the real apply) and
+  `supabase functions deploy`. From the agent: write the migration file
+  directly with a `date -u +%Y%m%d%H%M%S` timestamp (`migration new` hangs
+  reading stdin), `supabase db push --dry-run`, commit, then hand the push
+  over and verify with `supabase migration list`. `link`, `secrets list`,
+  `functions list`, `migration list` and `projects api-keys` work from the
+  agent; keys go only into gitignored `supabase/.env`, never printed.
+- **No local Postgres so far.** The Windows machine has no Docker and no
+  psql, so SQL is validated by pushing to the hosted project. If Docker is
+  available on the Mac, `supabase start` becomes an option — check before
+  assuming either way.
+- **The test user** is `test@clouded.dev`, id
+  `88976eb5-378e-422c-8676-2bf99a9ac01e`; the baseline ideas and the
+  acceptance scripts (`supabase/scripts/acceptance.mjs`) run under it.
+  `supabase/.env` holds `WEBHOOK_SECRET`, `SUPABASE_URL`,
+  `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_ANON_KEY`, `TEST_USER_EMAIL`,
+  `TEST_USER_PASSWORD`; it is gitignored and must be copied between
+  machines by hand, as must `web/config.js`.
+
 ## Style
 
 - No dependencies in `extraction/` unless there is a real reason.
