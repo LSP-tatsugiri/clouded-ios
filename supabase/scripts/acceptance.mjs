@@ -237,7 +237,9 @@ async function rls() {
     // refuses a write with 400 or 403 depending on the version. All count.
     const hidden = async (p) => { try { await p; return false; } catch (e) { return /-> 40[0134]/.test(e.message); } };
     const jpeg = new Uint8Array([0xff, 0xd8, 0xff, 0xd9]);  // SOI + EOI, enough for the mime check
-    const put = (path, o = {}) => storage(`object/idea-media/${path}`, { method: "POST", body: jpeg, contentType: "image/jpeg", upsert: true, ...o });
+    // upsert only as the service role: the storage API refuses x-upsert from
+    // authenticated users under RLS, and the app never upserts (decision 9)
+    const put = (path, o = {}) => storage(`object/idea-media/${path}`, { method: "POST", body: jpeg, contentType: "image/jpeg", upsert: !o.token, ...o });
     const get = (token) => (path) => storage(`object/authenticated/idea-media/${path}`, { token, apikey: ANON });
     [{ id: otherId }] = await rest(`ideas?select=id&user_id=eq.${USER}&shared_to=is.null&id=neq.${ideaId}&limit=1`);
     const sharedObj = `${USER}/${ideaId}.jpg`, privateObj = `${USER}/${otherId}.jpg`;
