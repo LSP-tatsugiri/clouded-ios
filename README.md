@@ -196,39 +196,44 @@ Sharing serves three purposes, in this order:
    **which friend already has the capability you're missing.** A group of ten
    people has a much shorter distance to most ideas than any one of them does.
 
-The third is the one the data model does for free and is what v1 ships; the
-first two are why anyone opens the app to look at someone else's idea, and they
-land right after v1 (see [Deferred](#deferred)). All three are what make the
-product worth being an app rather than a notes file.
+The third is the one the data model does for free. The second landed with it
+in Step 7 as the group feed, once the URL was live; the first, comments, comes
+right after v1 (see [Deferred](#deferred)) because it needs a way for anyone
+to notice a comment. All three are what make the product worth being an app
+rather than a notes file.
 
 ### Views
 
 - **Closest to buildable** — the default, and the only one that matters at first.
 - Filter by domain, by crux type, by whether a friend can unblock it.
 - **Leverage ranking** — which single skill unlocks the most ideas.
-- **Group feed** *(after v1)* — what friends have shared, newest first, with
-  their comments. Read-mostly; this is the inspiration surface.
+- **Group feed** — what friends have shared, newest first or closest to
+  you, each idea measured against *your* profile with who in the group holds
+  its crux. Read-mostly; this is the inspiration surface. Comments come later.
 
 ## Scope
 
 ### In v1
 
 - Share Extension capture: text, voice, image
-- Offline-first local save with background upload
+- Background upload that finishes when connectivity returns (a local queue
+  was cut in Step 6; see `docs/step-6-plan.md` decision 2)
 - Capability extraction with the clarifying-question path for empty entries
 - Canonical skills table with human-confirmed merges
 - Distance computation against your own profile
 - One list sorted by closest-to-buildable, filterable by domain
-- Private-by-default sharing to the friend group
+- Private-by-default sharing to the friend group, invites by email, and
+  the friend skill pool: which friend holds what a shared idea needs
+- The group feed
 - Leverage ranking
 
 ### Deferred
 
-- **Comments on shared ideas and the group feed** — the feedback and
-  inspiration half of sharing. v1 ships with shared ideas *visible* to the
-  group; reacting to them and browsing what friends are thinking come right
-  after v1. Nothing in v1's data model has to change for this: comments are a
-  new table keyed on `ideas.id`, and the feed is a query over shared ideas.
+- **Comments on shared ideas** — the feedback half of sharing. The feed
+  ships in v1 (Step 7); reacting to what is in it comes right after, once
+  there is a way for anyone to notice a comment (there is no notification
+  path at all today). Nothing in the data model has to change: comments are
+  a new table keyed on `ideas.id`.
 - **The idea web / graph view** — needs roughly 80 ideas before it means
   anything. With 12 ideas nothing connects and it looks broken; the edges should
   be *shared skills*, not thematic similarity, and that only gets interesting at
@@ -504,8 +509,8 @@ gets wrong; the count itself is still not a size.
 3. ~~Hand-curate the skills table from what the extractions produce~~ (ongoing via the registry)
 4. ~~Supabase schema + the pipeline as an edge function~~
 5. ~~Web list view — sorted, filterable~~
-6. iOS capture app + Share Extension ← **you are here**
-7. Sharing and the friend skill pool
+6. iOS capture app + Share Extension ← **in progress on the Mac**
+7. ~~Sharing and the friend skill pool~~ (web; `docs/step-7-plan.md`)
 8. *(later)* graph view, roadmaps, starter kits
 
 Capture is built last despite being the most important feature, because

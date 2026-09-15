@@ -276,6 +276,24 @@ for Alex would have cost an extraction.
    downgraded to what step-6 decision 2 delivers. `CLAUDE.md` layout and
    build order updated. Record what each phase verified here.
 
+**Done 2026-09-15**, except item 2, which is the owner's: no real friend
+has been invited yet. `acceptance.mjs rls` 45/45 with the real group in
+place; `acceptance.mjs list` green; the live site serves the new
+`distance.js` export and the Group tab. README and `CLAUDE.md` updated as
+above. Left on the hosted database on purpose, as a demo until the first
+friend arrives: the group "test's friends", the throwaway member "Alex"
+(`phaseb-friend@clouded.test`, holds `print-tolerancing` and
+`parametric-cad` solid) and the golf-bag mount shared to the group.
+Remove Alex from the Group tab when a real friend is in; the admin API
+deletes the account.
+
+Loose end noticed, not acted on: `web/lib/db.js` says email confirmation
+is off, but `/auth/v1/settings` reports `mailer_autoconfirm: false`, so a
+friend's self-serve sign-up sends a confirmation email through the hosted
+project's built-in mailer, which is rate-limited. Either turn autoconfirm
+on in the dashboard (Authentication → Providers → Email) or invite a few
+at a time. Decide when the first friend signs up.
+
 ## Not in this step
 
 - Comments and any notification path — decision 14.
