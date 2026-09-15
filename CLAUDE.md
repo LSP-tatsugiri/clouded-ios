@@ -162,14 +162,19 @@ Learned the hard way; keep them true on every machine.
   `functions list`, `migration list` and `projects api-keys` work from the
   agent; keys go only into gitignored `supabase/.env`, never printed.
 - **Two machines share one repo and one database.** The Windows PC works
-  on `main`, the Mac on `step-6`. A `SessionStart` hook
-  (`.claude/hooks/sync-status.mjs`) prints what the other machine has
-  pushed that this checkout lacks — commits and, above all, migration
-  files. Act on it: pull before touching shared state. And the rule that
-  caused the hook: **commit and push a migration file in the same step
-  as `supabase db push`**, never apply first and commit later — the other
-  machine's CLI then refuses to push until it has the file. Uncommitted
-  work is invisible to the other machine; push small and often.
+  on `main`, the Mac on `step-6`. Two hooks in `.claude/settings.json`
+  run `.claude/hooks/sync-status.mjs`: before every prompt (`--before`)
+  it reports what the other machine has pushed that this checkout lacks —
+  commits and, above all, migration files — and says nothing when there
+  is nothing new; after every turn (`--after`) it reports what this
+  machine has not shared yet. Act on the first: pull before touching
+  shared state. Act on the second yourself: **when a task is done and
+  committed, push it** — the hook never pushes, because a push to `main`
+  deploys the live site. And the rule that caused the hook: **commit and
+  push a migration file in the same step as `supabase db push`**, never
+  apply first and commit later — the other machine's CLI then refuses to
+  push until it has the file. Uncommitted work is invisible to the other
+  machine; push small and often.
 - **No local Postgres so far.** The Windows machine has no Docker and no
   psql, so SQL is validated by pushing to the hosted project. If Docker is
   available on the Mac, `supabase start` becomes an option — check before
