@@ -258,6 +258,11 @@ fails silently and the idea shows without its picture — re-share it.
 
 ## Not in this step
 
+- **The app's UI is functional, not designed.** Stock SwiftUI forms and
+  lists, text marks (`[x]`, `[~]`) for the crux, a ▣ tag for "has a
+  picture". Refine it in a later version, once the phone has been used for
+  a while and it is clear what gets reached for (owner's note, 2026-09-15).
+
 - TestFlight and the paid developer account — when a friend asks.
 - Offline queue and sync — decision 2.
 - Voice recording and transcription — decision 4.
