@@ -6,8 +6,9 @@ of things to keep true while writing code. `docs/design-review.md` holds the
 open questions and the reasoning behind the product decisions.
 `docs/step-4-plan.md` covers Supabase and the edge function — read it before
 touching `supabase/`. `docs/step-5-plan.md` covers the web client and records
-what each phase decided and verified — read it before touching `web/`. Step 6
-(iOS capture) is current and has no plan yet.
+what each phase decided and verified — read it before touching `web/`.
+`docs/step-6-plan.md` is the current build step (the iOS capture app) and
+records its decisions; it is built on the Mac.
 
 Audience: the author plus ~10 friends. No growth, revenue, or public users.
 Optimise for low friction and few moving parts, not for scale.
@@ -67,7 +68,7 @@ Run: `cd extraction && npm start` (uses cached output) or `npm run fresh`
 3. Hand-curate the skills table from what extraction produces — done; ongoing via `out/proposed.json`
 4. Supabase schema + pipeline as an edge function — done 2026-09-13, see `docs/step-4-plan.md`
 5. Web list view, sorted and filterable — done 2026-09-14, see `docs/step-5-plan.md`
-6. iOS capture app + Share Extension ← current, no plan yet
+6. iOS capture app + Share Extension ← current, see `docs/step-6-plan.md`
 7. Sharing and the friend skill pool
 8. Later: graph view, roadmaps, starter kits
 
