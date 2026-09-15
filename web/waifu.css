@@ -38,45 +38,58 @@
 .waifu .tab { opacity: 0.8; }
 .waifu .tab.on, .waifu .tab:hover { opacity: 1; border-bottom-color: #fff; }
 
-/* the chat bubble: a frosted white oval over the doorway beside her head,
-   placed with ?place=1 (2026-09-15), its tail two frosted dots stepping
-   toward her at the bottom-right (a triangle cannot carry a backdrop blur,
-   and does not sit on a curve). */
+/* the chat bubble: a comic cloud (docs/waifu-view-plan.md, decision 11) in
+   the input's material — frosted dark glass, thin white rim, white text —
+   placed with ?place=1, its swoosh tail at the bottom-right pointing at her.
+   The glass layer is clipped to the cloud path (an objectBoundingBox
+   clipPath in the SVG the view builds), and the same path is stroked on top
+   as the rim, since a clipped element cannot draw its own border. */
 .waifu-bubble {
   position: absolute;
   left: 32.6%;
   top: 26.2%;
   width: 18.3vw;
-  min-width: 15rem;
+  min-width: 16rem;
+  aspect-ratio: 1.55;
   margin: 0;
-  padding: 1.9rem 2.4rem;
-  font-size: 1.1rem;
-  font-weight: 500;
-  line-height: 1.45;
-  text-align: center;
-  color: #15161a;
-  background: rgba(255, 255, 255, 0.72);
-  backdrop-filter: blur(14px) saturate(140%);
-  -webkit-backdrop-filter: blur(14px) saturate(140%);
-  border: 1px solid rgba(255, 255, 255, 0.6);
-  border-radius: 50%;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  filter: drop-shadow(0 10px 22px rgba(0, 0, 0, 0.35));
 }
-.waifu-bubble::before,
-.waifu-bubble::after {
-  content: "";
+.waifu-bubble-glass {
   position: absolute;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.72);
-  backdrop-filter: blur(14px) saturate(140%);
-  -webkit-backdrop-filter: blur(14px) saturate(140%);
-  border: 1px solid rgba(255, 255, 255, 0.6);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  inset: 0;
+  clip-path: url(#waifu-cloud);
+  background: rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
-.waifu-bubble::before { width: 1rem; height: 1rem; right: 0.9rem; bottom: -0.55rem; }
-.waifu-bubble::after { width: 0.55rem; height: 0.55rem; right: 0.1rem; bottom: -1.2rem; }
-.waifu-bubble a {
-  color: #2f6f5e;
+.waifu-bubble-edge {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.5);
+  stroke-width: 1.5px;
+  pointer-events: none;
+}
+/* inset, not padding: percentage padding resolves against the scene's
+   width, an absolute inset against the bubble's. More room at the bottom,
+   where the tail is. */
+.waifu-bubble-text {
+  position: absolute;
+  left: 12%; right: 12%; top: 13%; bottom: 25%;
+  display: grid;
+  place-items: center;
+  font-size: 1.05rem;
+  font-weight: 500;
+  line-height: 1.4;
+  text-align: center;
+  color: #fff;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+}
+.waifu-bubble-text a {
+  color: #fff;
   font-weight: 600;
   text-decoration: underline;
   text-underline-offset: 0.15em;
@@ -137,9 +150,7 @@
 /* narrow: the doorway moves under object-position, so the bubble anchors to
    the top-left instead, its tail pointing down, and the bar stacks */
 @media (max-width: 52rem) {
-  .waifu-bubble { left: 1rem; right: 1rem; top: 4.5rem; width: auto; min-width: 0; border-radius: 2rem; padding: 1rem 1.4rem; }
-  .waifu-bubble::before { right: 2.2rem; bottom: -0.6rem; }
-  .waifu-bubble::after { right: 1.5rem; bottom: -1.25rem; }
+  .waifu-bubble { left: 1rem; top: 4.5rem; width: min(22rem, 70vw); min-width: 0; }
   .waifu-bar { flex-wrap: wrap; padding-top: 3rem; }
   .waifu-input { max-width: none; flex-basis: 100%; }
 }

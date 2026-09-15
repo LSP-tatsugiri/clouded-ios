@@ -709,11 +709,20 @@ function waifuView() {
   if (w.band !== band || !w.line) { w.band = band; w.line = opener(band); }
   if (w.phase === "sending") w.phase = "asking";   // a render mid-send means a route change; start over
 
-  const bubble = el("p", { class: "waifu-bubble" }, w.phase === "saved" ? SAVED : w.phase === "failed" ? FAILED : w.line);
-  const say = (text, link) => {
-    bubble.replaceChildren(text);
-    if (link) bubble.append(" ", el("a", { href: `#/idea/${link}` }, "See it on the list."));
+  // A comic cloud (docs/waifu-view-plan.md, decision 11): the glass layer is
+  // clipped to a path in objectBoundingBox units so it scales with the
+  // bubble, and the same path is stroked on top as the thin rim.
+  const text = el("span", { class: "waifu-bubble-text" });
+  const bubble = el("div", { class: "waifu-bubble" },
+    el("div", { class: "waifu-bubble-glass" }),
+    cloudSvg(),
+    text
+  );
+  const say = (line, link) => {
+    text.replaceChildren(line);
+    if (link) text.append(" ", el("a", { href: `#/idea/${link}` }, "See it on the list."));
   };
+  say(w.phase === "saved" ? SAVED : w.phase === "failed" ? FAILED : w.line);
   if (w.phase === "saved" && w.ideaId) say(SAVED, w.ideaId);
 
   const input = el("textarea", {
@@ -761,6 +770,25 @@ function waifuView() {
     form,
     placing && placementTool(bubble)
   );
+}
+
+// The cloud outline in a 0–1 box, drawn clockwise from the left edge: five
+// lumps over the top, two down the right, the swoosh tail at the bottom
+// right pointing at her, three lumps back along the bottom. Static markup,
+// so a fragment is fine here; el() cannot make namespaced SVG elements.
+const CLOUD_PATH =
+  "M 0.03 0.45 A 0.14 0.19 0 0 1 0.2 0.14 A 0.15 0.17 0 0 1 0.42 0.07 " +
+  "A 0.07 0.08 0 0 1 0.55 0.1 A 0.16 0.16 0 0 1 0.8 0.15 A 0.13 0.18 0 0 1 0.97 0.45 " +
+  "A 0.12 0.16 0 0 1 0.86 0.72 C 0.9 0.84 0.88 0.95 0.78 1 C 0.74 0.9 0.68 0.85 0.63 0.79 " +
+  "A 0.13 0.13 0 0 1 0.4 0.8 A 0.13 0.14 0 0 1 0.19 0.74 A 0.12 0.16 0 0 1 0.03 0.45 Z";
+
+function cloudSvg() {
+  const t = document.createElement("template");
+  t.innerHTML =
+    `<svg class="waifu-bubble-edge" viewBox="0 0 1 1" preserveAspectRatio="none" aria-hidden="true">` +
+    `<defs><clipPath id="waifu-cloud" clipPathUnits="objectBoundingBox"><path d="${CLOUD_PATH}"/></clipPath></defs>` +
+    `<path d="${CLOUD_PATH}" vector-effect="non-scaling-stroke"/></svg>`;
+  return t.content.firstElementChild;
 }
 
 // ?place=1: drag the bubble to where it should sit and read the CSS off the
