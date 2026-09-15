@@ -5,6 +5,8 @@ import Supabase
 struct CloudedApp: App {
     @State private var auth = AuthModel()
 
+    init() { Uploader.sweep() }
+
     var body: some Scene {
         WindowGroup {
             RootView()

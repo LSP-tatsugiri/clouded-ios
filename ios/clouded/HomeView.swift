@@ -9,6 +9,7 @@ struct HomeView: View {
     let user: User
     @State private var model: IdeasModel
     @State private var answering: Idea?
+    @State private var capturing = false
 
     init(user: User) {
         self.user = user
@@ -22,19 +23,28 @@ struct HomeView: View {
                     ProgressView()
                 } else if model.ideas.isEmpty && model.error == nil {
                     ContentUnavailableView("No ideas yet", systemImage: "lightbulb",
-                                           description: Text("Ideas you capture land here, newest first."))
+                                           description: Text("Tap + or share a screenshot to capture one."))
                 } else {
                     list
                 }
             }
             .navigationTitle("clouded")
             .toolbar {
-                Button("Sign out") { Task { await auth.signOut() } }
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Sign out") { Task { await auth.signOut() } }
+                }
+                ToolbarItem(placement: .primaryAction) {
+                    Button("New idea", systemImage: "plus") { capturing = true }
+                }
             }
             .task { await model.load() }
             .onDisappear { model.stopPolling() }
             .sheet(item: $answering) { idea in
                 AnswerSheet(idea: idea) { text in Task { await model.answer(idea, text) } }
+            }
+            .sheet(isPresented: $capturing) {
+                // the new row arrives pending and the list polls it home
+                CaptureView { Task { await model.load() } }
             }
         }
     }

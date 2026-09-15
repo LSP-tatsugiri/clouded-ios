@@ -210,6 +210,29 @@ Rows shared to a group by friends are not on the phone (the query filters
   row with `source_url`; try to save with no sentence → cannot; airplane
   mode → upload completes when it is turned off.
 
+**Done 2026-09-15.** `ios/Shared/Capture.swift` (the insert and the
+uploader), `ios/clouded/CaptureView.swift` (sentence, PhotosPicker or
+camera, a link field with the system paste button), and the extension's
+`ShareViewController.swift` (one image or one web URL in; URL wins when a
+page shares both). One departure from decision 9: the client chooses the
+idea's id, so the row is inserted **with** `image_path` set and there is
+no PATCH after the upload. Reason: once the extension is dismissed there
+is no process to send the PATCH (the system would have to relaunch the
+containing app for it), and the web page already says "attached but could
+not be loaded" for a missing object, which is the honest state of a
+failed upload. Extraction still starts on the insert. The upload is a
+plain storage POST on a background `URLSession` with
+`sharedContainerIdentifier` = the App Group, from a JPEG spooled in the
+group container (swept after a day at app launch); it carries the token
+of the moment, so an upload delayed past a token lifetime fails and the
+idea shows without its picture. Verified on the phone: in-app capture
+with a library photo → row extracting, then extracted, 1.0 MB JPEG in the
+bucket; share a screenshot from the preview → Save disabled until a
+sentence, then the row on the web with its 545 KB image (the upload
+finished after the sheet closed); share a Douyin link → row with
+`source_url`. Not run: the airplane-mode case; the insert needs the
+network anyway, so what it would show is Save failing honestly.
+
 ## Phase E — acceptance and close
 
 1. Fresh install on your phone: sign in, capture from the app, capture from
