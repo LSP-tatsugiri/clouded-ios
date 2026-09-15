@@ -1,8 +1,5 @@
-# Xcode
-*.xcodeproj/*
-!*.xcodeproj/project.pbxproj
-!*.xcodeproj/xcshareddata/
-!*.xcworkspace/contents.xcworkspacedata
+# Xcode. The project is generated from ios/project.yml by XcodeGen and
+# committed with its Package.resolved; only per-user state is ignored.
 *.pbxuser
 !default.pbxuser
 *.mode1v3
@@ -24,9 +21,6 @@ DerivedData/
 .build/
 .swiftpm/
 
-# CocoaPods
-Pods/
-*.xcworkspace
 
 # Carthage
 Carthage/Build/
@@ -53,6 +47,9 @@ supabase/.branches/
 
 # Web client config (project URL + anon key). Keep the example.
 web/config.js
+
+# iOS build config (project URL, anon key, Apple team). Keep the example.
+ios/Config.xcconfig
 
 # Claude Code: settings.json is shared (plugins + marketplaces); local is per machine
 .claude/settings.local.json

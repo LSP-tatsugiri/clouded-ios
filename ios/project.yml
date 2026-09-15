@@ -1,0 +1,86 @@
+# XcodeGen spec for the iOS capture app (docs/step-6-plan.md).
+#   brew install xcodegen && cd ios && xcodegen generate
+# The generated clouded.xcodeproj is committed too, so Xcode works without
+# XcodeGen; regenerate after editing this file, never edit the project by hand.
+name: clouded
+options:
+  bundleIdPrefix: dev.clouded
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+  generateEmptyDirectories: true
+
+# Project URL, anon key and your Apple team id. Gitignored; copy the example.
+configFiles:
+  Debug: Config.xcconfig
+  Release: Config.xcconfig
+
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    CODE_SIGN_STYLE: Automatic
+    TARGETED_DEVICE_FAMILY: "1"          # iPhone only
+    SWIFT_STRICT_CONCURRENCY: minimal
+
+packages:
+  Supabase:
+    url: https://github.com/supabase/supabase-swift
+    exactVersion: 2.55.2
+
+# Both targets compile Shared/ directly. A framework would be the "proper"
+# way to share code with an extension; a folder is fewer moving parts.
+targets:
+  clouded:
+    type: application
+    platform: iOS
+    sources: [clouded, Shared]
+    dependencies:
+      - package: Supabase
+        product: Supabase
+      - target: cloudedShare
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.clouded.app
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+    info:
+      path: clouded/Info.plist
+      properties:
+        CFBundleDisplayName: clouded
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        ITSAppUsesNonExemptEncryption: false
+        SupabaseURL: $(SUPABASE_URL)
+        SupabaseAnonKey: $(SUPABASE_ANON_KEY)
+    entitlements:
+      path: clouded/clouded.entitlements
+      properties:
+        com.apple.security.application-groups: [group.dev.clouded]
+
+  cloudedShare:
+    type: app-extension
+    platform: iOS
+    sources: [cloudedShare, Shared]
+    dependencies:
+      - package: Supabase
+        product: Supabase
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.clouded.app.share
+    info:
+      path: cloudedShare/Info.plist
+      properties:
+        CFBundleDisplayName: clouded
+        SupabaseURL: $(SUPABASE_URL)
+        SupabaseAnonKey: $(SUPABASE_ANON_KEY)
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.share-services
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).ShareViewController
+          NSExtensionAttributes:
+            # decision 8: one image or one URL per share
+            NSExtensionActivationRule:
+              NSExtensionActivationSupportsImageWithMaxCount: 1
+              NSExtensionActivationSupportsWebURLWithMaxCount: 1
+    entitlements:
+      path: cloudedShare/cloudedShare.entitlements
+      properties:
+        com.apple.security.application-groups: [group.dev.clouded]

@@ -1,0 +1,11 @@
+// Copy to Config.xcconfig (gitignored) and fill in. Same two values as
+// web/config.js, plus the Apple team that signs the build.
+//
+// xcconfig treats "//" as a comment, so the URL is written with an empty
+// build-setting reference in the middle: https:/$()/... reads as https://...
+SUPABASE_URL = https:/$()/YOUR-PROJECT-REF.supabase.co
+SUPABASE_ANON_KEY = YOUR-ANON-KEY
+
+// Xcode → Settings → Accounts → your Apple ID → Team ID (10 characters).
+// A free Apple ID's personal team is enough to build on your own phone.
+DEVELOPMENT_TEAM = ABCDE12345
