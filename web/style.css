@@ -491,3 +491,15 @@ button.danger { color: var(--bad, #b42318); border-color: currentColor; margin-r
 .friends.unblock { color: var(--fg); }
 .friends.unblock .mark { color: var(--accent); }
 .share .check { margin: 0; }
+
+/* feed and friend page */
+
+.feed { margin-bottom: 1rem; }
+.feed-head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; }
+.feed-head h2 { margin: 0.75rem 0 0.25rem; }
+.feed-head .link { font-size: 0.85rem; }
+.feed-head .seg-on { color: var(--fg); text-decoration: none; font-weight: 600; }
+.owner { font-size: 0.8rem; color: var(--fg); font-weight: 600; }
+a.owner { text-decoration: none; border-bottom: 1px solid var(--line); }
+a.owner:hover { border-bottom-color: var(--fg); }
+.tag.level-solid { background: var(--accent); color: #fff; }

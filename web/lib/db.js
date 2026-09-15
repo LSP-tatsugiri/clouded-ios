@@ -60,6 +60,23 @@ export async function ideas(userId) {
     .order("created_at", { ascending: true }), "ideas");
 }
 
+// The feed: every shared idea the user can see, theirs included, newest
+// first. RLS limits "shared" to groups they belong to.
+export async function sharedIdeas() {
+  return ok(await db.from("ideas")
+    .select("id, user_id, raw, objective, domain, is_clear, clarifying_question, status, shared_to, created_at")
+    .not("shared_to", "is", null)
+    .order("created_at", { ascending: false }), "sharedIdeas");
+}
+
+// A friend's levels, for their profile page. RLS returns rows only for a
+// group mate; a stranger's id comes back empty, not refused.
+export async function skillsFor(userId) {
+  return ok(await db.from("user_skills")
+    .select("skill_id, level")
+    .eq("user_id", userId), "skillsFor");
+}
+
 // Every skill a group mate holds at "solid", as skill_id -> [user_id]. RLS
 // returns your own rows and your group mates'; your own are dropped here so
 // the pool is "who else". "some" is not fetched: it does not count as

@@ -15,7 +15,8 @@ import {
   addIdea, amCurator, capabilities, capabilitiesFor, createGroup, db, deleteGroup, groupMembers,
   groupSkills, idea as fetchIdea, ideas, invite, myGroups, myProfile, mySkills, pendingInvites, profilesFor,
   promoteSkill, proposedSkills, rejectSkill, removeMember, renameGroup, revokeInvite, runsFor,
-  session, setClarification, setDisplayName, setShare, setSkillLevel, signIn, signOut, signUp, skills
+  session, setClarification, setDisplayName, setShare, setSkillLevel, sharedIdeas, signIn, signOut,
+  signUp, skills, skillsFor
 } from "./lib/db.js";
 import { el, mount } from "./lib/dom.js";
 
@@ -44,6 +45,9 @@ const state = {
   profile: null,       // { user_id, display_name } — yours
   groups: [],          // { id, name, created_by, members: [{ user_id, display_name, added_at }], invites: [{ email }] }
   confirmDelete: null, // group id whose delete button is waiting for a second click
+  feed: [],            // shared ideas from every group, newest first (decision 12)
+  feedSort: "newest",  // "newest" | "closest"
+  friend: null,        // { profile, levels } for the friend profile page
   authMode: "signin",  // "signin" | "create" on the sign-in card
   waiting: "",         // progress text while an answer re-runs extraction
   extracting: new Map(), // idea_id -> { stage, seconds } while the list watches a new idea
@@ -58,12 +62,18 @@ function hashPath() { return location.hash.replace(/^#\/?/, ""); }
 function currentRoute() {
   const h = hashPath();
   if (h.startsWith("idea/")) return "idea";
+  if (h.startsWith("friend/")) return "friend";
   return ROUTES.has(h) ? h : "list";
 }
 
 function currentIdeaId() {
   const h = hashPath();
   return h.startsWith("idea/") ? h.slice(5) : null;
+}
+
+function currentFriendId() {
+  const h = hashPath();
+  return h.startsWith("friend/") ? h.slice(7) : null;
 }
 
 const skillName = (id) => state.skills.find((s) => s.id === id)?.name ?? id;
@@ -453,8 +463,127 @@ function groupView() {
     header(),
     state.error && el("p", { class: "error" }, state.error),
     state.groups.length
-      ? state.groups.map((g) => groupSection(g, me))
+      ? [feedSection(me), state.groups.map((g) => groupSection(g, me))]
       : createGroupCard()
+  );
+}
+
+// The feed (decision 12): every member's shared ideas, yours included,
+// newest first, each measured against the reader's own profile. "Closest to
+// me" is the same sort the Ideas tab uses.
+function feedSection(me) {
+  const capsById = new Map();
+  for (const c of state.caps) {
+    if (!capsById.has(c.idea_id)) capsById.set(c.idea_id, []);
+    capsById.get(c.idea_id).push(c);
+  }
+  const rows = state.feed.map((idea) => ({ idea, extraction: extractionOf(idea, capsById) }));
+  if (state.feedSort === "closest") {
+    rows.sort((a, b) =>
+      compareKeys(sortKey(a.extraction, state.levels), sortKey(b.extraction, state.levels)) ||
+      Date.parse(b.idea.created_at) - Date.parse(a.idea.created_at));
+  }
+  const sortButton = (key, label) => el("button", {
+    class: state.feedSort === key ? "seg-on link" : "link",
+    onclick: () => { state.feedSort = key; render(); }
+  }, label);
+
+  return el("section", { class: "feed" },
+    el("div", { class: "feed-head" },
+      el("h2", {}, "Shared with the group"),
+      rows.length > 1 && el("span", { class: "muted" }, sortButton("newest", "newest"), " · ", sortButton("closest", "closest to me"))
+    ),
+    rows.length
+      ? el("ul", { class: "ideas" }, rows.map((r) => feedRow(r, me)))
+      : el("p", { class: "muted" }, "Nothing shared yet. Share an idea from its page and it appears here for everyone in the group.")
+  );
+}
+
+function feedRow({ idea, extraction }, me) {
+  const owner = idea.user_id === me
+    ? el("span", { class: "owner" }, "you")
+    : el("a", { href: `#/friend/${idea.user_id}`, class: "owner" }, state.names.get(idea.user_id) ?? "a friend");
+  const title = idea.objective || idea.raw;
+  if (idea.is_clear !== true) {
+    return el("li", { class: "idea vague" },
+      el("div", { class: "idea-head" }, el("a", { href: `#/idea/${idea.id}`, class: "idea-title" }, title)),
+      el("div", { class: "meta" }, owner, el("span", { class: "tag warn" }, idea.status === "extracted" ? "too vague to extract" : idea.status))
+    );
+  }
+  const held = state.levels;
+  const d = distanceOf(extraction, held);
+  const crux = cruxOf(extraction);
+  const cruxClass = crux ? classify(crux, held) : null;
+  const counts = [`${d.gap} short`, d.partial ? `${d.partial} partial` : null, d.have ? `${d.have} held` : null]
+    .filter(Boolean).join(" · ");
+
+  // who holds the crux: the reader counts here, unlike on the Ideas tab
+  const f = friendsWhoHold(extraction, held, state.pool);
+  const holders = [...(cruxClass === "have" ? ["you"] : []), ...f.cruxHolders.map((id) => state.names.get(id) ?? "a friend")];
+  const holderText = holders.length
+    ? `${holders.slice(0, 2).join(" and ")}${holders.length > 2 ? ` +${holders.length - 2}` : ""} ${holders.length === 1 && holders[0] !== "you" ? "holds" : "hold"} the hard part`
+    : null;
+  const coverText = f.gaps ? `group covers ${f.covered} of ${f.gaps} ${f.gaps === 1 ? "gap" : "gaps"}` : "nothing missing for you";
+
+  return el("li", { class: "idea" },
+    el("div", { class: "idea-head" },
+      el("a", { href: `#/idea/${idea.id}`, class: "idea-title" }, title),
+      el("span", { class: "counts" }, counts)
+    ),
+    crux && el("div", { class: `crux ${cruxClass}` },
+      el("span", { class: "mark" }, MARK[cruxClass]),
+      el("span", { class: "crux-label" }, capLabel(crux)),
+      el("span", { class: "crux-tag" }, "the hard part")
+    ),
+    el("div", { class: "meta" },
+      owner,
+      idea.domain && el("span", { class: "tag" }, idea.domain),
+      el("span", { class: "muted" }, new Date(idea.created_at).toLocaleDateString())
+    ),
+    el("div", { class: holderText ? "friends unblock" : "friends" },
+      el("span", { class: "mark" }, holderText ? "[+]" : "[ ]"),
+      [holderText, coverText].filter(Boolean).join(" · "))
+  );
+}
+
+// ---------------------------------------------------------------- friend
+
+// A group mate's profile (decision 13): name and the skills they hold at
+// solid or some, by domain. Read-only; their ideas are the feed.
+function friendView() {
+  const f = state.friend;
+  if (!f) return el("div", {}, header(),
+    state.error
+      ? el("p", { class: "error" }, state.error, " ", el("a", { href: "#/group" }, "← group"))
+      : el("p", { class: "muted" }, "Loading…"));
+
+  const byDomain = new Map();
+  for (const s of state.skills) {
+    const lv = f.levels.get(s.id);
+    if (lv !== "solid" && lv !== "some") continue;
+    const d = s.domain || "other";
+    if (!byDomain.has(d)) byDomain.set(d, []);
+    byDomain.get(d).push({ skill: s, level: lv });
+  }
+  const solid = [...f.levels.values()].filter((l) => l === "solid").length;
+  const some = [...f.levels.values()].filter((l) => l === "some").length;
+
+  return el("div", {},
+    header(),
+    el("p", {}, el("a", { href: "#/group", class: "tab" }, "← group")),
+    el("h2", { class: "detail-title" }, f.profile.display_name),
+    el("p", { class: "muted" }, `${solid} solid · ${some} some`),
+    byDomain.size
+      ? [...byDomain].map(([domain, list]) => el("section", { class: "domain" },
+          el("h2", {}, domain),
+          el("ul", { class: "skills" }, list.map(({ skill, level }) => el("li", { class: "skill" },
+            el("div", { class: "skill-text" },
+              el("div", { class: "skill-name" }, skill.name),
+              el("div", { class: "skill-id" }, skill.id)),
+            el("span", { class: `tag level-${level}` }, level)
+          )))
+        ))
+      : el("p", { class: "muted" }, "They have not rated any skill yet.")
   );
 }
 
@@ -709,6 +838,9 @@ function ideaView() {
       : el("p", { class: "muted" }, "Loading…"));
 
   const { idea, caps, runs, groups } = d;
+  // a friend's shared idea is readable but not editable: no answering, no
+  // share control (RLS would refuse both; the page just does not offer them)
+  const mine = idea.user_id === state.session.user.id;
   const extraction = { clear: idea.is_clear === true, capabilities: caps };
   const dist = distanceOf(extraction, state.levels);
   const crux = cruxOf(extraction);
@@ -729,6 +861,7 @@ function ideaView() {
     idea.clarification && el("p", { class: "idea-raw" }, `you clarified: ${idea.clarification}`),
 
     el("div", { class: "meta" },
+      !mine && el("a", { href: `#/friend/${idea.user_id}`, class: "owner" }, state.names.get(idea.user_id) ?? "a friend"),
       idea.domain && el("span", { class: "tag" }, idea.domain),
       dist && el("span", { class: "tag" }, counts),
       idea.status !== "extracted" && el("span", { class: "tag warn" }, idea.status)
@@ -740,7 +873,7 @@ function ideaView() {
     idea.is_clear === false && el("section", { class: "question-block" },
       el("h3", {}, "Too vague to extract"),
       idea.clarifying_question && el("p", { class: "question" }, idea.clarifying_question),
-      answerBox(idea)
+      mine && answerBox(idea)
     ),
 
     caps.length > 0 && el("section", {},
@@ -748,9 +881,10 @@ function ideaView() {
       el("ul", { class: "capdetails" }, ordered.map(capabilityDetail))
     ),
 
-    shareControl(idea, groups),
+    mine && shareControl(idea, groups),
 
-    el("details", { class: "runs" },
+    // extraction_runs are readable by the owner only, so a friend would see 0
+    mine && el("details", { class: "runs" },
       el("summary", {}, `Extraction history (${runs.length})`),
       el("ul", { class: "caps" }, runs.map((r) => el("li", {},
         el("span", { class: "mark" }, r.error ? "✕" : "·"),
@@ -871,6 +1005,7 @@ function render() {
   if (state.route === "review") return void mount(app, reviewView());
   if (state.route === "idea") return void mount(app, ideaView());
   if (state.route === "group") return void mount(app, groupView());
+  if (state.route === "friend") return void mount(app, friendView());
   mount(app, state.route === "profile" ? profileView() : listView());
 }
 
@@ -924,8 +1059,15 @@ async function load() {
   } else if (state.route === "profile") {
     state.profile = await myProfile(state.session.user.id);
   } else if (state.route === "group") {
-    const [profile, groups] = await Promise.all([myProfile(state.session.user.id), myGroups()]);
+    const me = state.session.user.id;
+    const [profile, groups, feed, capRows, pool] = await Promise.all([
+      myProfile(me), myGroups(), sharedIdeas(), capabilities(), groupSkills(me)
+    ]);
     state.profile = profile;
+    state.feed = feed;
+    state.caps = capRows;
+    state.pool = pool;
+    await loadNames([...new Set([...feed.map((i) => i.user_id), ...[...pool.values()].flat()])]);
     // members and names in two queries: group_members points at auth.users,
     // not profiles, so PostgREST cannot embed one in the other
     state.groups = await Promise.all(groups.map(async (g) => {
@@ -940,6 +1082,13 @@ async function load() {
       fetchIdea(id), capabilitiesFor(id), runsFor(id), myGroups()
     ]);
     state.detail = { idea: one, caps, runs, groups };
+    if (one.user_id !== state.session.user.id) await loadNames([one.user_id]);
+  } else if (state.route === "friend") {
+    const id = currentFriendId();
+    const [profiles, levels] = await Promise.all([profilesFor([id]), skillsFor(id)]);
+    // RLS hides a stranger's rows rather than refusing them
+    if (!profiles.length) throw new Error("No such person, or you are not in a group with them.");
+    state.friend = { profile: profiles[0], levels: new Map(levels.map((r) => [r.skill_id, r.level])) };
   }
 }
 
@@ -947,6 +1096,7 @@ addEventListener("hashchange", () => {
   state.route = currentRoute();
   status.textContent = "";
   state.detail = null;
+  state.friend = null;
   state.waiting = "";
   run(load);
 });

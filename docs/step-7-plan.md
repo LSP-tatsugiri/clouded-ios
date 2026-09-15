@@ -251,6 +251,20 @@ which friend already holds what it needs."
   private idea appears in neither feed; the friend page shows `solid` and
   `some` only.
 
+**Done 2026-09-15.** Verified with the golf-bag mount shared by `test`:
+on `test`'s Group tab the feed row reads "you · 4 short · Alex holds the
+hard part · group covers 2 of 4 gaps"; on Alex's it reads "test · 2 short
+· 2 held", crux `[x]`, "you hold the hard part · group covers 0 of 2
+gaps" — the same idea, measured against each reader. The owner link opens
+`test`'s friend page ("6 solid · 7 some", by domain, level tags, nothing
+rated `none`). A friend's idea page shows the owner and hides the answer
+box, the share control and the extraction history (runs are owner-only
+under RLS, so a friend saw "(0)"). Alex has no ideas of their own, so the
+reverse direction — a friend's idea in the owner's feed — is exercised by
+the same code path (`sharedIdeas()` is symmetric) and gets its live check
+when the first real friend shares something in Phase E. Adding an idea
+for Alex would have cost an extraction.
+
 ## Phase E — acceptance and close
 
 1. `acceptance.mjs rls` green in its full form; `acceptance.mjs list`
