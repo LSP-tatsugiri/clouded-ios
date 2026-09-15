@@ -52,7 +52,10 @@ These are load-bearing. Changing one is a product decision, not a refactor.
   modules, no bundler, no framework; `@supabase/supabase-js` from a pinned
   CDN. `config.js` is gitignored. It imports `extraction/src/distance.js`
   directly (one copy of the distance logic), which `serve.mjs` serves by
-  mounting `/extraction/src/` read-only — hosting must reproduce that mapping.
+  mounting `/extraction/src/` read-only and `build.mjs` reproduces for the
+  host by copying it. Hosted at `clouded.monoesport.com` on Vercel, deploying
+  on every push to `main`; sign-up is self-serve behind an email allowlist.
+  See `docs/hosting.md`.
 - `/` — the iOS app. Empty on purpose; capture is built last, because what an
   entry stores depends on what extraction produces.
 
@@ -121,6 +124,12 @@ while out. Capture is the only phone-first part.
   default and thinking counts against `max_tokens`; the baseline was never
   produced with thinking. Keep `extract.js`/`resolve.js` and
   `supabase/functions/_shared/` in lockstep; the Deno tests assert it.
+
+- **No per-user cost cap.** Anyone with an account can add ideas, and each
+  one is ~1¢ of the owner's Anthropic credit. Accounts are gated by the
+  email allowlist and the page states the cost, and ten trusted people is
+  the whole audience — so trust, deliberately. If that ever stops holding,
+  a daily per-user cap in the edge function is a ten-line change.
 
 ## Schema fixes needed before the schema is used
 

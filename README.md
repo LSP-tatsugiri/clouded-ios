@@ -407,6 +407,21 @@ Sign in with email and password. The acceptance checks behind the list are in
 leverage ranking for a user; `rls` verifies who can see what); the decisions
 and what each phase verified are in `docs/step-5-plan.md`.
 
+### Running it hosted
+
+The same files are served at https://clouded.monoesport.com from Vercel,
+deploying on every push to `main`. `web/build.mjs` is the whole build: it
+copies `extraction/src/distance.js` into `web/` (a static host has no mount)
+and writes `config.js` from two environment variables, so no key is ever
+in a tracked file. Friends create their own accounts from the sign-in card,
+but only an invited email gets one:
+
+```bash
+node --env-file=supabase/.env supabase/scripts/allow.mjs friend@example.com
+```
+
+Setup, the DNS record, rollback and the reasoning are in `docs/hosting.md`.
+
 ### The development loop
 
 Edit the prompt in `extraction/src/extract.js`, run `npm run fresh`, read the output, repeat.

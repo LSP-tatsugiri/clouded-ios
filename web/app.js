@@ -13,7 +13,7 @@ import {
 } from "/extraction/src/distance.js";
 import {
   addIdea, amCurator, capabilities, capabilitiesFor, db, idea as fetchIdea, ideas, myGroups,
-  mySkills, promoteSkill, proposedSkills, rejectSkill, runsFor, session, setClarification,
+  mySkills, promoteSkill, proposedSkills, rejectSkill, runsFor, session, setClarification, signUp,
   setShare, setSkillLevel, signIn, signOut, skills
 } from "./lib/db.js";
 import { el, mount } from "./lib/dom.js";
@@ -38,6 +38,7 @@ const state = {
   curator: null,       // null = not yet checked
   proposals: [],
   detail: null,        // { idea, caps, runs, groups } for the idea page
+  authMode: "signin",  // "signin" | "create" on the sign-in card
   waiting: "",         // progress text while an answer re-runs extraction
   extracting: new Map(), // idea_id -> { stage, seconds } while the list watches a new idea
   error: null,
@@ -83,12 +84,18 @@ function header() {
 
 // ---------------------------------------------------------------- sign in
 
+// One card, two modes. Creating an account is self-serve but gated: the
+// server refuses emails that were not invited (docs/hosting.md), and the
+// message says so rather than looking like a wrong password.
 function signInView() {
+  const creating = state.authMode === "create";
   const form = el("form", {
     class: "card",
     onsubmit: (e) => {
       e.preventDefault();
-      run(() => signIn(form.elements.email.value.trim(), form.elements.password.value));
+      const email = form.elements.email.value.trim();
+      const password = form.elements.password.value;
+      run(() => (creating ? signUp(email, password) : signIn(email, password)));
     }
   },
     el("h1", {}, "clouded"),
@@ -97,9 +104,18 @@ function signInView() {
     el("label", {}, "Email",
       el("input", { name: "email", type: "email", required: true, autocomplete: "username" })),
     el("label", {}, "Password",
-      el("input", { name: "password", type: "password", required: true, autocomplete: "current-password" })),
-    el("button", { type: "submit", disabled: state.busy }, state.busy ? "Signing in…" : "Sign in"),
-    state.error && el("p", { class: "error" }, state.error)
+      el("input", {
+        name: "password", type: "password", required: true, minlength: 8,
+        autocomplete: creating ? "new-password" : "current-password"
+      })),
+    el("button", { type: "submit", disabled: state.busy },
+      state.busy ? (creating ? "Creating…" : "Signing in…") : (creating ? "Create account" : "Sign in")),
+    state.error && el("p", { class: "error" }, state.error),
+    el("p", { class: "muted switch" },
+      creating ? "Already have an account? " : "Invited? ",
+      el("a", {
+        href: "#", onclick: (e) => { e.preventDefault(); state.authMode = creating ? "signin" : "create"; state.error = null; render(); }
+      }, creating ? "Sign in" : "Create an account"))
   );
   return form;
 }

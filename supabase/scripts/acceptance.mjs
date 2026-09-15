@@ -165,8 +165,13 @@ async function rls() {
   const results = [];
   const check = (name, ok, detail = "") => { results.push(ok); console.log(`${ok ? "PASS" : "FAIL"}  ${name}${detail ? `  (${detail})` : ""}`); };
   const pw = () => crypto.randomUUID() + "Aa1!";
+  // since 20260915033902 auth.users refuses any email not in allowed_emails,
+  // admin creates included, so the throwaway users are listed first
+  const allow = (email) => rest("allowed_emails", { method: "POST", body: { email }, prefer: "resolution=ignore-duplicates" });
+  const disallow = (email) => rest(`allowed_emails?email=eq.${encodeURIComponent(email)}`, { method: "DELETE" });
   const mkUser = async (email) => {
     const password = pw();
+    await allow(email);
     const u = await auth("admin/users", { method: "POST", body: { email, password, email_confirm: true } });
     return { id: u.id, email, password };
   };
@@ -214,12 +219,23 @@ async function rls() {
       check(`anon sees nothing in ${t}`, (await anon(`${t}?select=*&limit=1`)).length === 0);
     }
     check("anon cannot read proposed_skills", await denied(anon("proposed_skills?select=key")));
+    check("anon cannot read allowed_emails", (await anon("allowed_emails?select=email").catch(() => [])).length === 0);
+
+    // self-serve sign-up through the public endpoint, as the web form does
+    const unlisted = `rls-x-${Date.now()}@clouded.test`;
+    const signUp = (email) => call(`${BASE}/auth/v1/signup`, { method: "POST", body: { email, password: pw() }, token: ANON, apikey: ANON });
+    check("sign-up with an unlisted email is refused", await (async () => {
+      try { await signUp(unlisted); return false; } catch (e) { return /not invited/.test(e.message); }
+    })());
   } finally {
     console.log("\ncleaning up");
     if (ideaId) await rest(`ideas?id=eq.${ideaId}`, { method: "PATCH", body: { shared_to: null } }).catch((e) => console.error(e.message));
     await rest(`user_skills?user_id=eq.${USER}&skill_id=eq.parametric-cad`, { method: "DELETE" }).catch((e) => console.error(e.message));
     if (gid) await rest(`groups?id=eq.${gid}`, { method: "DELETE" }).catch((e) => console.error(e.message));
-    for (const u of [B, C]) if (u) await auth(`admin/users/${u.id}`, { method: "DELETE" }).catch((e) => console.error(e.message));
+    for (const u of [B, C]) if (u) {
+      await auth(`admin/users/${u.id}`, { method: "DELETE" }).catch((e) => console.error(e.message));
+      await disallow(u.email).catch((e) => console.error(e.message));
+    }
   }
   const failed = results.filter((r) => !r).length;
   console.log(`\n${results.length - failed}/${results.length} checks passed`);

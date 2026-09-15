@@ -21,6 +21,18 @@ export async function signIn(email, password) {
   if (error) throw new Error(error.message);
 }
 
+// Self-serve, gated server-side: a trigger on auth.users refuses any email
+// not in allowed_emails (docs/hosting.md). Email confirmation is off, so a
+// successful sign-up is also a sign-in.
+export async function signUp(email, password) {
+  const { error } = await db.auth.signUp({ email, password });
+  if (error) {
+    // the trigger's message arrives wrapped in a generic auth error
+    if (/not invited/i.test(error.message)) throw new Error("That address isn't invited yet. Ask for an invite, then try again.");
+    throw new Error(error.message);
+  }
+}
+
 export const signOut = () => db.auth.signOut();
 
 export async function session() {

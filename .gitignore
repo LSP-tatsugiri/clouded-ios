@@ -56,3 +56,6 @@ web/config.js
 
 # Claude Code: settings.json is shared (plugins + marketplaces); local is per machine
 .claude/settings.local.json
+
+# Build artifact of web/build.mjs (copy of extraction/src/distance.js)
+web/extraction/
