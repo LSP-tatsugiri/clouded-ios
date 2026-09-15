@@ -85,7 +85,7 @@ private struct IdeaRow: View {
                 }
                 if idea.imagePath != nil { Tag("▣") }
                 if idea.sourceUrl != nil { Tag("link") }
-                Text(idea.createdAt, style: .relative).font(.caption).foregroundStyle(.secondary)
+                Text(idea.createdAt, format: .relative(presentation: .named)).font(.caption).foregroundStyle(.secondary)
             }
             if let crux {
                 HStack(spacing: 6) {
