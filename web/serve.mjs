@@ -32,6 +32,8 @@ const TYPES = {
   ".json": "application/json; charset=utf-8",
   ".svg": "image/svg+xml",
   ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".mp4": "video/mp4",
   ".ico": "image/x-icon"
 };
 
@@ -68,9 +70,22 @@ const server = createServer(async (req, res) => {
     if (path === null) { res.writeHead(403).end("forbidden"); return; }
 
     const body = await readFile(path);
+    const type = TYPES[extname(path)] ?? "application/octet-stream";
+    // A <video> needs a content-length and honoured Range requests, or Chrome
+    // waits forever. The host does this itself; this is for the dev server.
+    const range = /^bytes=(\d*)-(\d*)$/.exec(req.headers.range ?? "");
+    if (range && body.length) {
+      const start = range[1] ? Number(range[1]) : Math.max(0, body.length - Number(range[2]));
+      const end = range[1] && range[2] ? Math.min(Number(range[2]), body.length - 1) : body.length - 1;
+      res.writeHead(206, {
+        "content-type": type, "cache-control": "no-store", "accept-ranges": "bytes",
+        "content-range": `bytes ${start}-${end}/${body.length}`, "content-length": end - start + 1
+      }).end(body.subarray(start, end + 1));
+      return;
+    }
     res.writeHead(200, {
-      "content-type": TYPES[extname(path)] ?? "application/octet-stream",
-      "cache-control": "no-store"
+      "content-type": type, "cache-control": "no-store",
+      "accept-ranges": "bytes", "content-length": body.length
     }).end(body);
   } catch (err) {
     // TypeError: unparseable URL. URIError: bad percent-encoding.
