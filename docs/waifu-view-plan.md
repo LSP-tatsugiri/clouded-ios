@@ -65,8 +65,36 @@ and 7 are both closed; nothing else is in progress.
     is the lantern and lit door, not the void the first draft assumed. So:
     the bubble overlays the doorway; the input and the cost notice sit on a
     translucent dark bar along the bottom edge over the stone step; the
-    video is `object-fit: cover` with `object-position: 60% 50%` so narrow
-    screens keep her and the doorway and lose the house.
+    video is `object-fit: cover` with `object-position: 60% 12%` so narrow
+    screens keep her and the doorway and lose the house, and wide ones keep
+    the top of the frame so her head is not cropped (was 50%; her hair was
+    cut at 2:1).
+11. **The bubble is a comic cloud from the owner's reference** (later on
+    2026-09-15; the reference is a halftone-style vector, not in the repo):
+    scalloped lumps, a swoosh tail sweeping *right* toward her, a thick dark
+    outline. Built as a path in `CLOUD_PATH` (`app.js`), 0–1 coordinates: an
+    `objectBoundingBox` clipPath clips the glass layer and the same path is
+    stroked on top, so it scales with the bubble and the text stays text.
+    Fill: white grading from 96 % at the top to 70 % at the tail, frosted
+    (backdrop blur) underneath. Black text. The reference's halftone shadow
+    is left out. Earlier shapes tried and dropped: a rounded box with a
+    border-triangle tail (tail could not blur), a frosted oval with a dot
+    tail (owner wanted the cloud). Percentage padding inside the bubble
+    resolves against the *scene's* width, so the text is inset absolutely.
+12. **Face and size**: Yusei Magic (Google Fonts, loaded only when this
+    route renders, so no other page fetches it), base 23 px via
+    `--waifu-text`, chosen over Comic Neue and Bangers by looking at all
+    three. A line that overflows the cloud steps its size down a pixel at a
+    time until it fits (floor 11 px), on every `say()` and on resize.
+    Position `31.3% / 14.4%`, width `18.3vw`, placed by the owner.
+13. **Dev tools on the route**, all parameters accepted before the hash or
+    after it (`#/waifu?place=1`): `?place=1` makes the bubble draggable,
+    adds a text-size slider, and on release copies both CSS rules to the
+    clipboard for pasting back; `?band=dusk` forces a time band; `?font=`
+    swaps the face (`comic-neue`, `bangers`, `yusei-magic`, `mochiy-pop`,
+    `patrick-hand`, `kalam`, `permanent-marker`, `zen-kurenaido`). This is
+    how a new per-band scene gets its bubble placed: open it with
+    `?place=1`, drag, paste the readout into `waifu.css`.
 
 ---
 
