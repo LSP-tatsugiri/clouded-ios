@@ -180,6 +180,28 @@ no new surface:
 Keep it unlisted, keep it capture-only. The value is that it makes capture
 something you want to open, which is the stated primary blocker.
 
+## 8. Look and feel — owner's notes, 2026-09-15, not yet scoped
+
+Parked by the owner to come back to; none has a plan or a grilling yet.
+Each needs one before any code.
+
+- **Unified product colour scheme.** One palette across the web client,
+  the iOS app and the waifu chrome. Today `style.css`, `waifu.css` and the
+  stock SwiftUI look were each picked in isolation.
+- **Dynamic web animations.** Motion on the web client — transitions
+  between routes, list rows settling, the extraction wait. Must respect
+  `prefers-reduced-motion` the way the waifu poster already does.
+- **Optimise the video for the waifu screen.** The 5 s loop is 2.95 MB
+  against a 3 MB budget and crops with `object-position: 60% 12%`; look at
+  encode settings, a per-orientation crop, and whether a shorter or
+  smaller-frame loop reads the same. Playback rate was tried at 0.5 and
+  0.75 on 2026-09-15 and put back to 1 — too slow by eye.
+- **2D live art integration.** Replace or supplement the video loop with a
+  rigged 2D character (Live2D or similar) so she can move and react rather
+  than loop. Big: a runtime, an asset pipeline, and the expression
+  variants the waifu plan already defers. Decide after the read-back
+  (§7) exists, since that is what she would be reacting to.
+
 ---
 
 ## Suggested order
