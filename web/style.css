@@ -502,7 +502,7 @@ button.danger { color: var(--bad, #b42318); border-color: currentColor; margin-r
 .feed-head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; }
 .feed-head h2 { margin: 0.75rem 0 0.25rem; }
 .feed-head .link { font-size: 0.85rem; }
-.feed-head .seg-on { color: var(--fg); text-decoration: none; font-weight: 600; }
+.feed-head .seg-on, .filters .seg-on { color: var(--fg); text-decoration: none; font-weight: 600; }
 .owner { font-size: 0.8rem; color: var(--fg); font-weight: 600; }
 a.owner { text-decoration: none; border-bottom: 1px solid var(--line); }
 a.owner:hover { border-bottom-color: var(--fg); }

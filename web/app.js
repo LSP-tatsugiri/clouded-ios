@@ -38,6 +38,7 @@ const state = {
   skills: [],          // 51 rows, seeded by migration, cached after first load
   levels: new Map(),   // skill_id -> none | some | solid
   filters: { domain: "", crux: "", proposed: false, friend: false },
+  sort: "closest",     // Ideas tab: closest (the distance sort) | newest
   pool: new Map(),     // skill_id -> [user_id] of group mates holding it solid
   names: new Map(),    // user_id -> display_name, for everyone in your groups
   curator: null,       // null = not yet checked
@@ -253,7 +254,12 @@ function vagueRow(idea) {
 
 function filterBar(domains) {
   const set = (k, v) => { state.filters[k] = v; render(); };
+  const sortButton = (key, label) => el("button", {
+    class: state.sort === key ? "seg-on link" : "link",
+    onclick: () => { state.sort = key; render(); }
+  }, label);
   return el("div", { class: "filters" },
+    el("span", { class: "muted" }, sortButton("closest", "closest to me"), " · ", sortButton("newest", "newest")),
     el("select", { onchange: (e) => set("domain", e.target.value) },
       el("option", { value: "", selected: state.filters.domain === "" }, "any domain"),
       domains.map((d) => el("option", { value: d, selected: state.filters.domain === d }, d))
@@ -310,10 +316,15 @@ function listView() {
   const clear = settled.filter((r) => r.idea.is_clear === true);
   const vague = settled.filter((r) => r.idea.is_clear !== true);
 
-  // crux status first, then gaps, then partials, then title for a stable order
-  clear.sort((a, b) =>
-    compareKeys(sortKey(a.extraction, state.levels), sortKey(b.extraction, state.levels)) ||
-    (a.idea.objective || a.idea.raw).localeCompare(b.idea.objective || b.idea.raw));
+  // crux status first, then gaps, then partials, then title for a stable order;
+  // or, on request, most recently added first (the phone's only order)
+  if (state.sort === "newest") {
+    clear.sort((a, b) => Date.parse(b.idea.created_at) - Date.parse(a.idea.created_at));
+  } else {
+    clear.sort((a, b) =>
+      compareKeys(sortKey(a.extraction, state.levels), sortKey(b.extraction, state.levels)) ||
+      (a.idea.objective || a.idea.raw).localeCompare(b.idea.objective || b.idea.raw));
+  }
 
   const domains = [...new Set(state.ideas.map((i) => i.domain).filter(Boolean))].sort();
   const f = state.filters;
