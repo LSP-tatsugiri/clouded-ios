@@ -14,11 +14,17 @@
     }
   },
   "hooks": {
-    "SessionStart": [
+    "UserPromptSubmit": [
       {
-        "matcher": "startup|resume|clear|compact",
         "hooks": [
-          { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/sync-status.mjs\"", "timeout": 30 }
+          { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/sync-status.mjs\" --before", "timeout": 30, "statusMessage": "checking what the other machine pushed" }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/sync-status.mjs\" --after", "timeout": 15 }
         ]
       }
     ]
