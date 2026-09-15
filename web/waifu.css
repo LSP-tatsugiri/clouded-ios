@@ -18,8 +18,9 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
-  /* keep her and the doorway when the viewport is narrower than the frame */
-  object-position: 60% 50%;
+  /* keep her and the doorway when the viewport is narrower than the frame,
+     and the top of the frame when it is wider, so her head is not cropped */
+  object-position: 60% 12%;
 }
 
 /* the app header, floated over the top edge and kept legible on the frame */
@@ -78,7 +79,7 @@
    where the tail is. */
 .waifu-bubble-text {
   position: absolute;
-  left: 12%; right: 12%; top: 13%; bottom: 25%;
+  left: 12%; right: 16%; top: 13%; bottom: 24%;
   display: grid;
   place-items: center;
   font-size: 1.05rem;
@@ -171,3 +172,6 @@
   user-select: all;
 }
 .waifu.placing .waifu-bubble { user-select: none; outline: 2px dashed rgba(47, 111, 94, 0.9); }
+/* the clipped glass does not hit-test outside the cloud, so the whole box
+   takes the drag while placing */
+.waifu.placing .waifu-bubble::before { content: ""; position: absolute; inset: 0; z-index: 1; }

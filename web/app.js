@@ -59,7 +59,7 @@ const state = {
 
 // Function declarations, not const arrows, for the same reason ROUTES sits
 // above `state`: these run during that initialiser.
-function hashPath() { return location.hash.replace(/^#\/?/, ""); }
+function hashPath() { return location.hash.replace(/^#\/?/, "").replace(/\?.*$/, ""); }
 
 function currentRoute() {
   const h = hashPath();
@@ -71,6 +71,13 @@ function currentRoute() {
 function currentIdeaId() {
   const h = hashPath();
   return h.startsWith("idea/") ? h.slice(5) : null;
+}
+
+// ?place=1 and ?band=dusk are accepted before the hash (the query string) or
+// after it (#/waifu?band=dusk), since the second is what people type.
+function pageParams() {
+  const q = location.hash.indexOf("?");
+  return (q >= 0 ? location.hash.slice(q) : "") + "&" + location.search.replace(/^[?]/, "");
 }
 
 function currentFriendId() {
@@ -705,7 +712,7 @@ function inviteForm(g) {
 // drop what you are typing.
 function waifuView() {
   const w = state.waifu;
-  const band = forcedBand(location.search) ?? bandFor(new Date());
+  const band = forcedBand(pageParams()) ?? bandFor(new Date());
   if (w.band !== band || !w.line) { w.band = band; w.line = opener(band); }
   if (w.phase === "sending") w.phase = "asking";   // a render mid-send means a route change; start over
 
@@ -762,7 +769,7 @@ function waifuView() {
   if (!still) scene.muted = true;
 
   requestAnimationFrame(() => input.focus());
-  const placing = new URLSearchParams(location.search).has("place");
+  const placing = new URLSearchParams(pageParams()).has("place");
   return el("div", { class: placing ? "waifu placing" : "waifu", "data-tod": band },
     scene,
     header(),
@@ -777,10 +784,10 @@ function waifuView() {
 // right pointing at her, three lumps back along the bottom. Static markup,
 // so a fragment is fine here; el() cannot make namespaced SVG elements.
 const CLOUD_PATH =
-  "M 0.03 0.45 A 0.14 0.19 0 0 1 0.2 0.14 A 0.15 0.17 0 0 1 0.42 0.07 " +
-  "A 0.07 0.08 0 0 1 0.55 0.1 A 0.16 0.16 0 0 1 0.8 0.15 A 0.13 0.18 0 0 1 0.97 0.45 " +
-  "A 0.12 0.16 0 0 1 0.86 0.72 C 0.9 0.84 0.88 0.95 0.78 1 C 0.74 0.9 0.68 0.85 0.63 0.79 " +
-  "A 0.13 0.13 0 0 1 0.4 0.8 A 0.13 0.14 0 0 1 0.19 0.74 A 0.12 0.16 0 0 1 0.03 0.45 Z";
+  "M 0.03 0.45 A 0.13 0.19 0 0 1 0.18 0.14 A 0.14 0.17 0 0 1 0.38 0.07 " +
+  "A 0.07 0.08 0 0 1 0.5 0.1 A 0.15 0.16 0 0 1 0.72 0.15 A 0.12 0.18 0 0 1 0.87 0.44 " +
+  "A 0.1 0.13 0 0 1 0.82 0.66 C 0.9 0.68 0.97 0.72 1 0.8 C 0.92 0.81 0.84 0.8 0.75 0.77 " +
+  "A 0.12 0.12 0 0 1 0.55 0.8 A 0.12 0.12 0 0 1 0.34 0.8 A 0.11 0.14 0 0 1 0.17 0.73 A 0.12 0.16 0 0 1 0.03 0.45 Z";
 
 function cloudSvg() {
   const t = document.createElement("template");
