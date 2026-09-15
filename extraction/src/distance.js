@@ -92,3 +92,22 @@ export function leverage(items, held) {
   }
   return [...unlocks.values()].sort((a, b) => b.ideaIds.length - a.ideaIds.length);
 }
+
+// The friend skill pool (docs/step-7-plan.md, decision 10). `pool` maps
+// skill_id -> [user_id] for every group mate who holds that skill at "solid";
+// "some" from a friend is not counted, because relying on someone half-capable
+// is not being unblocked. Returns who holds the crux, and of the capabilities
+// that are not "have" for `held`, how many the group covers. Null when the
+// extraction is not clear.
+export function friendsWhoHold(extraction, held, pool) {
+  if (!extraction?.clear) return null;
+  const holders = (cap) => (cap.skill_id && pool.get(cap.skill_id)) || [];
+  let gaps = 0, covered = 0;
+  for (const cap of extraction.capabilities) {
+    if (classify(cap, held) === "have") continue;
+    gaps++;
+    if (holders(cap).length) covered++;
+  }
+  const crux = cruxOf(extraction);
+  return { cruxHolders: crux ? holders(crux) : [], covered, gaps };
+}

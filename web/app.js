@@ -9,12 +9,14 @@
 // serve.mjs rather than copied here. See docs/refactor-extraction-core.md.
 
 import {
-  classify, compareKeys, cruxOf, cruxStatus, distanceOf, leverage, sortKey
+  classify, compareKeys, cruxOf, cruxStatus, distanceOf, friendsWhoHold, leverage, sortKey
 } from "/extraction/src/distance.js";
 import {
-  addIdea, amCurator, capabilities, capabilitiesFor, db, idea as fetchIdea, ideas, mediaUrl, myGroups,
-  mySkills, promoteSkill, proposedSkills, rejectSkill, runsFor, session, setClarification, signUp,
-  setShare, setSkillLevel, signIn, signOut, skills
+  addIdea, amCurator, capabilities, capabilitiesFor, createGroup, db, deleteGroup, groupMembers,
+  groupSkills, idea as fetchIdea, ideas, invite, mediaUrl, myGroups, myProfile, mySkills, pendingInvites,
+  profilesFor, promoteSkill, proposedSkills, rejectSkill, removeMember, renameGroup, revokeInvite, runsFor,
+  session, setClarification, setDisplayName, setShare, setSkillLevel, sharedIdeas, signIn, signOut,
+  signUp, skills, skillsFor
 } from "./lib/db.js";
 import { el, mount } from "./lib/dom.js";
 
@@ -24,7 +26,7 @@ const MARK = { have: "[x]", partial: "[~]", gap: "[ ]", proposed: "[?]" };
 // Declared before `state`, because state's initialiser calls currentRoute(),
 // which reads this. A const declared further down would still be in its
 // temporal dead zone at that point and throw on load.
-const ROUTES = new Set(["profile", "review"]);
+const ROUTES = new Set(["profile", "review", "group"]);
 
 const app = document.getElementById("app");
 const state = {
@@ -34,10 +36,18 @@ const state = {
   caps: [],
   skills: [],          // 51 rows, seeded by migration, cached after first load
   levels: new Map(),   // skill_id -> none | some | solid
-  filters: { domain: "", crux: "", proposed: false },
+  filters: { domain: "", crux: "", proposed: false, friend: false },
+  pool: new Map(),     // skill_id -> [user_id] of group mates holding it solid
+  names: new Map(),    // user_id -> display_name, for everyone in your groups
   curator: null,       // null = not yet checked
   proposals: [],
   detail: null,        // { idea, caps, runs, groups } for the idea page
+  profile: null,       // { user_id, display_name } — yours
+  groups: [],          // { id, name, created_by, members: [{ user_id, display_name, added_at }], invites: [{ email }] }
+  confirmDelete: null, // group id whose delete button is waiting for a second click
+  feed: [],            // shared ideas from every group, newest first (decision 12)
+  feedSort: "newest",  // "newest" | "closest"
+  friend: null,        // { profile, levels } for the friend profile page
   authMode: "signin",  // "signin" | "create" on the sign-in card
   waiting: "",         // progress text while an answer re-runs extraction
   extracting: new Map(), // idea_id -> { stage, seconds } while the list watches a new idea
@@ -52,12 +62,18 @@ function hashPath() { return location.hash.replace(/^#\/?/, ""); }
 function currentRoute() {
   const h = hashPath();
   if (h.startsWith("idea/")) return "idea";
+  if (h.startsWith("friend/")) return "friend";
   return ROUTES.has(h) ? h : "list";
 }
 
 function currentIdeaId() {
   const h = hashPath();
   return h.startsWith("idea/") ? h.slice(5) : null;
+}
+
+function currentFriendId() {
+  const h = hashPath();
+  return h.startsWith("friend/") ? h.slice(7) : null;
 }
 
 const skillName = (id) => state.skills.find((s) => s.id === id)?.name ?? id;
@@ -74,6 +90,7 @@ function header() {
     el("h1", {}, "clouded"),
     el("nav", {},
       tab("#/", "Ideas", "list"),
+      tab("#/group", "Group", "group"),
       tab("#/profile", "Profile", "profile"),
       // only a curator sees this; the policy enforces it regardless
       state.curator === true && tab("#/review", "Review", "review"),
@@ -126,6 +143,36 @@ function capLabel(cap) {
   return cap.skill_id ? skillName(cap.skill_id) : `${cap.proposed_key} (proposed)`;
 }
 
+// The friend skill pool is consulted for shared ideas only (docs/step-7-plan.md,
+// decision 9): a private idea shows nothing, and sharing it is how you find
+// out who can help. That is a client rule, not a policy; the pool itself is
+// readable either way.
+function friendMarker({ idea, extraction }) {
+  if (!idea.shared_to) return { cruxHeld: false, text: null };
+  const f = friendsWhoHold(extraction, state.levels, state.pool);
+  if (!f) return { cruxHeld: false, text: null };
+  const crux = cruxOf(extraction);
+  const iHoldCrux = crux ? classify(crux, state.levels) === "have" : true;
+  const cruxHeld = !iHoldCrux && f.cruxHolders.length > 0;
+  const parts = [];
+  if (cruxHeld) parts.push(`${nameList(f.cruxHolders)} ${f.cruxHolders.length === 1 ? "holds" : "hold"} the hard part`);
+  if (f.gaps) parts.push(`group covers ${f.covered} of ${f.gaps} ${f.gaps === 1 ? "gap" : "gaps"}`);
+  return { cruxHeld, text: parts.length ? parts.join(" · ") : null };
+}
+
+// Up to two names, then a count: "Alex and Sam +1".
+function nameList(ids) {
+  const names = ids.map((id) => state.names.get(id) ?? "a friend");
+  const shown = names.slice(0, 2).join(" and ");
+  return names.length > 2 ? `${shown} +${names.length - 2}` : shown;
+}
+
+function friendLine(row) {
+  const m = friendMarker(row);
+  return m.text && el("div", { class: m.cruxHeld ? "friends unblock" : "friends" },
+    el("span", { class: "mark" }, m.cruxHeld ? "[+]" : "[ ]"), m.text);
+}
+
 function ideaRow({ idea, extraction }) {
   const held = state.levels;
   const d = distanceOf(extraction, held);
@@ -160,6 +207,7 @@ function ideaRow({ idea, extraction }) {
       idea.shared_to && el("span", { class: "tag" }, "shared"),
       idea.image_path && el("span", { class: "tag", title: "has a picture" }, "▣")
     ),
+    friendLine({ idea, extraction }),
 
     // the rest of the capabilities, crux first already shown above
     el("ul", { class: "caps" },
@@ -213,8 +261,16 @@ function filterBar(domains) {
       }),
       el("span", {}, "has a proposed skill")
     ),
-    (state.filters.domain || state.filters.crux || state.filters.proposed) &&
-      el("button", { class: "link", onclick: () => { state.filters = { domain: "", crux: "", proposed: false }; render(); } }, "clear")
+    el("label", { class: "check" },
+      el("input", {
+        type: "checkbox",
+        checked: state.filters.friend,
+        onchange: (e) => set("friend", e.target.checked)
+      }),
+      el("span", {}, "a friend can unblock it")
+    ),
+    (state.filters.domain || state.filters.crux || state.filters.proposed || state.filters.friend) &&
+      el("button", { class: "link", onclick: () => { state.filters = { domain: "", crux: "", proposed: false, friend: false }; render(); } }, "clear")
   );
 }
 
@@ -255,7 +311,8 @@ function listView() {
   const shown = clear.filter((r) =>
     (!f.domain || r.idea.domain === f.domain) &&
     (!f.crux || cruxStatus(r.extraction, state.levels) === f.crux) &&
-    (!f.proposed || r.extraction.capabilities.some((c) => !c.skill_id)));
+    (!f.proposed || r.extraction.capabilities.some((c) => !c.skill_id)) &&
+    (!f.friend || friendMarker(r).cruxHeld));
 
   const add = el("form", {
     class: "add",
@@ -367,6 +424,7 @@ function profileView() {
 
   return el("div", {},
     header(),
+    nameForm(),
     el("p", { class: "muted" }, "Be honest. An inflated profile makes every distance wrong."),
     el("div", { class: "tally-row" }, tally, status),
     state.error && el("p", { class: "error" }, state.error),
@@ -375,6 +433,266 @@ function profileView() {
       el("ul", { class: "skills" }, list.map(skillRow))
     ))
   );
+}
+
+// The name friends see. Defaults to the email's local part at sign-up.
+function nameForm() {
+  const form = el("form", {
+    class: "name-form",
+    onsubmit: (e) => {
+      e.preventDefault();
+      const name = form.elements.name.value.trim();
+      if (!name) return;
+      run(async () => { state.profile = { ...state.profile, ...(await setDisplayName(state.session.user.id, name)) }; });
+    }
+  },
+    el("label", {}, "Your name, as friends see it",
+      el("input", { name: "name", value: state.profile?.display_name ?? "", maxlength: 60, required: true, autocomplete: "nickname" })),
+    el("button", { type: "submit", class: "secondary", disabled: state.busy }, "Save")
+  );
+  return form;
+}
+
+// ---------------------------------------------------------------- group
+
+// One group in practice (docs/step-7-plan.md, decision 1): "create" shows
+// only when you are in none, and each group you are in gets a section, so
+// being in two by accident is merely two sections rather than a broken page.
+function groupView() {
+  const me = state.session.user.id;
+  return el("div", {},
+    header(),
+    state.error && el("p", { class: "error" }, state.error),
+    state.groups.length
+      ? [feedSection(me), state.groups.map((g) => groupSection(g, me))]
+      : createGroupCard()
+  );
+}
+
+// The feed (decision 12): every member's shared ideas, yours included,
+// newest first, each measured against the reader's own profile. "Closest to
+// me" is the same sort the Ideas tab uses.
+function feedSection(me) {
+  const capsById = new Map();
+  for (const c of state.caps) {
+    if (!capsById.has(c.idea_id)) capsById.set(c.idea_id, []);
+    capsById.get(c.idea_id).push(c);
+  }
+  const rows = state.feed.map((idea) => ({ idea, extraction: extractionOf(idea, capsById) }));
+  if (state.feedSort === "closest") {
+    rows.sort((a, b) =>
+      compareKeys(sortKey(a.extraction, state.levels), sortKey(b.extraction, state.levels)) ||
+      Date.parse(b.idea.created_at) - Date.parse(a.idea.created_at));
+  }
+  const sortButton = (key, label) => el("button", {
+    class: state.feedSort === key ? "seg-on link" : "link",
+    onclick: () => { state.feedSort = key; render(); }
+  }, label);
+
+  return el("section", { class: "feed" },
+    el("div", { class: "feed-head" },
+      el("h2", {}, "Shared with the group"),
+      rows.length > 1 && el("span", { class: "muted" }, sortButton("newest", "newest"), " · ", sortButton("closest", "closest to me"))
+    ),
+    rows.length
+      ? el("ul", { class: "ideas" }, rows.map((r) => feedRow(r, me)))
+      : el("p", { class: "muted" }, "Nothing shared yet. Share an idea from its page and it appears here for everyone in the group.")
+  );
+}
+
+function feedRow({ idea, extraction }, me) {
+  const owner = idea.user_id === me
+    ? el("span", { class: "owner" }, "you")
+    : el("a", { href: `#/friend/${idea.user_id}`, class: "owner" }, state.names.get(idea.user_id) ?? "a friend");
+  const title = idea.objective || idea.raw;
+  if (idea.is_clear !== true) {
+    return el("li", { class: "idea vague" },
+      el("div", { class: "idea-head" }, el("a", { href: `#/idea/${idea.id}`, class: "idea-title" }, title)),
+      el("div", { class: "meta" }, owner, el("span", { class: "tag warn" }, idea.status === "extracted" ? "too vague to extract" : idea.status))
+    );
+  }
+  const held = state.levels;
+  const d = distanceOf(extraction, held);
+  const crux = cruxOf(extraction);
+  const cruxClass = crux ? classify(crux, held) : null;
+  const counts = [`${d.gap} short`, d.partial ? `${d.partial} partial` : null, d.have ? `${d.have} held` : null]
+    .filter(Boolean).join(" · ");
+
+  // who holds the crux: the reader counts here, unlike on the Ideas tab
+  const f = friendsWhoHold(extraction, held, state.pool);
+  const holders = [...(cruxClass === "have" ? ["you"] : []), ...f.cruxHolders.map((id) => state.names.get(id) ?? "a friend")];
+  const holderText = holders.length
+    ? `${holders.slice(0, 2).join(" and ")}${holders.length > 2 ? ` +${holders.length - 2}` : ""} ${holders.length === 1 && holders[0] !== "you" ? "holds" : "hold"} the hard part`
+    : null;
+  const coverText = f.gaps ? `group covers ${f.covered} of ${f.gaps} ${f.gaps === 1 ? "gap" : "gaps"}` : "nothing missing for you";
+
+  return el("li", { class: "idea" },
+    el("div", { class: "idea-head" },
+      el("a", { href: `#/idea/${idea.id}`, class: "idea-title" }, title),
+      el("span", { class: "counts" }, counts)
+    ),
+    crux && el("div", { class: `crux ${cruxClass}` },
+      el("span", { class: "mark" }, MARK[cruxClass]),
+      el("span", { class: "crux-label" }, capLabel(crux)),
+      el("span", { class: "crux-tag" }, "the hard part")
+    ),
+    el("div", { class: "meta" },
+      owner,
+      idea.domain && el("span", { class: "tag" }, idea.domain),
+      el("span", { class: "muted" }, new Date(idea.created_at).toLocaleDateString())
+    ),
+    el("div", { class: holderText ? "friends unblock" : "friends" },
+      el("span", { class: "mark" }, holderText ? "[+]" : "[ ]"),
+      [holderText, coverText].filter(Boolean).join(" · "))
+  );
+}
+
+// ---------------------------------------------------------------- friend
+
+// A group mate's profile (decision 13): name and the skills they hold at
+// solid or some, by domain. Read-only; their ideas are the feed.
+function friendView() {
+  const f = state.friend;
+  if (!f) return el("div", {}, header(),
+    state.error
+      ? el("p", { class: "error" }, state.error, " ", el("a", { href: "#/group" }, "← group"))
+      : el("p", { class: "muted" }, "Loading…"));
+
+  const byDomain = new Map();
+  for (const s of state.skills) {
+    const lv = f.levels.get(s.id);
+    if (lv !== "solid" && lv !== "some") continue;
+    const d = s.domain || "other";
+    if (!byDomain.has(d)) byDomain.set(d, []);
+    byDomain.get(d).push({ skill: s, level: lv });
+  }
+  const solid = [...f.levels.values()].filter((l) => l === "solid").length;
+  const some = [...f.levels.values()].filter((l) => l === "some").length;
+
+  return el("div", {},
+    header(),
+    el("p", {}, el("a", { href: "#/group", class: "tab" }, "← group")),
+    el("h2", { class: "detail-title" }, f.profile.display_name),
+    el("p", { class: "muted" }, `${solid} solid · ${some} some`),
+    byDomain.size
+      ? [...byDomain].map(([domain, list]) => el("section", { class: "domain" },
+          el("h2", {}, domain),
+          el("ul", { class: "skills" }, list.map(({ skill, level }) => el("li", { class: "skill" },
+            el("div", { class: "skill-text" },
+              el("div", { class: "skill-name" }, skill.name),
+              el("div", { class: "skill-id" }, skill.id)),
+            el("span", { class: `tag level-${level}` }, level)
+          )))
+        ))
+      : el("p", { class: "muted" }, "They have not rated any skill yet.")
+  );
+}
+
+function createGroupCard() {
+  const suggested = state.profile ? `${state.profile.display_name}'s group` : "";
+  const form = el("form", {
+    class: "card group-create",
+    onsubmit: (e) => {
+      e.preventDefault();
+      const name = form.elements.name.value.trim();
+      if (!name) return;
+      run(async () => { await createGroup(name); await load(); });
+    }
+  },
+    el("h2", {}, "No group yet"),
+    el("p", { class: "muted" },
+      "A group is your friends. Ideas you share go to it, and it tells you which friend already holds the skill an idea needs. ",
+      "Joining a group means your skill levels are readable by everyone in it."),
+    el("label", {}, "Group name",
+      el("input", { name: "name", value: suggested, maxlength: 60, required: true, autocomplete: "off" })),
+    el("button", { type: "submit", disabled: state.busy }, "Create group")
+  );
+  return form;
+}
+
+function groupSection(g, me) {
+  const creator = g.created_by === me;
+  return el("section", { class: "group" },
+    creator ? groupNameForm(g) : el("h2", {}, g.name),
+    el("p", { class: "muted" },
+      "Everyone here can read each other's skill levels and the ideas shared to the group."),
+
+    el("h3", {}, `Members (${g.members.length})`),
+    el("ul", { class: "members" }, g.members.map((m) => el("li", { class: "member" },
+      el("span", { class: "member-name" }, m.display_name ?? m.user_id, m.user_id === me && el("span", { class: "tag" }, "you"),
+        m.user_id === g.created_by && el("span", { class: "tag" }, "creator")),
+      creator && m.user_id !== me && el("button", {
+        class: "link", onclick: () => run(async () => { await removeMember(g.id, m.user_id); await load(); })
+      }, "Remove")
+    ))),
+
+    creator && inviteForm(g),
+    creator && g.invites.length > 0 && el("div", {},
+      el("h3", {}, `Invited, not joined yet (${g.invites.length})`),
+      el("ul", { class: "members" }, g.invites.map((i) => el("li", { class: "member" },
+        el("span", { class: "member-name" }, i.email),
+        el("button", { class: "link", onclick: () => run(async () => { await revokeInvite(g.id, i.email); await load(); }) }, "Revoke")
+      )))
+    ),
+
+    el("div", { class: "group-actions" },
+      creator
+        ? (state.confirmDelete === g.id
+          ? el("span", {},
+              el("span", { class: "muted" }, "Delete the group? Every idea shared to it goes back to private. "),
+              el("button", { class: "secondary danger", onclick: () => run(async () => { state.confirmDelete = null; await deleteGroup(g.id); await load(); }) }, "Yes, delete"),
+              el("button", { class: "link", onclick: () => { state.confirmDelete = null; render(); } }, "Keep it"))
+          : el("button", { class: "link", onclick: () => { state.confirmDelete = g.id; render(); } }, "Delete group"))
+        : el("button", {
+            class: "link", onclick: () => run(async () => { await removeMember(g.id, me); await load(); })
+          }, "Leave group")
+    )
+  );
+}
+
+function groupNameForm(g) {
+  const form = el("form", {
+    class: "name-form",
+    onsubmit: (e) => {
+      e.preventDefault();
+      const name = form.elements.name.value.trim();
+      if (!name || name === g.name) return;
+      run(async () => { await renameGroup(g.id, name); await load(); });
+    }
+  },
+    el("label", {}, "Group name",
+      el("input", { name: "name", value: g.name, maxlength: 60, required: true, autocomplete: "off" })),
+    el("button", { type: "submit", class: "secondary", disabled: state.busy }, "Rename")
+  );
+  return form;
+}
+
+// Inviting allowlists the address as well, so this is the whole onboarding
+// path: the friend creates an account from the sign-in card and is in.
+function inviteForm(g) {
+  const form = el("form", {
+    class: "invite",
+    onsubmit: (e) => {
+      e.preventDefault();
+      const email = form.elements.email.value.trim();
+      if (!email) return;
+      run(async () => {
+        const outcome = await invite(g.id, email);
+        status.textContent = outcome === "joined"
+          ? `${email} already had an account and is in the group.`
+          : `${email} can now create an account; they join when they do.`;
+        await load();
+      });
+    }
+  },
+    el("h3", {}, "Invite a friend"),
+    el("p", { class: "muted" }, "By email. They create their own account from the sign-in page and land here. Each idea they add costs the owner about a cent."),
+    el("div", { class: "invite-row" },
+      el("input", { name: "email", type: "email", required: true, placeholder: "friend@example.com", autocomplete: "off" }),
+      el("button", { type: "submit", disabled: state.busy }, "Invite")),
+    status
+  );
+  return form;
 }
 
 // ---------------------------------------------------------------- idea page
@@ -453,20 +771,28 @@ function capabilityDetail(cap) {
   );
 }
 
+// A toggle when you are in exactly one group (the normal case), the select if
+// ever in more. Private ideas get the one hint about what sharing unlocks.
 function shareControl(idea, groups) {
+  const share = (groupId) => run(async () => { await setShare(idea.id, groupId); await load(); });
+  const control = groups.length === 1
+    ? el("label", { class: "check" },
+        el("input", {
+          type: "checkbox", checked: idea.shared_to === groups[0].id,
+          onchange: (e) => share(e.target.checked ? groups[0].id : null)
+        }),
+        el("span", {}, `Shared with ${groups[0].name}`))
+    : el("label", {}, "Shared with",
+        el("select", { onchange: (e) => share(e.target.value || null) },
+          el("option", { value: "", selected: !idea.shared_to }, "Private"),
+          groups.map((g) => el("option", { value: g.id, selected: idea.shared_to === g.id }, g.name))
+        ));
   return el("div", { class: "share" },
-    el("label", {}, "Shared with",
-      el("select", {
-        onchange: (e) => run(async () => {
-          await setShare(idea.id, e.target.value || null);
-          await load();
-        })
-      },
-        el("option", { value: "", selected: !idea.shared_to }, "Private"),
-        groups.map((g) => el("option", { value: g.id, selected: idea.shared_to === g.id }, g.name))
-      )),
+    control,
     !groups.length && el("p", { class: "muted" },
-      "No groups yet. Sharing needs one, and group management arrives in step 7.")
+      "No group yet. Sharing needs one — ", el("a", { href: "#/group" }, "create it on the Group tab"), "."),
+    groups.length > 0 && !idea.shared_to && el("p", { class: "muted" },
+      "Private. Share it to see which friend already holds what it needs.")
   );
 }
 
@@ -513,6 +839,9 @@ function ideaView() {
       : el("p", { class: "muted" }, "Loading…"));
 
   const { idea, caps, runs, groups, imageUrl } = d;
+  // a friend's shared idea is readable but not editable: no answering, no
+  // share control (RLS would refuse both; the page just does not offer them)
+  const mine = idea.user_id === state.session.user.id;
   const extraction = { clear: idea.is_clear === true, capabilities: caps };
   const dist = distanceOf(extraction, state.levels);
   const crux = cruxOf(extraction);
@@ -540,6 +869,7 @@ function ideaView() {
       el("a", { href: idea.source_url, target: "_blank", rel: "noopener noreferrer" }, idea.source_url)),
 
     el("div", { class: "meta" },
+      !mine && el("a", { href: `#/friend/${idea.user_id}`, class: "owner" }, state.names.get(idea.user_id) ?? "a friend"),
       idea.domain && el("span", { class: "tag" }, idea.domain),
       dist && el("span", { class: "tag" }, counts),
       idea.status !== "extracted" && el("span", { class: "tag warn" }, idea.status)
@@ -551,7 +881,7 @@ function ideaView() {
     idea.is_clear === false && el("section", { class: "question-block" },
       el("h3", {}, "Too vague to extract"),
       idea.clarifying_question && el("p", { class: "question" }, idea.clarifying_question),
-      answerBox(idea)
+      mine && answerBox(idea)
     ),
 
     caps.length > 0 && el("section", {},
@@ -559,9 +889,10 @@ function ideaView() {
       el("ul", { class: "capdetails" }, ordered.map(capabilityDetail))
     ),
 
-    shareControl(idea, groups),
+    mine && shareControl(idea, groups),
 
-    el("details", { class: "runs" },
+    // extraction_runs are readable by the owner only, so a friend would see 0
+    mine && el("details", { class: "runs" },
       el("summary", {}, `Extraction history (${runs.length})`),
       el("ul", { class: "caps" }, runs.map((r) => el("li", {},
         el("span", { class: "mark" }, r.error ? "✕" : "·"),
@@ -681,6 +1012,8 @@ function render() {
   if (!state.session) return void mount(app, signInView());
   if (state.route === "review") return void mount(app, reviewView());
   if (state.route === "idea") return void mount(app, ideaView());
+  if (state.route === "group") return void mount(app, groupView());
+  if (state.route === "friend") return void mount(app, friendView());
   mount(app, state.route === "profile" ? profileView() : listView());
 }
 
@@ -689,6 +1022,12 @@ async function run(fn) {
   try { await fn(); }
   catch (err) { state.error = err.message; }
   finally { state.busy = false; render(); }
+}
+
+// Display names for whoever the current view mentions; cached for the session.
+async function loadNames(ids) {
+  const missing = ids.filter((id) => !state.names.has(id));
+  for (const p of await profilesFor(missing)) state.names.set(p.user_id, p.display_name);
 }
 
 async function load() {
@@ -709,9 +1048,12 @@ async function load() {
   state.levels = new Map(mine.map((r) => [r.skill_id, r.level]));
 
   if (state.route === "list") {
-    const [ideaRows, capRows] = await Promise.all([ideas(), capabilities()]);
+    const me = state.session.user.id;
+    const [ideaRows, capRows, pool] = await Promise.all([ideas(me), capabilities(), groupSkills(me)]);
     state.ideas = ideaRows;
     state.caps = capRows;
+    state.pool = pool;
+    await loadNames([...new Set([...pool.values()].flat())]);
     // A pending row is watched from here, whether it was just added or the
     // page was reloaded mid-extraction; `since` is the insert, which is what
     // fired the webhook. Older than the wait window means the webhook never
@@ -722,6 +1064,26 @@ async function load() {
     }
   } else if (state.route === "review") {
     state.proposals = state.curator ? await proposedSkills() : [];
+  } else if (state.route === "profile") {
+    state.profile = await myProfile(state.session.user.id);
+  } else if (state.route === "group") {
+    const me = state.session.user.id;
+    const [profile, groups, feed, capRows, pool] = await Promise.all([
+      myProfile(me), myGroups(), sharedIdeas(), capabilities(), groupSkills(me)
+    ]);
+    state.profile = profile;
+    state.feed = feed;
+    state.caps = capRows;
+    state.pool = pool;
+    await loadNames([...new Set([...feed.map((i) => i.user_id), ...[...pool.values()].flat()])]);
+    // members and names in two queries: group_members points at auth.users,
+    // not profiles, so PostgREST cannot embed one in the other
+    state.groups = await Promise.all(groups.map(async (g) => {
+      const [members, invites] = await Promise.all([groupMembers(g.id), pendingInvites(g.id)]);
+      const names = new Map((await profilesFor(members.map((m) => m.user_id))).map((p) => [p.user_id, p.display_name]));
+      return { ...g, invites, members: members.map((m) => ({ ...m, display_name: names.get(m.user_id) })) };
+    }));
+    if (!state.groups.some((g) => g.id === state.confirmDelete)) state.confirmDelete = null;
   } else if (state.route === "idea") {
     const id = currentIdeaId();
     const [one, caps, runs, groups] = await Promise.all([
@@ -730,6 +1092,13 @@ async function load() {
     // a missing object (upload failed, decision 9) must not take the page down
     const imageUrl = one.image_path ? await mediaUrl(one.image_path).catch(() => null) : null;
     state.detail = { idea: one, caps, runs, groups, imageUrl };
+    if (one.user_id !== state.session.user.id) await loadNames([one.user_id]);
+  } else if (state.route === "friend") {
+    const id = currentFriendId();
+    const [profiles, levels] = await Promise.all([profilesFor([id]), skillsFor(id)]);
+    // RLS hides a stranger's rows rather than refusing them
+    if (!profiles.length) throw new Error("No such person, or you are not in a group with them.");
+    state.friend = { profile: profiles[0], levels: new Map(levels.map((r) => [r.skill_id, r.level])) };
   }
 }
 
@@ -737,6 +1106,7 @@ addEventListener("hashchange", () => {
   state.route = currentRoute();
   status.textContent = "";
   state.detail = null;
+  state.friend = null;
   state.waiting = "";
   run(load);
 });

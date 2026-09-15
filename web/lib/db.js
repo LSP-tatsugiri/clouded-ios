@@ -1,8 +1,10 @@
 // The Supabase client and every query the app makes.
 //
 // Runs as the signed-in user through the anon key, so RLS is what decides what
-// comes back: no read here filters by user_id, and none should. If a query
-// starts returning someone else's rows, that is a policy bug, not a bug here.
+// comes back. Where a read filters by user_id (ideas, mySkills, groupSkills)
+// it is choosing a view, not enforcing privacy: RLS would already have hidden
+// anything that should not be visible. If a query starts returning someone
+// else's rows, that is a policy bug, not a bug here.
 
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/+esm";
 import { SUPABASE_ANON_KEY, SUPABASE_URL } from "../config.js";
@@ -47,12 +49,49 @@ export async function session() {
 
 // ---------------------------------------------------------------- reads
 
-// Every idea the signed-in user can see: their own, plus anything shared to a
-// group they belong to.
-export async function ideas() {
+// The signed-in user's own ideas. RLS would also return anything shared to
+// a group they belong to; the filter is the product's two-view split
+// (docs/step-7-plan.md, decision 12), not a security measure. Friends' shared
+// ideas come through sharedIdeas() on the Group tab.
+export async function ideas(userId) {
   return ok(await db.from("ideas")
     .select("id, user_id, raw, objective, domain, is_clear, clarifying_question, status, shared_to, image_path, created_at")
+    .eq("user_id", userId)
     .order("created_at", { ascending: true }), "ideas");
+}
+
+// The feed: every shared idea the user can see, theirs included, newest
+// first. RLS limits "shared" to groups they belong to.
+export async function sharedIdeas() {
+  return ok(await db.from("ideas")
+    .select("id, user_id, raw, objective, domain, is_clear, clarifying_question, status, shared_to, image_path, created_at")
+    .not("shared_to", "is", null)
+    .order("created_at", { ascending: false }), "sharedIdeas");
+}
+
+// A friend's levels, for their profile page. RLS returns rows only for a
+// group mate; a stranger's id comes back empty, not refused.
+export async function skillsFor(userId) {
+  return ok(await db.from("user_skills")
+    .select("skill_id, level")
+    .eq("user_id", userId), "skillsFor");
+}
+
+// Every skill a group mate holds at "solid", as skill_id -> [user_id]. RLS
+// returns your own rows and your group mates'; your own are dropped here so
+// the pool is "who else". "some" is not fetched: it does not count as
+// unblocking (decision 10).
+export async function groupSkills(userId) {
+  const rows = ok(await db.from("user_skills")
+    .select("user_id, skill_id")
+    .eq("level", "solid")
+    .neq("user_id", userId), "groupSkills");
+  const pool = new Map();
+  for (const r of rows) {
+    if (!pool.has(r.skill_id)) pool.set(r.skill_id, []);
+    pool.get(r.skill_id).push(r.user_id);
+  }
+  return pool;
 }
 
 export async function capabilities() {
@@ -97,9 +136,81 @@ export async function mediaUrl(path) {
   return ok(await db.storage.from("idea-media").createSignedUrl(path, 600), "mediaUrl").signedUrl;
 }
 
-// Empty until Step 7 builds group management; the share control says so.
+// The groups the signed-in user belongs to. Creating one makes you a member
+// by trigger, so "created" is a subset of "member of".
 export async function myGroups() {
-  return ok(await db.from("groups").select("id, name").order("name"), "myGroups");
+  return ok(await db.from("groups").select("id, name, created_by").order("name"), "myGroups");
+}
+
+// ---------------------------------------------------------------- profiles
+
+// One row per user, made at sign-up. Readable for yourself and for anyone
+// who shares a group with you, which is the same audience as user_skills.
+export async function myProfile(userId) {
+  return ok(await db.from("profiles").select("user_id, display_name").eq("user_id", userId).single(),
+    "myProfile");
+}
+
+export async function profilesFor(ids) {
+  if (!ids.length) return [];
+  return ok(await db.from("profiles").select("user_id, display_name").in("user_id", ids), "profilesFor");
+}
+
+// display_name is the only column the client may update: sending updated_at
+// too is "permission denied for table profiles", so it is not maintained.
+export async function setDisplayName(userId, displayName) {
+  return ok(await db.from("profiles")
+    .update({ display_name: displayName })
+    .eq("user_id", userId).select("display_name").single(), "setDisplayName");
+}
+
+// ---------------------------------------------------------------- groups
+
+export async function createGroup(name) {
+  return ok(await db.from("groups").insert({ name }).select("id, name, created_by").single(), "createGroup");
+}
+
+export async function renameGroup(id, name) {
+  return ok(await db.from("groups").update({ name }).eq("id", id).select("id").single(), "renameGroup");
+}
+
+// Ideas shared to the group go back to private (on delete set null) and the
+// members go with it (cascade). Only the creator's delete gets past RLS.
+export async function deleteGroup(id) {
+  const { error } = await db.from("groups").delete().eq("id", id);
+  if (error) throw new Error(`deleteGroup: ${error.message}`);
+}
+
+export async function groupMembers(groupId) {
+  return ok(await db.from("group_members").select("user_id, added_at")
+    .eq("group_id", groupId).order("added_at"), "groupMembers");
+}
+
+// Leaving is removing yourself. The policy refuses the creator either way:
+// they delete the group instead.
+export async function removeMember(groupId, userId) {
+  const { error } = await db.from("group_members").delete().eq("group_id", groupId).eq("user_id", userId);
+  if (error) throw new Error(`removeMember: ${error.message}`);
+}
+
+// Only the group's creator can read these; everyone else gets an empty list.
+export async function pendingInvites(groupId) {
+  return ok(await db.from("group_invites").select("email, created_at")
+    .eq("group_id", groupId).order("created_at"), "pendingInvites");
+}
+
+// Security definer functions: inviting allowlists the address and either
+// joins an existing account now or leaves a pending invite for sign-up.
+// Returns "joined" or "invited".
+export async function invite(groupId, email) {
+  const { data, error } = await db.rpc("invite", { p_group_id: groupId, p_email: email });
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+export async function revokeInvite(groupId, email) {
+  const { error } = await db.rpc("revoke_invite", { p_group_id: groupId, p_email: email });
+  if (error) throw new Error(error.message);
 }
 
 export async function skills() {
