@@ -9,11 +9,11 @@
 // serve.mjs rather than copied here. See docs/refactor-extraction-core.md.
 
 import {
-  classify, compareKeys, cruxOf, cruxStatus, distanceOf, leverage, sortKey
+  classify, compareKeys, cruxOf, cruxStatus, distanceOf, friendsWhoHold, leverage, sortKey
 } from "/extraction/src/distance.js";
 import {
   addIdea, amCurator, capabilities, capabilitiesFor, createGroup, db, deleteGroup, groupMembers,
-  idea as fetchIdea, ideas, invite, myGroups, myProfile, mySkills, pendingInvites, profilesFor,
+  groupSkills, idea as fetchIdea, ideas, invite, myGroups, myProfile, mySkills, pendingInvites, profilesFor,
   promoteSkill, proposedSkills, rejectSkill, removeMember, renameGroup, revokeInvite, runsFor,
   session, setClarification, setDisplayName, setShare, setSkillLevel, signIn, signOut, signUp, skills
 } from "./lib/db.js";
@@ -35,7 +35,9 @@ const state = {
   caps: [],
   skills: [],          // 51 rows, seeded by migration, cached after first load
   levels: new Map(),   // skill_id -> none | some | solid
-  filters: { domain: "", crux: "", proposed: false },
+  filters: { domain: "", crux: "", proposed: false, friend: false },
+  pool: new Map(),     // skill_id -> [user_id] of group mates holding it solid
+  names: new Map(),    // user_id -> display_name, for everyone in your groups
   curator: null,       // null = not yet checked
   proposals: [],
   detail: null,        // { idea, caps, runs, groups } for the idea page
@@ -131,6 +133,36 @@ function capLabel(cap) {
   return cap.skill_id ? skillName(cap.skill_id) : `${cap.proposed_key} (proposed)`;
 }
 
+// The friend skill pool is consulted for shared ideas only (docs/step-7-plan.md,
+// decision 9): a private idea shows nothing, and sharing it is how you find
+// out who can help. That is a client rule, not a policy; the pool itself is
+// readable either way.
+function friendMarker({ idea, extraction }) {
+  if (!idea.shared_to) return { cruxHeld: false, text: null };
+  const f = friendsWhoHold(extraction, state.levels, state.pool);
+  if (!f) return { cruxHeld: false, text: null };
+  const crux = cruxOf(extraction);
+  const iHoldCrux = crux ? classify(crux, state.levels) === "have" : true;
+  const cruxHeld = !iHoldCrux && f.cruxHolders.length > 0;
+  const parts = [];
+  if (cruxHeld) parts.push(`${nameList(f.cruxHolders)} ${f.cruxHolders.length === 1 ? "holds" : "hold"} the hard part`);
+  if (f.gaps) parts.push(`group covers ${f.covered} of ${f.gaps} ${f.gaps === 1 ? "gap" : "gaps"}`);
+  return { cruxHeld, text: parts.length ? parts.join(" · ") : null };
+}
+
+// Up to two names, then a count: "Alex and Sam +1".
+function nameList(ids) {
+  const names = ids.map((id) => state.names.get(id) ?? "a friend");
+  const shown = names.slice(0, 2).join(" and ");
+  return names.length > 2 ? `${shown} +${names.length - 2}` : shown;
+}
+
+function friendLine(row) {
+  const m = friendMarker(row);
+  return m.text && el("div", { class: m.cruxHeld ? "friends unblock" : "friends" },
+    el("span", { class: "mark" }, m.cruxHeld ? "[+]" : "[ ]"), m.text);
+}
+
 function ideaRow({ idea, extraction }) {
   const held = state.levels;
   const d = distanceOf(extraction, held);
@@ -164,6 +196,7 @@ function ideaRow({ idea, extraction }) {
       idea.status !== "extracted" && el("span", { class: "tag warn" }, idea.status),
       idea.shared_to && el("span", { class: "tag" }, "shared")
     ),
+    friendLine({ idea, extraction }),
 
     // the rest of the capabilities, crux first already shown above
     el("ul", { class: "caps" },
@@ -217,8 +250,16 @@ function filterBar(domains) {
       }),
       el("span", {}, "has a proposed skill")
     ),
-    (state.filters.domain || state.filters.crux || state.filters.proposed) &&
-      el("button", { class: "link", onclick: () => { state.filters = { domain: "", crux: "", proposed: false }; render(); } }, "clear")
+    el("label", { class: "check" },
+      el("input", {
+        type: "checkbox",
+        checked: state.filters.friend,
+        onchange: (e) => set("friend", e.target.checked)
+      }),
+      el("span", {}, "a friend can unblock it")
+    ),
+    (state.filters.domain || state.filters.crux || state.filters.proposed || state.filters.friend) &&
+      el("button", { class: "link", onclick: () => { state.filters = { domain: "", crux: "", proposed: false, friend: false }; render(); } }, "clear")
   );
 }
 
@@ -259,7 +300,8 @@ function listView() {
   const shown = clear.filter((r) =>
     (!f.domain || r.idea.domain === f.domain) &&
     (!f.crux || cruxStatus(r.extraction, state.levels) === f.crux) &&
-    (!f.proposed || r.extraction.capabilities.some((c) => !c.skill_id)));
+    (!f.proposed || r.extraction.capabilities.some((c) => !c.skill_id)) &&
+    (!f.friend || friendMarker(r).cruxHeld));
 
   const add = el("form", {
     class: "add",
@@ -599,20 +641,28 @@ function capabilityDetail(cap) {
   );
 }
 
+// A toggle when you are in exactly one group (the normal case), the select if
+// ever in more. Private ideas get the one hint about what sharing unlocks.
 function shareControl(idea, groups) {
+  const share = (groupId) => run(async () => { await setShare(idea.id, groupId); await load(); });
+  const control = groups.length === 1
+    ? el("label", { class: "check" },
+        el("input", {
+          type: "checkbox", checked: idea.shared_to === groups[0].id,
+          onchange: (e) => share(e.target.checked ? groups[0].id : null)
+        }),
+        el("span", {}, `Shared with ${groups[0].name}`))
+    : el("label", {}, "Shared with",
+        el("select", { onchange: (e) => share(e.target.value || null) },
+          el("option", { value: "", selected: !idea.shared_to }, "Private"),
+          groups.map((g) => el("option", { value: g.id, selected: idea.shared_to === g.id }, g.name))
+        ));
   return el("div", { class: "share" },
-    el("label", {}, "Shared with",
-      el("select", {
-        onchange: (e) => run(async () => {
-          await setShare(idea.id, e.target.value || null);
-          await load();
-        })
-      },
-        el("option", { value: "", selected: !idea.shared_to }, "Private"),
-        groups.map((g) => el("option", { value: g.id, selected: idea.shared_to === g.id }, g.name))
-      )),
+    control,
     !groups.length && el("p", { class: "muted" },
-      "No group yet. Sharing needs one — ", el("a", { href: "#/group" }, "create it on the Group tab"), ".")
+      "No group yet. Sharing needs one — ", el("a", { href: "#/group" }, "create it on the Group tab"), "."),
+    groups.length > 0 && !idea.shared_to && el("p", { class: "muted" },
+      "Private. Share it to see which friend already holds what it needs.")
   );
 }
 
@@ -831,6 +881,12 @@ async function run(fn) {
   finally { state.busy = false; render(); }
 }
 
+// Display names for whoever the current view mentions; cached for the session.
+async function loadNames(ids) {
+  const missing = ids.filter((id) => !state.names.has(id));
+  for (const p of await profilesFor(missing)) state.names.set(p.user_id, p.display_name);
+}
+
 async function load() {
   if (!state.session) {
     state.ideas = []; state.caps = []; state.skills = []; state.levels = new Map();
@@ -849,9 +905,12 @@ async function load() {
   state.levels = new Map(mine.map((r) => [r.skill_id, r.level]));
 
   if (state.route === "list") {
-    const [ideaRows, capRows] = await Promise.all([ideas(), capabilities()]);
+    const me = state.session.user.id;
+    const [ideaRows, capRows, pool] = await Promise.all([ideas(me), capabilities(), groupSkills(me)]);
     state.ideas = ideaRows;
     state.caps = capRows;
+    state.pool = pool;
+    await loadNames([...new Set([...pool.values()].flat())]);
     // A pending row is watched from here, whether it was just added or the
     // page was reloaded mid-extraction; `since` is the insert, which is what
     // fired the webhook. Older than the wait window means the webhook never

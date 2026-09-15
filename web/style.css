@@ -477,3 +477,17 @@ nav { display: flex; align-items: baseline; gap: 1rem; }
 .group-actions { margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--line); }
 .group-actions .muted { margin-right: 0.5rem; }
 button.danger { color: var(--bad, #b42318); border-color: currentColor; margin-right: 0.5rem; }
+
+/* the friend skill pool, on shared rows only */
+
+.friends {
+  display: flex;
+  align-items: baseline;
+  gap: 0.45rem;
+  margin-top: 0.4rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+.friends.unblock { color: var(--fg); }
+.friends.unblock .mark { color: var(--accent); }
+.share .check { margin: 0; }

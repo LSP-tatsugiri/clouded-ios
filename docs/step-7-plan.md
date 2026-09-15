@@ -228,6 +228,17 @@ in s; nobody will mind.
   a private idea with the same crux shows nothing; `acceptance.mjs list`
   reproduces the marker from the same rows.
 
+**Done 2026-09-15.** Alex (the Phase B account) holds `print-tolerancing`
+and `parametric-cad` solid; the golf-bag mount, whose crux is the former,
+was shared from the idea page's new toggle. Its row reads "Alex holds the
+hard part · group covers 2 of 4 gaps", the "a friend can unblock it"
+filter shows 1 of 20, and the two private ideas with the same crux
+(Gridfinity bin, card boxes) show no line. `acceptance.mjs list` prints
+the same marker for the same row and nothing for the private ones. The
+list now holds only the user's own ideas (20 clear + 3 vague = 23), and
+the private hint on the share control reads "Private. Share it to see
+which friend already holds what it needs."
+
 ## Phase D — the feed and the friend profile
 
 - Feed at the top of the Group tab (decision 12): `sharedIdeas()` returns

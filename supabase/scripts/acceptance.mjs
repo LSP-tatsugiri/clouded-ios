@@ -21,7 +21,7 @@
 // and rerun spend API credits.
 
 import { readFileSync } from "node:fs";
-import { compareKeys, cruxOf, cruxStatus, distanceOf, leverage, sortKey } from "../../extraction/src/distance.js";
+import { compareKeys, cruxOf, cruxStatus, distanceOf, friendsWhoHold, leverage, sortKey } from "../../extraction/src/distance.js";
 
 const need = (k) => { const v = process.env[k]; if (!v) { console.error(`${k} is missing from supabase/.env`); process.exit(1); } return v; };
 const BASE = need("SUPABASE_URL").replace(/\/$/, "");
@@ -305,12 +305,28 @@ async function rls() {
 // the signed-in session, so the browser can be checked against it by eye.
 async function list() {
   requireUser();
-  const [ideas, allCaps, mine, skills] = await Promise.all([
-    rest(`ideas?select=id,raw,objective,domain,is_clear,status&user_id=eq.${USER}&order=created_at.asc`),
+  const [ideas, allCaps, mine, skills, myGroups] = await Promise.all([
+    rest(`ideas?select=id,raw,objective,domain,is_clear,status,shared_to&user_id=eq.${USER}&order=created_at.asc`),
     rest("idea_capabilities?select=idea_id,skill_id,proposed_key,crux_rank"),
     rest(`user_skills?select=skill_id,level&user_id=eq.${USER}`),
-    rest("skills?select=id,name")
+    rest("skills?select=id,name"),
+    rest(`group_members?select=group_id&user_id=eq.${USER}`)
   ]);
+  // the friend skill pool, as web/lib/db.js groupSkills() sees it through RLS:
+  // group mates' solid skills, keyed by skill; names for the marker
+  const mates = myGroups.length
+    ? (await rest(`group_members?select=user_id&group_id=in.(${myGroups.map((g) => g.group_id).join(",")})&user_id=neq.${USER}`)).map((r) => r.user_id)
+    : [];
+  const pool = new Map();
+  if (mates.length) {
+    for (const r of await rest(`user_skills?select=user_id,skill_id&level=eq.solid&user_id=in.(${mates.join(",")})`)) {
+      if (!pool.has(r.skill_id)) pool.set(r.skill_id, []);
+      pool.get(r.skill_id).push(r.user_id);
+    }
+  }
+  const names = new Map(mates.length
+    ? (await rest(`profiles?select=user_id,display_name&user_id=in.(${mates.join(",")})`)).map((p) => [p.user_id, p.display_name])
+    : []);
   const ids = new Set(ideas.map((i) => i.id));
   const capsById = new Map();
   for (const c of allCaps) {
@@ -340,6 +356,16 @@ async function list() {
     const flag = r.extraction.capabilities.some((c) => !c.skill_id) ? "  [?]" : "";
     console.log(`  ${String(n + 1).padStart(2)}. ${title(r.idea).slice(0, 44).padEnd(44)}  ${(mark[cruxStatus(r.extraction, held)] ?? "-").padEnd(7)}  ${d.gap} short · ${d.partial} partial · ${d.have} held  ${r.idea.domain ?? ""}${flag}`);
     console.log(`      crux: ${crux ? skillLabel(crux.skill_id, crux.proposed_key) : "(none)"}`);
+    // shared ideas only, exactly as the web row (decision 9); "some" from a
+    // friend does not count (decision 10)
+    if (r.idea.shared_to) {
+      const f = friendsWhoHold(r.extraction, held, pool);
+      const iHold = crux ? cruxStatus(r.extraction, held) === "have" : true;
+      const who = !iHold && f.cruxHolders.length
+        ? `${f.cruxHolders.map((id) => names.get(id) ?? id).join(", ")} ${f.cruxHolders.length === 1 ? "holds" : "hold"} the hard part · `
+        : "";
+      console.log(`      shared: ${who}group covers ${f.covered} of ${f.gaps} gaps`);
+    }
   }
   console.log(`\nvague or unranked (${vague.length}):`);
   for (const r of vague) console.log(`  ${r.idea.status.padEnd(9)} ${title(r.idea).slice(0, 60)}`);

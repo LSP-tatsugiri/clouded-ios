@@ -1,8 +1,10 @@
 // The Supabase client and every query the app makes.
 //
 // Runs as the signed-in user through the anon key, so RLS is what decides what
-// comes back: no read here filters by user_id, and none should. If a query
-// starts returning someone else's rows, that is a policy bug, not a bug here.
+// comes back. Where a read filters by user_id (ideas, mySkills, groupSkills)
+// it is choosing a view, not enforcing privacy: RLS would already have hidden
+// anything that should not be visible. If a query starts returning someone
+// else's rows, that is a policy bug, not a bug here.
 
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/+esm";
 import { SUPABASE_ANON_KEY, SUPABASE_URL } from "../config.js";
@@ -47,12 +49,32 @@ export async function session() {
 
 // ---------------------------------------------------------------- reads
 
-// Every idea the signed-in user can see: their own, plus anything shared to a
-// group they belong to.
-export async function ideas() {
+// The signed-in user's own ideas. RLS would also return anything shared to
+// a group they belong to; the filter is the product's two-view split
+// (docs/step-7-plan.md, decision 12), not a security measure. Friends' shared
+// ideas come through sharedIdeas() on the Group tab.
+export async function ideas(userId) {
   return ok(await db.from("ideas")
     .select("id, user_id, raw, objective, domain, is_clear, clarifying_question, status, shared_to, created_at")
+    .eq("user_id", userId)
     .order("created_at", { ascending: true }), "ideas");
+}
+
+// Every skill a group mate holds at "solid", as skill_id -> [user_id]. RLS
+// returns your own rows and your group mates'; your own are dropped here so
+// the pool is "who else". "some" is not fetched: it does not count as
+// unblocking (decision 10).
+export async function groupSkills(userId) {
+  const rows = ok(await db.from("user_skills")
+    .select("user_id, skill_id")
+    .eq("level", "solid")
+    .neq("user_id", userId), "groupSkills");
+  const pool = new Map();
+  for (const r of rows) {
+    if (!pool.has(r.skill_id)) pool.set(r.skill_id, []);
+    pool.get(r.skill_id).push(r.user_id);
+  }
+  return pool;
 }
 
 export async function capabilities() {
