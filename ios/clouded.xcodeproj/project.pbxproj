@@ -11,8 +11,11 @@
 		30EF8CF747C751646E33F814 /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 833588565ACF6A8FABDBEF8F /* ShareViewController.swift */; };
 		323218D94D328DA7BB94CFE7 /* Supabase.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AE949315F95BBA68B713B94 /* Supabase.swift */; };
 		6533D79C2B133A32F8717ADD /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 4AA7FE0E15D2028AD214FD33 /* Supabase */; };
+		75B0863FD0ECCFB214F08C10 /* Records.swift in Sources */ = {isa = PBXBuildFile; fileRef = ADB211354FF5599AD92F6FE5 /* Records.swift */; };
 		84F9AE8BFC26EBF670CD22FC /* cloudedShare.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 9757665FF5B2CB195D882C21 /* cloudedShare.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		88D4A359EF08EF627955FF7E /* SignInView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 240E3CDBD52FF32710027ECB /* SignInView.swift */; };
+		8A11A4EF3B9062812B17DCB5 /* IdeasModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0822AD0E91CF60EA013B279 /* IdeasModel.swift */; };
+		97FF913EA6E5F51F593D6146 /* Records.swift in Sources */ = {isa = PBXBuildFile; fileRef = ADB211354FF5599AD92F6FE5 /* Records.swift */; };
 		BA19E143D18E9312FBA9D30F /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D389F6B465376FC350C6E11 /* HomeView.swift */; };
 		D6C4D7C506759F39A2F35C43 /* Supabase.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AE949315F95BBA68B713B94 /* Supabase.swift */; };
 		DE95C239C39AE7180CE21A02 /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 7752C8B3BDEFBB22EA9FFBA9 /* Supabase */; };
@@ -52,9 +55,11 @@
 		904C1380FD6100818C81739D /* CloudedApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudedApp.swift; sourceTree = "<group>"; };
 		9757665FF5B2CB195D882C21 /* cloudedShare.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = cloudedShare.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		ABC775416AC7AF7E4A2C214F /* clouded.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = clouded.entitlements; sourceTree = "<group>"; };
+		ADB211354FF5599AD92F6FE5 /* Records.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Records.swift; sourceTree = "<group>"; };
+		B0822AD0E91CF60EA013B279 /* IdeasModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdeasModel.swift; sourceTree = "<group>"; };
 		BCDFA84A150EFF0CBECE08B3 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		C217001BCC566D4388CDF1D9 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
-		"TEMP_F0514025-D734-4F0F-8FF5-A30F22C10EAF" /* Config.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config.xcconfig; sourceTree = "<group>"; };
+		"TEMP_56AF1737-3934-4B85-9727-25EE5BDC3E79" /* Config.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -102,6 +107,7 @@
 				ABC775416AC7AF7E4A2C214F /* clouded.entitlements */,
 				904C1380FD6100818C81739D /* CloudedApp.swift */,
 				4D389F6B465376FC350C6E11 /* HomeView.swift */,
+				B0822AD0E91CF60EA013B279 /* IdeasModel.swift */,
 				C217001BCC566D4388CDF1D9 /* Info.plist */,
 				240E3CDBD52FF32710027ECB /* SignInView.swift */,
 			);
@@ -111,6 +117,7 @@
 		CA8E56EC324AA3641F47BB7F /* Shared */ = {
 			isa = PBXGroup;
 			children = (
+				ADB211354FF5599AD92F6FE5 /* Records.swift */,
 				1AE949315F95BBA68B713B94 /* Supabase.swift */,
 			);
 			path = Shared;
@@ -126,10 +133,10 @@
 			path = cloudedShare;
 			sourceTree = "<group>";
 		};
-		"TEMP_416C983A-0402-4F48-8D2C-F8229A797E32" /* ios */ = {
+		"TEMP_5DB58129-7348-4A0B-8BC1-67BBB1E4BC38" /* ios */ = {
 			isa = PBXGroup;
 			children = (
-				"TEMP_F0514025-D734-4F0F-8FF5-A30F22C10EAF" /* Config.xcconfig */,
+				"TEMP_56AF1737-3934-4B85-9727-25EE5BDC3E79" /* Config.xcconfig */,
 			);
 			path = ios;
 			sourceTree = "<group>";
@@ -224,6 +231,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				75B0863FD0ECCFB214F08C10 /* Records.swift in Sources */,
 				30EF8CF747C751646E33F814 /* ShareViewController.swift in Sources */,
 				D6C4D7C506759F39A2F35C43 /* Supabase.swift in Sources */,
 			);
@@ -235,6 +243,8 @@
 			files = (
 				11D1528282075C2AF898616D /* CloudedApp.swift in Sources */,
 				BA19E143D18E9312FBA9D30F /* HomeView.swift in Sources */,
+				8A11A4EF3B9062812B17DCB5 /* IdeasModel.swift in Sources */,
+				97FF913EA6E5F51F593D6146 /* Records.swift in Sources */,
 				88D4A359EF08EF627955FF7E /* SignInView.swift in Sources */,
 				323218D94D328DA7BB94CFE7 /* Supabase.swift in Sources */,
 			);
@@ -289,7 +299,7 @@
 		};
 		4413E021F93A2EF5B232194D /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = "TEMP_F0514025-D734-4F0F-8FF5-A30F22C10EAF" /* Config.xcconfig */;
+			baseConfigurationReference = "TEMP_56AF1737-3934-4B85-9727-25EE5BDC3E79" /* Config.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ANALYZER_NONNULL = YES;
@@ -388,7 +398,7 @@
 		};
 		B9FA636125F63B1594F01FF7 /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = "TEMP_F0514025-D734-4F0F-8FF5-A30F22C10EAF" /* Config.xcconfig */;
+			baseConfigurationReference = "TEMP_56AF1737-3934-4B85-9727-25EE5BDC3E79" /* Config.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ANALYZER_NONNULL = YES;
