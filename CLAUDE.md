@@ -7,9 +7,9 @@ open questions and the reasoning behind the product decisions.
 `docs/step-4-plan.md` covers Supabase and the edge function — read it before
 touching `supabase/`. `docs/step-5-plan.md` covers the web client and records
 what each phase decided and verified — read it before touching `web/`.
-`docs/step-6-plan.md` is the iOS capture app, built on the Mac on
-`step-6`; `docs/step-7-plan.md` is sharing and the friend skill pool,
-built on the PC on `main` — read the one for the machine you are on.
+`docs/step-6-plan.md` is the iOS capture app (built on the Mac; read it
+before touching `ios/`); `docs/step-7-plan.md` is sharing and the friend
+skill pool (built on the PC). Both are done and merged.
 
 Audience: the author plus ~10 friends. No growth, revenue, or public users.
 Optimise for low friction and few moving parts, not for scale.
@@ -77,7 +77,7 @@ Run: `cd extraction && npm start` (uses cached output) or `npm run fresh`
 3. Hand-curate the skills table from what extraction produces — done; ongoing via `out/proposed.json`
 4. Supabase schema + pipeline as an edge function — done 2026-09-13, see `docs/step-4-plan.md`
 5. Web list view, sorted and filterable — done 2026-09-14, see `docs/step-5-plan.md`
-6. iOS capture app + Share Extension ← in progress on the Mac, see `docs/step-6-plan.md`
+6. iOS capture app + Share Extension — done 2026-09-15 on the Mac, see `docs/step-6-plan.md`
 7. Sharing and the friend skill pool — done 2026-09-15 on the web, see `docs/step-7-plan.md`
 8. Later: graph view, roadmaps, starter kits
 
@@ -170,8 +170,8 @@ Learned the hard way; keep them true on every machine.
   over and verify with `supabase migration list`. `link`, `secrets list`,
   `functions list`, `migration list` and `projects api-keys` work from the
   agent; keys go only into gitignored `supabase/.env`, never printed.
-- **Two machines share one repo and one database.** The Windows PC works
-  on `main`, the Mac on `step-6`. Two hooks in `.claude/settings.json`
+- **Two machines share one repo and one database.** Both work on `main`
+  since Step 6 merged (the Mac builds `ios/`; Xcode is Mac-only). Two hooks in `.claude/settings.json`
   run `.claude/hooks/sync-status.mjs`: before every prompt (`--before`)
   it reports what the other machine has pushed that this checkout lacks —
   commits and, above all, migration files — and says nothing when there

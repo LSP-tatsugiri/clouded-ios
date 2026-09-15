@@ -243,6 +243,19 @@ network anyway, so what it would show is Save failing honestly.
 3. Commit `ios/`, update the README's "you are here" to Step 7, record what
    Phase E verified here.
 
+**Done 2026-09-15.** (1) On the iPhone 12 Pro, on the install made today
+(not a wipe-and-reinstall): sign-in, in-app capture with a photo, share a
+screenshot, share a link, answer a question — each visible on the web /
+server within the wait window (details under Phases B–D). (2) `rls`
+52/52 after the Step 7 merge, storage checks included; a group mate reads
+the shared idea's object through the same storage endpoint the web's
+signed URL uses, a stranger and anon cannot. (3) `ios/` is committed; the
+README and CLAUDE.md mark Step 6 done; `step-6` merged into `main`.
+Left for later, all named in "Not in this step": TestFlight, the offline
+queue, upload retry. One new item: the background upload sends the token
+it was given, so an upload delayed past a token lifetime (about an hour)
+fails silently and the idea shows without its picture — re-share it.
+
 ## Not in this step
 
 - TestFlight and the paid developer account — when a friend asks.

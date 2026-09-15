@@ -329,9 +329,10 @@ rather than cheerfully suggesting you wire a heating element into a shower.
 
 ## Repository layout
 
-This repo is the **iOS app**. It is currently empty — that is deliberate, see
-[Build order](#build-order): capture is built last, because what an entry stores
-and what the list shows both fall out of what extraction actually produces.
+The **iOS app** lives in [`ios/`](ios) — SwiftUI, a Share Extension, built
+last on purpose (see [Build order](#build-order)): what an entry stores and
+what the list shows both fell out of what extraction actually produces.
+`docs/step-6-plan.md` records what it does and how it was verified.
 
 The extraction pipeline lives in [`extraction/`](extraction) — a standalone Node
 script with no dependencies. It is the part of the product that had to be proven
@@ -509,7 +510,7 @@ gets wrong; the count itself is still not a size.
 3. ~~Hand-curate the skills table from what the extractions produce~~ (ongoing via the registry)
 4. ~~Supabase schema + the pipeline as an edge function~~
 5. ~~Web list view — sorted, filterable~~
-6. iOS capture app + Share Extension ← **in progress on the Mac**
+6. ~~iOS capture app + Share Extension~~ (`docs/step-6-plan.md`)
 7. ~~Sharing and the friend skill pool~~ (web; `docs/step-7-plan.md`)
 8. *(later)* graph view, roadmaps, starter kits
 
