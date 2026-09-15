@@ -196,6 +196,21 @@ throwaway users, groups, shares or allowlist rows left behind.
   up and sees the group; leave; the creator has no leave button; revoke
   returns the email to "not invited yet".
 
+**Done 2026-09-15.** Verified on `localhost:5173` against the hosted
+database: the create card with the name suggested from the profile;
+creator listed as a member on creation; invite → "invited, not joined
+yet"; the invitee's account created (admin API, same trigger) → member
+with the email's local part as name, pending list empty; as the invitee:
+read-only group name, no invite box, "Leave group" works and returns them
+to the create card; renaming yourself on the profile page; as the creator
+again: two-click delete, recreate, invite the now-existing account →
+"already had an account and is in the group"; rename the group. One bug
+found by the live check and not by the harness: the client sent
+`updated_at` with the rename, and the column grant covers `display_name`
+only, so `profiles.updated_at` is not maintained. The suggested name
+`"<name>'s group"` is fine in English and will look odd for a name ending
+in s; nobody will mind.
+
 ## Phase C — the pool in your list
 
 - `ideas()` filtered to `user_id = me`. The idea page's share control

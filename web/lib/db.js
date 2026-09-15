@@ -90,9 +90,81 @@ export async function runsFor(ideaId, since) {
   return ok(await q, "runsFor");
 }
 
-// Empty until Step 7 builds group management; the share control says so.
+// The groups the signed-in user belongs to. Creating one makes you a member
+// by trigger, so "created" is a subset of "member of".
 export async function myGroups() {
-  return ok(await db.from("groups").select("id, name").order("name"), "myGroups");
+  return ok(await db.from("groups").select("id, name, created_by").order("name"), "myGroups");
+}
+
+// ---------------------------------------------------------------- profiles
+
+// One row per user, made at sign-up. Readable for yourself and for anyone
+// who shares a group with you, which is the same audience as user_skills.
+export async function myProfile(userId) {
+  return ok(await db.from("profiles").select("user_id, display_name").eq("user_id", userId).single(),
+    "myProfile");
+}
+
+export async function profilesFor(ids) {
+  if (!ids.length) return [];
+  return ok(await db.from("profiles").select("user_id, display_name").in("user_id", ids), "profilesFor");
+}
+
+// display_name is the only column the client may update: sending updated_at
+// too is "permission denied for table profiles", so it is not maintained.
+export async function setDisplayName(userId, displayName) {
+  return ok(await db.from("profiles")
+    .update({ display_name: displayName })
+    .eq("user_id", userId).select("display_name").single(), "setDisplayName");
+}
+
+// ---------------------------------------------------------------- groups
+
+export async function createGroup(name) {
+  return ok(await db.from("groups").insert({ name }).select("id, name, created_by").single(), "createGroup");
+}
+
+export async function renameGroup(id, name) {
+  return ok(await db.from("groups").update({ name }).eq("id", id).select("id").single(), "renameGroup");
+}
+
+// Ideas shared to the group go back to private (on delete set null) and the
+// members go with it (cascade). Only the creator's delete gets past RLS.
+export async function deleteGroup(id) {
+  const { error } = await db.from("groups").delete().eq("id", id);
+  if (error) throw new Error(`deleteGroup: ${error.message}`);
+}
+
+export async function groupMembers(groupId) {
+  return ok(await db.from("group_members").select("user_id, added_at")
+    .eq("group_id", groupId).order("added_at"), "groupMembers");
+}
+
+// Leaving is removing yourself. The policy refuses the creator either way:
+// they delete the group instead.
+export async function removeMember(groupId, userId) {
+  const { error } = await db.from("group_members").delete().eq("group_id", groupId).eq("user_id", userId);
+  if (error) throw new Error(`removeMember: ${error.message}`);
+}
+
+// Only the group's creator can read these; everyone else gets an empty list.
+export async function pendingInvites(groupId) {
+  return ok(await db.from("group_invites").select("email, created_at")
+    .eq("group_id", groupId).order("created_at"), "pendingInvites");
+}
+
+// Security definer functions: inviting allowlists the address and either
+// joins an existing account now or leaves a pending invite for sign-up.
+// Returns "joined" or "invited".
+export async function invite(groupId, email) {
+  const { data, error } = await db.rpc("invite", { p_group_id: groupId, p_email: email });
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+export async function revokeInvite(groupId, email) {
+  const { error } = await db.rpc("revoke_invite", { p_group_id: groupId, p_email: email });
+  if (error) throw new Error(error.message);
 }
 
 export async function skills() {

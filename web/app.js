@@ -12,9 +12,10 @@ import {
   classify, compareKeys, cruxOf, cruxStatus, distanceOf, leverage, sortKey
 } from "/extraction/src/distance.js";
 import {
-  addIdea, amCurator, capabilities, capabilitiesFor, db, idea as fetchIdea, ideas, myGroups,
-  mySkills, promoteSkill, proposedSkills, rejectSkill, runsFor, session, setClarification, signUp,
-  setShare, setSkillLevel, signIn, signOut, skills
+  addIdea, amCurator, capabilities, capabilitiesFor, createGroup, db, deleteGroup, groupMembers,
+  idea as fetchIdea, ideas, invite, myGroups, myProfile, mySkills, pendingInvites, profilesFor,
+  promoteSkill, proposedSkills, rejectSkill, removeMember, renameGroup, revokeInvite, runsFor,
+  session, setClarification, setDisplayName, setShare, setSkillLevel, signIn, signOut, signUp, skills
 } from "./lib/db.js";
 import { el, mount } from "./lib/dom.js";
 
@@ -24,7 +25,7 @@ const MARK = { have: "[x]", partial: "[~]", gap: "[ ]", proposed: "[?]" };
 // Declared before `state`, because state's initialiser calls currentRoute(),
 // which reads this. A const declared further down would still be in its
 // temporal dead zone at that point and throw on load.
-const ROUTES = new Set(["profile", "review"]);
+const ROUTES = new Set(["profile", "review", "group"]);
 
 const app = document.getElementById("app");
 const state = {
@@ -38,6 +39,9 @@ const state = {
   curator: null,       // null = not yet checked
   proposals: [],
   detail: null,        // { idea, caps, runs, groups } for the idea page
+  profile: null,       // { user_id, display_name } — yours
+  groups: [],          // { id, name, created_by, members: [{ user_id, display_name, added_at }], invites: [{ email }] }
+  confirmDelete: null, // group id whose delete button is waiting for a second click
   authMode: "signin",  // "signin" | "create" on the sign-in card
   waiting: "",         // progress text while an answer re-runs extraction
   extracting: new Map(), // idea_id -> { stage, seconds } while the list watches a new idea
@@ -74,6 +78,7 @@ function header() {
     el("h1", {}, "clouded"),
     el("nav", {},
       tab("#/", "Ideas", "list"),
+      tab("#/group", "Group", "group"),
       tab("#/profile", "Profile", "profile"),
       // only a curator sees this; the policy enforces it regardless
       state.curator === true && tab("#/review", "Review", "review"),
@@ -366,6 +371,7 @@ function profileView() {
 
   return el("div", {},
     header(),
+    nameForm(),
     el("p", { class: "muted" }, "Be honest. An inflated profile makes every distance wrong."),
     el("div", { class: "tally-row" }, tally, status),
     state.error && el("p", { class: "error" }, state.error),
@@ -374,6 +380,147 @@ function profileView() {
       el("ul", { class: "skills" }, list.map(skillRow))
     ))
   );
+}
+
+// The name friends see. Defaults to the email's local part at sign-up.
+function nameForm() {
+  const form = el("form", {
+    class: "name-form",
+    onsubmit: (e) => {
+      e.preventDefault();
+      const name = form.elements.name.value.trim();
+      if (!name) return;
+      run(async () => { state.profile = { ...state.profile, ...(await setDisplayName(state.session.user.id, name)) }; });
+    }
+  },
+    el("label", {}, "Your name, as friends see it",
+      el("input", { name: "name", value: state.profile?.display_name ?? "", maxlength: 60, required: true, autocomplete: "nickname" })),
+    el("button", { type: "submit", class: "secondary", disabled: state.busy }, "Save")
+  );
+  return form;
+}
+
+// ---------------------------------------------------------------- group
+
+// One group in practice (docs/step-7-plan.md, decision 1): "create" shows
+// only when you are in none, and each group you are in gets a section, so
+// being in two by accident is merely two sections rather than a broken page.
+function groupView() {
+  const me = state.session.user.id;
+  return el("div", {},
+    header(),
+    state.error && el("p", { class: "error" }, state.error),
+    state.groups.length
+      ? state.groups.map((g) => groupSection(g, me))
+      : createGroupCard()
+  );
+}
+
+function createGroupCard() {
+  const suggested = state.profile ? `${state.profile.display_name}'s group` : "";
+  const form = el("form", {
+    class: "card group-create",
+    onsubmit: (e) => {
+      e.preventDefault();
+      const name = form.elements.name.value.trim();
+      if (!name) return;
+      run(async () => { await createGroup(name); await load(); });
+    }
+  },
+    el("h2", {}, "No group yet"),
+    el("p", { class: "muted" },
+      "A group is your friends. Ideas you share go to it, and it tells you which friend already holds the skill an idea needs. ",
+      "Joining a group means your skill levels are readable by everyone in it."),
+    el("label", {}, "Group name",
+      el("input", { name: "name", value: suggested, maxlength: 60, required: true, autocomplete: "off" })),
+    el("button", { type: "submit", disabled: state.busy }, "Create group")
+  );
+  return form;
+}
+
+function groupSection(g, me) {
+  const creator = g.created_by === me;
+  return el("section", { class: "group" },
+    creator ? groupNameForm(g) : el("h2", {}, g.name),
+    el("p", { class: "muted" },
+      "Everyone here can read each other's skill levels and the ideas shared to the group."),
+
+    el("h3", {}, `Members (${g.members.length})`),
+    el("ul", { class: "members" }, g.members.map((m) => el("li", { class: "member" },
+      el("span", { class: "member-name" }, m.display_name ?? m.user_id, m.user_id === me && el("span", { class: "tag" }, "you"),
+        m.user_id === g.created_by && el("span", { class: "tag" }, "creator")),
+      creator && m.user_id !== me && el("button", {
+        class: "link", onclick: () => run(async () => { await removeMember(g.id, m.user_id); await load(); })
+      }, "Remove")
+    ))),
+
+    creator && inviteForm(g),
+    creator && g.invites.length > 0 && el("div", {},
+      el("h3", {}, `Invited, not joined yet (${g.invites.length})`),
+      el("ul", { class: "members" }, g.invites.map((i) => el("li", { class: "member" },
+        el("span", { class: "member-name" }, i.email),
+        el("button", { class: "link", onclick: () => run(async () => { await revokeInvite(g.id, i.email); await load(); }) }, "Revoke")
+      )))
+    ),
+
+    el("div", { class: "group-actions" },
+      creator
+        ? (state.confirmDelete === g.id
+          ? el("span", {},
+              el("span", { class: "muted" }, "Delete the group? Every idea shared to it goes back to private. "),
+              el("button", { class: "secondary danger", onclick: () => run(async () => { state.confirmDelete = null; await deleteGroup(g.id); await load(); }) }, "Yes, delete"),
+              el("button", { class: "link", onclick: () => { state.confirmDelete = null; render(); } }, "Keep it"))
+          : el("button", { class: "link", onclick: () => { state.confirmDelete = g.id; render(); } }, "Delete group"))
+        : el("button", {
+            class: "link", onclick: () => run(async () => { await removeMember(g.id, me); await load(); })
+          }, "Leave group")
+    )
+  );
+}
+
+function groupNameForm(g) {
+  const form = el("form", {
+    class: "name-form",
+    onsubmit: (e) => {
+      e.preventDefault();
+      const name = form.elements.name.value.trim();
+      if (!name || name === g.name) return;
+      run(async () => { await renameGroup(g.id, name); await load(); });
+    }
+  },
+    el("label", {}, "Group name",
+      el("input", { name: "name", value: g.name, maxlength: 60, required: true, autocomplete: "off" })),
+    el("button", { type: "submit", class: "secondary", disabled: state.busy }, "Rename")
+  );
+  return form;
+}
+
+// Inviting allowlists the address as well, so this is the whole onboarding
+// path: the friend creates an account from the sign-in card and is in.
+function inviteForm(g) {
+  const form = el("form", {
+    class: "invite",
+    onsubmit: (e) => {
+      e.preventDefault();
+      const email = form.elements.email.value.trim();
+      if (!email) return;
+      run(async () => {
+        const outcome = await invite(g.id, email);
+        status.textContent = outcome === "joined"
+          ? `${email} already had an account and is in the group.`
+          : `${email} can now create an account; they join when they do.`;
+        await load();
+      });
+    }
+  },
+    el("h3", {}, "Invite a friend"),
+    el("p", { class: "muted" }, "By email. They create their own account from the sign-in page and land here. Each idea they add costs the owner about a cent."),
+    el("div", { class: "invite-row" },
+      el("input", { name: "email", type: "email", required: true, placeholder: "friend@example.com", autocomplete: "off" }),
+      el("button", { type: "submit", disabled: state.busy }, "Invite")),
+    status
+  );
+  return form;
 }
 
 // ---------------------------------------------------------------- idea page
@@ -465,7 +612,7 @@ function shareControl(idea, groups) {
         groups.map((g) => el("option", { value: g.id, selected: idea.shared_to === g.id }, g.name))
       )),
     !groups.length && el("p", { class: "muted" },
-      "No groups yet. Sharing needs one, and group management arrives in step 7.")
+      "No group yet. Sharing needs one — ", el("a", { href: "#/group" }, "create it on the Group tab"), ".")
   );
 }
 
@@ -673,6 +820,7 @@ function render() {
   if (!state.session) return void mount(app, signInView());
   if (state.route === "review") return void mount(app, reviewView());
   if (state.route === "idea") return void mount(app, ideaView());
+  if (state.route === "group") return void mount(app, groupView());
   mount(app, state.route === "profile" ? profileView() : listView());
 }
 
@@ -714,6 +862,19 @@ async function load() {
     }
   } else if (state.route === "review") {
     state.proposals = state.curator ? await proposedSkills() : [];
+  } else if (state.route === "profile") {
+    state.profile = await myProfile(state.session.user.id);
+  } else if (state.route === "group") {
+    const [profile, groups] = await Promise.all([myProfile(state.session.user.id), myGroups()]);
+    state.profile = profile;
+    // members and names in two queries: group_members points at auth.users,
+    // not profiles, so PostgREST cannot embed one in the other
+    state.groups = await Promise.all(groups.map(async (g) => {
+      const [members, invites] = await Promise.all([groupMembers(g.id), pendingInvites(g.id)]);
+      const names = new Map((await profilesFor(members.map((m) => m.user_id))).map((p) => [p.user_id, p.display_name]));
+      return { ...g, invites, members: members.map((m) => ({ ...m, display_name: names.get(m.user_id) })) };
+    }));
+    if (!state.groups.some((g) => g.id === state.confirmDelete)) state.confirmDelete = null;
   } else if (state.route === "idea") {
     const id = currentIdeaId();
     const [one, caps, runs, groups] = await Promise.all([
