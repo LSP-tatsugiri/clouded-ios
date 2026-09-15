@@ -7,8 +7,9 @@ open questions and the reasoning behind the product decisions.
 `docs/step-4-plan.md` covers Supabase and the edge function — read it before
 touching `supabase/`. `docs/step-5-plan.md` covers the web client and records
 what each phase decided and verified — read it before touching `web/`.
-`docs/step-6-plan.md` is the current build step (the iOS capture app) and
-records its decisions; it is built on the Mac.
+`docs/step-6-plan.md` is the iOS capture app, built on the Mac on
+`step-6`; `docs/step-7-plan.md` is sharing and the friend skill pool,
+built on the PC on `main` — read the one for the machine you are on.
 
 Audience: the author plus ~10 friends. No growth, revenue, or public users.
 Optimise for low friction and few moving parts, not for scale.
