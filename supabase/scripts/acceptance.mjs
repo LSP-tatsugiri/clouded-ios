@@ -13,7 +13,8 @@
 // seed inserts extraction/data/ideas.json under --user (skips raws already
 // there); the webhook extracts them. wait polls until none are pending. diff
 // compares idea_capabilities with extraction/out/extractions.json. rls creates
-// two throwaway users, shares one idea to a group, checks who sees what, and
+// three throwaway users plus one that signs up through an invite, shares one
+// idea to a group, checks who sees what (RLS, profiles, invites, leaving), and
 // cleans up. list prints the reference for the web list (docs/step-5-plan.md
 // Phase C): the sorted order and the leverage top 10 for --user's profile,
 // from the same rows and the same distance.js the browser imports. Only seed
@@ -179,12 +180,16 @@ async function rls() {
   const as = (token) => (path) => rest(path, { token, apikey: ANON });
   const denied = async (p) => { try { await p; return false; } catch (e) { return /40[13]|permission denied|42501/.test(e.message); } };
 
-  let B, C, gid, ideaId;
+  let B, C, D, gid, gid2, ideaId, aName;
+  const stamp = Date.now();
+  const dEmail = `rls-d-${stamp}@clouded.test`;   // invited, then signs up
+  const fEmail = `rls-f-${stamp}@clouded.test`;   // invited, then revoked
   try {
-    B = await mkUser(`rls-b-${Date.now()}@clouded.test`);
-    C = await mkUser(`rls-c-${Date.now()}@clouded.test`);
+    B = await mkUser(`rls-b-${stamp}@clouded.test`);
+    C = await mkUser(`rls-c-${stamp}@clouded.test`);
     [{ id: gid }] = await rest("groups", { method: "POST", body: { name: "rls-test", created_by: USER }, prefer: "return=representation" });
-    await rest("group_members", { method: "POST", body: [{ group_id: gid, user_id: USER }, { group_id: gid, user_id: B.id }] });
+    // since 20260915071927 creating a group makes the creator a member
+    await rest("group_members", { method: "POST", body: { group_id: gid, user_id: B.id } });
     const [idea] = await rest(`ideas?select=id,raw&user_id=eq.${USER}&status=eq.extracted&is_clear=eq.true&limit=1`);
     ideaId = idea.id;
     await rest(`ideas?id=eq.${ideaId}`, { method: "PATCH", body: { shared_to: gid } });
@@ -227,15 +232,63 @@ async function rls() {
     check("sign-up with an unlisted email is refused", await (async () => {
       try { await signUp(unlisted); return false; } catch (e) { return /not invited/.test(e.message); }
     })());
+
+    // ---- Step 7 (20260915071927): profiles, invites, membership rules
+    const A = { email: need("TEST_USER_EMAIL"), password: need("TEST_USER_PASSWORD") };
+    const aTok = await signIn(A);
+    const a = as(aTok);
+    aName = (await rest(`profiles?select=display_name&user_id=eq.${USER}`))[0]?.display_name;
+    const rpc = (token, fn, body) => call(`${BASE}/rest/v1/rpc/${fn}`, { method: "POST", body, token, apikey: ANON });
+
+    check("creating a group made A a member", (await rest(`group_members?select=user_id&group_id=eq.${gid}&user_id=eq.${USER}`)).length === 1);
+    const bProfiles = await b("profiles?select=user_id,display_name");
+    check("B reads A's profile (shared group)", bProfiles.some((r) => r.user_id === USER));
+    check("B's default name is the email's local part", bProfiles.some((r) => r.user_id === B.id && r.display_name === B.email.split("@")[0]));
+    check("C reads only their own profile", (await c("profiles?select=user_id")).every((r) => r.user_id === C.id));
+    check("A cannot rename B", (await rest(`profiles?user_id=eq.${B.id}`, { method: "PATCH", body: { display_name: "hijacked" }, token: aTok, apikey: ANON, prefer: "return=representation" })).length === 0);
+    check("A can rename themself", (await rest(`profiles?user_id=eq.${USER}`, { method: "PATCH", body: { display_name: "rls-a" }, token: aTok, apikey: ANON, prefer: "return=representation" })).length === 1);
+
+    check("B (not the creator) cannot invite", await rpc(bTok, "invite", { p_group_id: gid, p_email: dEmail }).then(() => false, (e) => /only the group creator/.test(e.message)));
+    check("inviting an existing account joins it now", (await rpc(aTok, "invite", { p_group_id: gid, p_email: C.email })) === "joined");
+    check("C now sees the shared idea", (await c("ideas?select=id")).some((r) => r.id === ideaId));
+    check("inviting an unlisted email leaves a pending invite", (await rpc(aTok, "invite", { p_group_id: gid, p_email: dEmail })) === "invited");
+    check("A sees the pending invite", (await a(`group_invites?select=email&group_id=eq.${gid}`)).some((r) => r.email === dEmail));
+    check("B does not see it", (await b(`group_invites?select=email`)).length === 0);
+    D = { email: dEmail, password: pw() };
+    const dUser = await signUp(dEmail).then((r) => r.user ?? r);
+    D.id = dUser.id;
+    check("the invited email can sign up", !!D.id);
+    check("and lands in the group with no accept step", (await rest(`group_members?select=user_id&group_id=eq.${gid}&user_id=eq.${D.id}`)).length === 1);
+    check("the pending invite is consumed", (await rest(`group_invites?select=email&email=eq.${encodeURIComponent(dEmail)}`)).length === 0);
+    check("D has a profile", (await rest(`profiles?select=user_id&user_id=eq.${D.id}`)).length === 1);
+
+    await rpc(aTok, "invite", { p_group_id: gid, p_email: fEmail });
+    await rpc(aTok, "revoke_invite", { p_group_id: gid, p_email: fEmail });
+    check("revoking an unsigned-up invite removes the allowlist row", (await rest(`allowed_emails?select=email&email=eq.${encodeURIComponent(fEmail)}`)).length === 0);
+    await rpc(aTok, "revoke_invite", { p_group_id: gid, p_email: C.email });
+    check("revoking on an existing account keeps its allowlist row", (await rest(`allowed_emails?select=email&email=eq.${encodeURIComponent(C.email)}`)).length === 1);
+
+    check("the creator cannot leave", (await rest(`group_members?group_id=eq.${gid}&user_id=eq.${USER}`, { method: "DELETE", token: aTok, apikey: ANON, prefer: "return=representation" })).length === 0
+      && (await rest(`group_members?select=user_id&group_id=eq.${gid}&user_id=eq.${USER}`)).length === 1);
+
+    // a second group B created, which A joins, shares to, then leaves
+    [{ id: gid2 }] = await rest("groups", { method: "POST", body: { name: "rls-test-2", created_by: B.id }, prefer: "return=representation" });
+    await rest("group_members", { method: "POST", body: { group_id: gid2, user_id: USER } });
+    await rest(`ideas?id=eq.${ideaId}`, { method: "PATCH", body: { shared_to: gid2 } });
+    check("a member can leave", (await rest(`group_members?group_id=eq.${gid2}&user_id=eq.${USER}`, { method: "DELETE", token: aTok, apikey: ANON, prefer: "return=representation" })).length === 1);
+    check("leaving made their shared idea private again", (await rest(`ideas?select=shared_to&id=eq.${ideaId}`))[0].shared_to === null);
+
+    for (const t of ["profiles", "group_invites"]) {
+      check(`anon sees nothing in ${t}`, (await anon(`${t}?select=*&limit=1`).catch(() => [])).length === 0);
+    }
   } finally {
     console.log("\ncleaning up");
     if (ideaId) await rest(`ideas?id=eq.${ideaId}`, { method: "PATCH", body: { shared_to: null } }).catch((e) => console.error(e.message));
     await rest(`user_skills?user_id=eq.${USER}&skill_id=eq.parametric-cad`, { method: "DELETE" }).catch((e) => console.error(e.message));
-    if (gid) await rest(`groups?id=eq.${gid}`, { method: "DELETE" }).catch((e) => console.error(e.message));
-    for (const u of [B, C]) if (u) {
-      await auth(`admin/users/${u.id}`, { method: "DELETE" }).catch((e) => console.error(e.message));
-      await disallow(u.email).catch((e) => console.error(e.message));
-    }
+    for (const g of [gid, gid2]) if (g) await rest(`groups?id=eq.${g}`, { method: "DELETE" }).catch((e) => console.error(e.message));
+    if (aName) await rest(`profiles?user_id=eq.${USER}`, { method: "PATCH", body: { display_name: aName } }).catch((e) => console.error(e.message));
+    for (const u of [B, C, D]) if (u?.id) await auth(`admin/users/${u.id}`, { method: "DELETE" }).catch((e) => console.error(e.message));
+    for (const email of [B?.email, C?.email, dEmail, fEmail]) if (email) await disallow(email).catch((e) => console.error(e.message));
   }
   const failed = results.filter((r) => !r).length;
   console.log(`\n${results.length - failed}/${results.length} checks passed`);
