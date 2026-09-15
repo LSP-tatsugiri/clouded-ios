@@ -11,18 +11,19 @@ struct Idea: Codable, Identifiable, Hashable {
     let clarifyingQuestion: String?
     let clarification: String?
     let objective: String?
+    let domain: String?
     let imagePath: String?
     let sourceUrl: String?
     let createdAt: Date
 
-    static let columns = "id, raw, status, is_clear, clarifying_question, clarification, objective, image_path, source_url, created_at"
+    static let columns = "id, raw, status, is_clear, clarifying_question, clarification, objective, domain, image_path, source_url, created_at"
 
     var isPending: Bool { status == "pending" }
     // vague, with a question the owner has not answered (or answered and is waiting on)
     var asksQuestion: Bool { isClear == false && clarifyingQuestion != nil }
 
     enum CodingKeys: String, CodingKey {
-        case id, raw, status, objective, clarification
+        case id, raw, status, objective, domain, clarification
         case isClear = "is_clear"
         case clarifyingQuestion = "clarifying_question"
         case imagePath = "image_path"
@@ -35,14 +36,16 @@ struct Capability: Codable, Hashable {
     let ideaId: UUID
     let skillId: String?          // nil while proposed
     let proposedKey: String?
+    let reason: String?           // why the model thinks the idea needs it
     let cruxRank: Int?
 
-    static let columns = "idea_id, skill_id, proposed_key, crux_rank"
+    static let columns = "idea_id, skill_id, proposed_key, reason, crux_rank"
 
     enum CodingKeys: String, CodingKey {
         case ideaId = "idea_id"
         case skillId = "skill_id"
         case proposedKey = "proposed_key"
+        case reason
         case cruxRank = "crux_rank"
     }
 }

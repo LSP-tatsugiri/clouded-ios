@@ -20,10 +20,28 @@ final class IdeasModel {
 
     init(userId: UUID) { self.userId = userId }
 
+    func name(of cap: Capability) -> String {
+        cap.skillId.flatMap { skillNames[$0] } ?? "\(cap.proposedKey ?? "?") (proposed)"
+    }
+
     func crux(of idea: Idea) -> (name: String, status: CruxStatus)? {
         guard let cap = cruxOf(capsByIdea[idea.id] ?? []) else { return nil }
-        let name = cap.skillId.flatMap { skillNames[$0] } ?? "\(cap.proposedKey ?? "?") (proposed)"
-        return (name, classify(cap, held: held))
+        return (name(of: cap), classify(cap, held: held))
+    }
+
+    // Crux first, then the rest in the order the model gave them.
+    func capabilities(of idea: Idea) -> [Capability] {
+        let caps = capsByIdea[idea.id] ?? []
+        guard let crux = cruxOf(caps) else { return caps }
+        return [crux] + caps.filter { $0 != crux }
+    }
+
+    // A short-lived URL for the picture. The bucket is private and its SELECT
+    // policy is the ideas visibility, so this fails rather than leaks; the
+    // page shows the idea without it (web/lib/db.js mediaUrl).
+    func mediaURL(for idea: Idea) async -> URL? {
+        guard let path = idea.imagePath else { return nil }
+        return try? await supabase.storage.from(Config.bucket).createSignedURL(path: path, expiresIn: 600)
     }
 
     func load() async {

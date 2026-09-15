@@ -258,6 +258,12 @@ fails silently and the idea shows without its picture — re-share it.
 
 ## Not in this step
 
+- **Idea detail on the phone — added 2026-09-15, after close.**
+  `ios/clouded/IdeaDetailView.swift`: tapping a row shows the picture
+  (signed URL, "could not be loaded" for a missing object), the source
+  link, every capability with its mark and the model's reason, the crux
+  tagged, and the question with its answer button. Read-only otherwise;
+  no share control (decision 6). Verified on the phone.
 - **The app's UI is functional, not designed.** Stock SwiftUI forms and
   lists, text marks (`[x]`, `[~]`) for the crux, a ▣ tag for "has a
   picture". Refine it in a later version, once the phone has been used for

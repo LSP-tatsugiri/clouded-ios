@@ -55,13 +55,18 @@ struct HomeView: View {
                 Text(error).foregroundStyle(.red)
             }
             ForEach(model.ideas) { idea in
-                IdeaRow(idea: idea, crux: model.crux(of: idea), progress: model.progress[idea.id]) {
-                    answering = idea
+                NavigationLink(value: idea.id) {
+                    IdeaRow(idea: idea, crux: model.crux(of: idea), progress: model.progress[idea.id]) {
+                        answering = idea
+                    }
                 }
             }
         }
         .listStyle(.plain)
         .refreshable { await model.load() }
+        .navigationDestination(for: UUID.self) { id in
+            IdeaDetailView(id: id, model: model)
+        }
     }
 }
 
@@ -106,26 +111,8 @@ private struct IdeaRow: View {
     }
 }
 
-private struct Tag: View {
-    let text: String
-    var warn = false
-
-    init(_ text: String, warn: Bool = false) {
-        self.text = text
-        self.warn = warn
-    }
-
-    var body: some View {
-        Text(text)
-            .font(.caption)
-            .padding(.horizontal, 6).padding(.vertical, 2)
-            .background(warn ? Color.orange.opacity(0.2) : Color.secondary.opacity(0.15))
-            .clipShape(Capsule())
-    }
-}
-
 // Decision 13: one field. The cost line is the web's, word for word.
-private struct AnswerSheet: View {
+struct AnswerSheet: View {
     let idea: Idea
     let save: (String) -> Void
     @Environment(\.dismiss) private var dismiss
