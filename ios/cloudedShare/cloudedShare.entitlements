@@ -4,7 +4,7 @@
 <dict>
 	<key>com.apple.security.application-groups</key>
 	<array>
-		<string>group.dev.clouded</string>
+		<string>group.com.monoesport.clouded</string>
 	</array>
 </dict>
 </plist>

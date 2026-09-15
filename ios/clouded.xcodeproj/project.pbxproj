@@ -54,7 +54,7 @@
 		ABC775416AC7AF7E4A2C214F /* clouded.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = clouded.entitlements; sourceTree = "<group>"; };
 		BCDFA84A150EFF0CBECE08B3 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		C217001BCC566D4388CDF1D9 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
-		"TEMP_D51AA6F9-61A3-4239-9725-8004307F2DF8" /* Config.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config.xcconfig; sourceTree = "<group>"; };
+		"TEMP_F0514025-D734-4F0F-8FF5-A30F22C10EAF" /* Config.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -126,10 +126,10 @@
 			path = cloudedShare;
 			sourceTree = "<group>";
 		};
-		"TEMP_4FD27815-E25F-4AA4-883A-EDD8BBDA8ADB" /* ios */ = {
+		"TEMP_416C983A-0402-4F48-8D2C-F8229A797E32" /* ios */ = {
 			isa = PBXGroup;
 			children = (
-				"TEMP_D51AA6F9-61A3-4239-9725-8004307F2DF8" /* Config.xcconfig */,
+				"TEMP_F0514025-D734-4F0F-8FF5-A30F22C10EAF" /* Config.xcconfig */,
 			);
 			path = ios;
 			sourceTree = "<group>";
@@ -263,7 +263,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = dev.clouded.app;
+				PRODUCT_BUNDLE_IDENTIFIER = com.monoesport.clouded;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -281,7 +281,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = dev.clouded.app;
+				PRODUCT_BUNDLE_IDENTIFIER = com.monoesport.clouded;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -289,7 +289,7 @@
 		};
 		4413E021F93A2EF5B232194D /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = "TEMP_D51AA6F9-61A3-4239-9725-8004307F2DF8" /* Config.xcconfig */;
+			baseConfigurationReference = "TEMP_F0514025-D734-4F0F-8FF5-A30F22C10EAF" /* Config.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ANALYZER_NONNULL = YES;
@@ -364,7 +364,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = dev.clouded.app.share;
+				PRODUCT_BUNDLE_IDENTIFIER = com.monoesport.clouded.share;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -380,7 +380,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = dev.clouded.app.share;
+				PRODUCT_BUNDLE_IDENTIFIER = com.monoesport.clouded.share;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -388,7 +388,7 @@
 		};
 		B9FA636125F63B1594F01FF7 /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = "TEMP_D51AA6F9-61A3-4239-9725-8004307F2DF8" /* Config.xcconfig */;
+			baseConfigurationReference = "TEMP_F0514025-D734-4F0F-8FF5-A30F22C10EAF" /* Config.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ANALYZER_NONNULL = YES;

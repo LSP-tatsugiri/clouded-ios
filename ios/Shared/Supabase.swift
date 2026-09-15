@@ -9,7 +9,7 @@ import Foundation
 import Supabase
 
 enum Config {
-    static let appGroup = "group.dev.clouded"
+    static let appGroup = "group.com.monoesport.clouded"
     static let bucket = "idea-media"
 
     static let url = URL(string: plist("SupabaseURL"))!
@@ -31,6 +31,6 @@ let supabase = SupabaseClient(
     supabaseURL: Config.url,
     supabaseKey: Config.anonKey,
     options: .init(auth: .init(
-        storage: KeychainLocalStorage(service: "dev.clouded.auth", accessGroup: Config.appGroup)
+        storage: KeychainLocalStorage(service: "com.monoesport.clouded.auth", accessGroup: Config.appGroup)
     ))
 )

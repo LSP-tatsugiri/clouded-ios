@@ -4,7 +4,7 @@
 # XcodeGen; regenerate after editing this file, never edit the project by hand.
 name: clouded
 options:
-  bundleIdPrefix: dev.clouded
+  bundleIdPrefix: com.monoesport
   deploymentTarget:
     iOS: "17.0"
   createIntermediateGroups: true
@@ -40,7 +40,7 @@ targets:
       - target: cloudedShare
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: dev.clouded.app
+        PRODUCT_BUNDLE_IDENTIFIER: com.monoesport.clouded
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
     info:
       path: clouded/Info.plist
@@ -54,7 +54,7 @@ targets:
     entitlements:
       path: clouded/clouded.entitlements
       properties:
-        com.apple.security.application-groups: [group.dev.clouded]
+        com.apple.security.application-groups: [group.com.monoesport.clouded]
 
   cloudedShare:
     type: app-extension
@@ -65,7 +65,7 @@ targets:
         product: Supabase
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: dev.clouded.app.share
+        PRODUCT_BUNDLE_IDENTIFIER: com.monoesport.clouded.share
     info:
       path: cloudedShare/Info.plist
       properties:
@@ -83,4 +83,4 @@ targets:
     entitlements:
       path: cloudedShare/cloudedShare.entitlements
       properties:
-        com.apple.security.application-groups: [group.dev.clouded]
+        com.apple.security.application-groups: [group.com.monoesport.clouded]
