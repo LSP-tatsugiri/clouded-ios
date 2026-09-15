@@ -53,3 +53,6 @@ supabase/.branches/
 
 # Web client config (project URL + anon key). Keep the example.
 web/config.js
+
+# Claude Code: settings.json is shared (plugins + marketplaces); local is per machine
+.claude/settings.local.json
