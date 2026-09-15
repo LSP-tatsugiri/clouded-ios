@@ -34,7 +34,7 @@ export async function session() {
 // group they belong to.
 export async function ideas() {
   return ok(await db.from("ideas")
-    .select("id, user_id, raw, objective, domain, is_clear, clarifying_question, status, shared_to, created_at")
+    .select("id, user_id, raw, objective, domain, is_clear, clarifying_question, status, shared_to, image_path, created_at")
     .order("created_at", { ascending: true }), "ideas");
 }
 
@@ -47,7 +47,7 @@ export async function capabilities() {
 // mistyped id both come back as no row, not an error.
 export async function idea(id) {
   const row = ok(await db.from("ideas")
-    .select("id, user_id, raw, clarification, objective, domain, is_clear, clarifying_question, status, shared_to, created_at")
+    .select("id, user_id, raw, clarification, objective, domain, is_clear, clarifying_question, status, shared_to, image_path, source_url, created_at")
     .eq("id", id).maybeSingle(), "idea");
   if (!row) throw new Error("No such idea, or it is not shared with you.");
   return row;
@@ -71,6 +71,13 @@ export async function runsFor(ideaId, since) {
     .eq("idea_id", ideaId).order("created_at", { ascending: false });
   if (since) q = q.gt("created_at", since);
   return ok(await q, "runsFor");
+}
+
+// A short-lived URL for an idea's picture. The bucket is private and its
+// SELECT policy is the ideas visibility, so asking for a URL you may not have
+// fails here rather than leaking; the page shows the idea without it.
+export async function mediaUrl(path) {
+  return ok(await db.storage.from("idea-media").createSignedUrl(path, 600), "mediaUrl").signedUrl;
 }
 
 // Empty until Step 7 builds group management; the share control says so.

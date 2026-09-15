@@ -53,8 +53,11 @@ These are load-bearing. Changing one is a product decision, not a refactor.
   CDN. `config.js` is gitignored. It imports `extraction/src/distance.js`
   directly (one copy of the distance logic), which `serve.mjs` serves by
   mounting `/extraction/src/` read-only — hosting must reproduce that mapping.
-- `/` — the iOS app. Empty on purpose; capture is built last, because what an
-  entry stores depends on what extraction produces.
+- `ios/` — the iOS capture app and its Share Extension (SwiftUI, iOS 17,
+  `supabase-swift` via SPM). Built last, because what an entry stores depends
+  on what extraction produces. `Config.xcconfig` is gitignored, same rule as
+  `web/config.js`. Media goes to the private `idea-media` bucket at
+  `<user_id>/<idea_id>.jpg`; its read policy is the `ideas` visibility.
 
 Run: `cd extraction && npm start` (uses cached output) or `npm run fresh`
 (re-extracts everything after a prompt change). Needs `ANTHROPIC_API_KEY` in
@@ -91,8 +94,11 @@ while out. Capture is the only phone-first part.
   the ranking changes.
 - **A low `proposed` rate is not evidence the table is good.** The prompt forces
   reuse. The real risk is unrelated capabilities being merged, which is silent.
-- **Screenshots are untested.** They are described as the main input, but
-  `extract.js` is text-only. Test real screenshots before designing capture.
+- **Media is context, not input.** The README once called screenshots "the
+  main input"; Step 6 settled that the idea is always a sentence in `raw`
+  and a picture or link is attached alongside (`image_path`, `source_url`),
+  never shown to the model. So there is no screenshot-extraction spike to
+  run. If extraction should ever read images, that is a new product decision.
 - **Proposed skills drift in name, not concept.** Handled by `src/resolve.js`
   (lexical + semantic match + registry). Two places to review them, and they
   do not sync: locally, edit `out/proposed.json` and add `"rejected": "<why>"`
@@ -152,10 +158,10 @@ Learned the hard way; keep them true on every machine.
   over and verify with `supabase migration list`. `link`, `secrets list`,
   `functions list`, `migration list` and `projects api-keys` work from the
   agent; keys go only into gitignored `supabase/.env`, never printed.
-- **No local Postgres so far.** The Windows machine has no Docker and no
-  psql, so SQL is validated by pushing to the hosted project. If Docker is
-  available on the Mac, `supabase start` becomes an option — check before
-  assuming either way.
+- **No local Postgres.** Neither machine has Docker or psql (checked on the
+  Mac 2026-09-15), so SQL is validated by `supabase db push --dry-run` and
+  then the real push to the hosted project. Deno is not installed on the Mac
+  either; the edge-function tests ran on Windows.
 - **The test user** is `test@clouded.dev`, id
   `88976eb5-378e-422c-8676-2bf99a9ac01e`; the baseline ideas and the
   acceptance scripts (`supabase/scripts/acceptance.mjs`) run under it.

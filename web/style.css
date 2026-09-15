@@ -153,6 +153,10 @@ button.link {
 
 .meta { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.45rem; }
 
+/* the picture that came with an idea, on the idea page */
+.media { display: block; margin-top: 0.6rem; max-width: 420px; }
+.media img { display: block; max-width: 100%; border-radius: 6px; border: 1px solid var(--line); }
+
 .tag {
   font-size: 0.72rem;
   padding: 0.1rem 0.45rem;

@@ -13,11 +13,13 @@
 // seed inserts extraction/data/ideas.json under --user (skips raws already
 // there); the webhook extracts them. wait polls until none are pending. diff
 // compares idea_capabilities with extraction/out/extractions.json. rls creates
-// two throwaway users, shares one idea to a group, checks who sees what, and
-// cleans up. list prints the reference for the web list (docs/step-5-plan.md
-// Phase C): the sorted order and the leverage top 10 for --user's profile,
-// from the same rows and the same distance.js the browser imports. Only seed
-// and rerun spend API credits.
+// two throwaway users, shares one idea to a group, checks who sees what
+// (tables and the idea-media bucket), and cleans up; its one source_url probe
+// inserts an idea, so it costs one extraction (~$0.01). list prints the
+// reference for the web list (docs/step-5-plan.md Phase C): the sorted order
+// and the leverage top 10 for --user's profile, from the same rows and the
+// same distance.js the browser imports. seed and rerun spend API credits; rls
+// spends one call.
 
 import { readFileSync } from "node:fs";
 import { compareKeys, cruxOf, cruxStatus, distanceOf, leverage, sortKey } from "../../extraction/src/distance.js";
@@ -49,6 +51,19 @@ async function call(url, { method = "GET", body, token = SRK, apikey = SRK, pref
 }
 const rest = (path, o) => call(`${BASE}/rest/v1/${path}`, o);
 const auth = (path, o) => call(`${BASE}/auth/v1/${path}`, o);
+// The storage API takes bytes, not JSON. Same shape as call() otherwise.
+async function storage(path, { method = "GET", body, token = SRK, apikey = SRK, contentType, upsert = false } = {}) {
+  const res = await fetch(`${BASE}/storage/v1/${path}`, {
+    method, body,
+    headers: {
+      apikey, authorization: `Bearer ${token}`,
+      ...(contentType ? { "content-type": contentType } : {}),
+      ...(upsert ? { "x-upsert": "true" } : {})  // a crashed earlier run may have left the object
+    }
+  });
+  if (!res.ok) throw new Error(`${method} /storage/v1/${path} -> ${res.status}: ${(await res.text()).slice(0, 300)}`);
+  return res;
+}
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const requireUser = () => { if (!USER) { console.error("--user <uuid> is required"); process.exit(1); } };
@@ -174,7 +189,8 @@ async function rls() {
   const as = (token) => (path) => rest(path, { token, apikey: ANON });
   const denied = async (p) => { try { await p; return false; } catch (e) { return /40[13]|permission denied|42501/.test(e.message); } };
 
-  let B, C, gid, ideaId;
+  let B, C, gid, ideaId, otherId, probeId;
+  const objects = [];  // uploaded here, removed in cleanup
   try {
     B = await mkUser(`rls-b-${Date.now()}@clouded.test`);
     C = await mkUser(`rls-c-${Date.now()}@clouded.test`);
@@ -186,7 +202,8 @@ async function rls() {
     await rest("user_skills", { method: "POST", body: { user_id: USER, skill_id: "parametric-cad", level: "solid" }, prefer: "resolution=merge-duplicates" });
 
     const bTok = await signIn(B);
-    const b = as(bTok), c = as(await signIn(C)), anon = as(ANON);
+    const cTok = await signIn(C);
+    const b = as(bTok), c = as(cTok), anon = as(ANON);
 
     // B: group mate
     const bIdeas = await b("ideas?select=id");
@@ -214,9 +231,39 @@ async function rls() {
       check(`anon sees nothing in ${t}`, (await anon(`${t}?select=*&limit=1`)).length === 0);
     }
     check("anon cannot read proposed_skills", await denied(anon("proposed_skills?select=key")));
+
+    // idea-media bucket: visibility follows the idea row (step-6-plan decision 5)
+    // Storage hides what you may not see as 400/404 rather than 403, and
+    // refuses a write with 400 or 403 depending on the version. All count.
+    const hidden = async (p) => { try { await p; return false; } catch (e) { return /-> 40[0134]/.test(e.message); } };
+    const jpeg = new Uint8Array([0xff, 0xd8, 0xff, 0xd9]);  // SOI + EOI, enough for the mime check
+    const put = (path, o = {}) => storage(`object/idea-media/${path}`, { method: "POST", body: jpeg, contentType: "image/jpeg", upsert: true, ...o });
+    const get = (token) => (path) => storage(`object/authenticated/idea-media/${path}`, { token, apikey: ANON });
+    [{ id: otherId }] = await rest(`ideas?select=id&user_id=eq.${USER}&shared_to=is.null&id=neq.${ideaId}&limit=1`);
+    const sharedObj = `${USER}/${ideaId}.jpg`, privateObj = `${USER}/${otherId}.jpg`;
+    await put(sharedObj); objects.push(sharedObj);
+    await put(privateObj); objects.push(privateObj);
+    await rest(`ideas?id=eq.${ideaId}`, { method: "PATCH", body: { image_path: sharedObj } });
+
+    check("B reads the shared idea's image", (await get(bTok)(sharedObj)).status === 200);
+    check("B cannot read an unshared idea's image", await hidden(get(bTok)(privateObj)));
+    check("C cannot read the shared idea's image", await hidden(get(cTok)(sharedObj)));
+    check("anon cannot read the shared idea's image", await hidden(get(ANON)(sharedObj)));
+    check("B cannot write under A's prefix", await hidden(put(`${USER}/${crypto.randomUUID()}.jpg`, { token: bTok, apikey: ANON })));
+    const bOwn = `${B.id}/${crypto.randomUUID()}.jpg`;
+    check("B can write under their own prefix", (await put(bOwn, { token: bTok, apikey: ANON })).status === 200);
+    objects.push(bOwn);
+
+    // source_url is set at insert; this is the one check that inserts an idea
+    const [probe] = await rest("ideas", { method: "POST", body: { raw: "rls probe: source_url on insert", source_url: "https://example.com/rls" },
+      token: bTok, apikey: ANON, prefer: "return=representation" });
+    probeId = probe.id;
+    check("B can insert an idea with source_url", probe.source_url === "https://example.com/rls");
   } finally {
     console.log("\ncleaning up");
-    if (ideaId) await rest(`ideas?id=eq.${ideaId}`, { method: "PATCH", body: { shared_to: null } }).catch((e) => console.error(e.message));
+    if (ideaId) await rest(`ideas?id=eq.${ideaId}`, { method: "PATCH", body: { shared_to: null, image_path: null } }).catch((e) => console.error(e.message));
+    if (probeId) await rest(`ideas?id=eq.${probeId}`, { method: "DELETE" }).catch((e) => console.error(e.message));
+    if (objects.length) await storage("object/idea-media", { method: "DELETE", body: JSON.stringify({ prefixes: objects }), contentType: "application/json" }).catch((e) => console.error(e.message));
     await rest(`user_skills?user_id=eq.${USER}&skill_id=eq.parametric-cad`, { method: "DELETE" }).catch((e) => console.error(e.message));
     if (gid) await rest(`groups?id=eq.${gid}`, { method: "DELETE" }).catch((e) => console.error(e.message));
     for (const u of [B, C]) if (u) await auth(`admin/users/${u.id}`, { method: "DELETE" }).catch((e) => console.error(e.message));

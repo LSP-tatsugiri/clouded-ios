@@ -12,7 +12,7 @@ import {
   classify, compareKeys, cruxOf, cruxStatus, distanceOf, leverage, sortKey
 } from "/extraction/src/distance.js";
 import {
-  addIdea, amCurator, capabilities, capabilitiesFor, db, idea as fetchIdea, ideas, myGroups,
+  addIdea, amCurator, capabilities, capabilitiesFor, db, idea as fetchIdea, ideas, mediaUrl, myGroups,
   mySkills, promoteSkill, proposedSkills, rejectSkill, runsFor, session, setClarification,
   setShare, setSkillLevel, signIn, signOut, skills
 } from "./lib/db.js";
@@ -141,7 +141,8 @@ function ideaRow({ idea, extraction }) {
       idea.domain && el("span", { class: "tag" }, idea.domain),
       anyProposed && el("span", { class: "tag warn" }, "proposed skill"),
       idea.status !== "extracted" && el("span", { class: "tag warn" }, idea.status),
-      idea.shared_to && el("span", { class: "tag" }, "shared")
+      idea.shared_to && el("span", { class: "tag" }, "shared"),
+      idea.image_path && el("span", { class: "tag", title: "has a picture" }, "▣")
     ),
 
     // the rest of the capabilities, crux first already shown above
@@ -495,7 +496,7 @@ function ideaView() {
       ? el("p", { class: "error" }, state.error, " ", el("a", { href: "#/" }, "← all ideas"))
       : el("p", { class: "muted" }, "Loading…"));
 
-  const { idea, caps, runs, groups } = d;
+  const { idea, caps, runs, groups, imageUrl } = d;
   const extraction = { clear: idea.is_clear === true, capabilities: caps };
   const dist = distanceOf(extraction, state.levels);
   const crux = cruxOf(extraction);
@@ -514,6 +515,13 @@ function ideaView() {
     el("h2", { class: "detail-title" }, idea.objective || idea.raw),
     el("p", { class: "idea-raw" }, `captured as: ${idea.raw}`),
     idea.clarification && el("p", { class: "idea-raw" }, `you clarified: ${idea.clarification}`),
+
+    // the inspiration that came with the idea; extraction never saw either
+    imageUrl && el("a", { href: imageUrl, target: "_blank", rel: "noopener", class: "media" },
+      el("img", { src: imageUrl, alt: "picture attached to this idea", loading: "lazy" })),
+    idea.image_path && !imageUrl && el("p", { class: "idea-raw" }, "a picture was attached but could not be loaded"),
+    idea.source_url && el("p", { class: "idea-raw" }, "from: ",
+      el("a", { href: idea.source_url, target: "_blank", rel: "noopener noreferrer" }, idea.source_url)),
 
     el("div", { class: "meta" },
       idea.domain && el("span", { class: "tag" }, idea.domain),
@@ -703,7 +711,9 @@ async function load() {
     const [one, caps, runs, groups] = await Promise.all([
       fetchIdea(id), capabilitiesFor(id), runsFor(id), myGroups()
     ]);
-    state.detail = { idea: one, caps, runs, groups };
+    // a missing object (upload failed, decision 9) must not take the page down
+    const imageUrl = one.image_path ? await mediaUrl(one.image_path).catch(() => null) : null;
+    state.detail = { idea: one, caps, runs, groups, imageUrl };
   }
 }
 
