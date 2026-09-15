@@ -9,6 +9,7 @@
   overflow: hidden;
   background: #0b0d12;
   color: #f2f1ec;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 
 .waifu-video {
@@ -21,80 +22,122 @@
   object-position: 60% 50%;
 }
 
-/* the app header, floated over the top edge and made legible on the frame */
+/* the app header, floated over the top edge and kept legible on the frame */
 .waifu header {
   position: absolute;
   top: 0; left: 0; right: 0;
   margin: 0;
-  padding: 0.75rem 1.25rem 2rem;
-  background: linear-gradient(rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0));
+  padding: 0.9rem 1.5rem 2.5rem;
+  background: linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0));
   border: 0;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.6);
 }
 .waifu header h1,
 .waifu .tab,
-.waifu button.link { color: #f2f1ec; }
-.waifu .tab.on { border-bottom-color: #f2f1ec; }
+.waifu button.link { color: #fff; }
+.waifu .tab { opacity: 0.8; }
+.waifu .tab.on, .waifu .tab:hover { opacity: 1; border-bottom-color: #fff; }
 
-/* the doorway: ~37–55% across, 5–55% down on the 16:9 frame */
+/* the chat bubble: white, over the doorway (~37–55% across, 5–55% down on
+   the 16:9 frame), its tail at the bottom-right pointing at her */
 .waifu-bubble {
   position: absolute;
-  left: 37%;
-  top: 14%;
-  width: min(22rem, 20vw);
-  min-width: 13rem;
+  left: 36%;
+  top: 15%;
+  width: min(22rem, 21vw);
+  min-width: 14rem;
   margin: 0;
-  padding: 0.9rem 1.1rem;
-  font-size: 1.15rem;
-  line-height: 1.4;
-  background: rgba(10, 12, 18, 0.72);
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 1rem 1rem 1rem 0.25rem;
-  backdrop-filter: blur(6px);
+  padding: 0.95rem 1.2rem;
+  font-size: 1.1rem;
+  font-weight: 500;
+  line-height: 1.45;
+  color: #15161a;
+  background: #fff;
+  border-radius: 1.1rem;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35), 0 1px 2px rgba(0, 0, 0, 0.2);
 }
-.waifu-bubble a { color: #f2f1ec; }
+.waifu-bubble::after {
+  content: "";
+  position: absolute;
+  right: -0.7rem;
+  bottom: 0.75rem;
+  width: 0;
+  height: 0;
+  border-top: 0.55rem solid transparent;
+  border-bottom: 0.55rem solid transparent;
+  border-left: 0.8rem solid #fff;
+  filter: drop-shadow(1px 1px 1px rgba(0, 0, 0, 0.15));
+}
+.waifu-bubble a {
+  color: #2f6f5e;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
 
-/* the step: a dark bar the input and its cost notice sit on */
+/* the step: a dark fade the input and its cost notice sit on */
 .waifu-bar {
   position: absolute;
   left: 0; right: 0; bottom: 0;
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   gap: 0.75rem;
-  padding: 3rem 1.25rem 1.25rem;
-  background: linear-gradient(rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.78) 45%);
+  padding: 4rem 1.5rem 1.5rem;
+  background: linear-gradient(rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.72) 55%);
 }
 .waifu-input {
   flex: 1;
-  max-width: 44rem;
+  max-width: 42rem;
+  min-height: 3.1rem;
   resize: none;
-  padding: 0.7rem 0.9rem;
+  padding: 0.85rem 1.1rem;
   font: inherit;
   font-size: 1.05rem;
-  color: #f2f1ec;
-  background: rgba(20, 22, 30, 0.7);
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  border-radius: 0.6rem;
+  line-height: 1.4;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 0.9rem;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  transition: border-color 120ms, background 120ms;
 }
-.waifu-input::placeholder { color: rgba(242, 241, 236, 0.55); }
+.waifu-input::placeholder { color: rgba(255, 255, 255, 0.6); }
+.waifu-input:hover { border-color: rgba(255, 255, 255, 0.45); }
 .waifu-input:focus-visible {
-  outline: 2px solid #f2f1ec;
-  outline-offset: 2px;
+  outline: none;
+  border-color: #fff;
+  background: rgba(255, 255, 255, 0.16);
 }
 .waifu-bar button[type="submit"] {
-  background: #f2f1ec;
-  color: #0b0d12;
+  padding: 0.8rem 1.3rem;
+  font-weight: 600;
+  color: #15161a;
+  background: #fff;
   border: 0;
+  border-radius: 0.9rem;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
 }
+.waifu-bar button[type="submit"]:hover { background: #f0efea; }
+.waifu-bar button[disabled] { opacity: 0.6; }
 .waifu-bar .cost {
-  color: rgba(242, 241, 236, 0.65);
-  align-self: center;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.8rem;
   white-space: nowrap;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
 }
 
 /* narrow: the doorway moves under object-position, so the bubble anchors to
-   the top-left instead and the bar stacks */
+   the top-left instead, its tail pointing down, and the bar stacks */
 @media (max-width: 52rem) {
   .waifu-bubble { left: 1rem; right: 1rem; top: 4.5rem; width: auto; min-width: 0; }
-  .waifu-bar { flex-wrap: wrap; }
+  .waifu-bubble::after {
+    right: 1.5rem; bottom: -0.7rem;
+    border-left: 0.55rem solid transparent;
+    border-right: 0.55rem solid transparent;
+    border-top: 0.8rem solid #fff;
+    border-bottom: 0;
+  }
+  .waifu-bar { flex-wrap: wrap; padding-top: 3rem; }
   .waifu-input { max-width: none; flex-basis: 100%; }
 }
