@@ -776,3 +776,161 @@ aside .domains li { display: block; padding: 0; border-top: 1px solid var(--line
 .runs summary { font-size: 0.88rem; color: var(--ink-3); cursor: pointer; }
 .runs-list { list-style: none; margin: 0.5rem 0 0; padding: 0; }
 .runs-list li { display: flex; gap: 0.55rem; font: 0.8rem var(--mono); color: var(--ink-2); padding: 0.15rem 0; overflow-wrap: anywhere; }
+
+/* ---------------------------------------------------------------- landing
+   The signed-out front door (index.html, static markup). Same container as
+   #app, same tokens, the app's own card grammar for the example. Hidden the
+   moment a session is known: html.signed-in is set before first paint by the
+   inline check in index.html and kept in sync by render(). */
+
+html.signed-in .landing { display: none; }
+
+.landing {
+  max-width: 76rem;
+  margin: 0 auto;
+  padding: 0 2rem;
+}
+@media (max-width: 900px) { .landing { padding: 0 1rem; } }
+
+.landing h2 {
+  margin: 0 0 1.25rem;
+  font-size: 1.3rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+/* hero: copy left, the cloud mark faint on the right */
+.land-hero {
+  display: grid;
+  grid-template-columns: 1.15fr 1fr;
+  align-items: center;
+  gap: 2rem;
+  min-height: min(78vh, 42rem);
+  padding: 3rem 0 2rem;
+}
+.land-copy { min-width: 0; }
+.land-h {
+  margin: 1.5rem 0 0;
+  font-size: clamp(1.9rem, 3.6vw, 2.8rem);
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+  max-width: 16ch;
+  text-wrap: balance;
+}
+.land-sub {
+  margin: 1rem 0 0;
+  font: 0.95rem/1.5 var(--mono);
+  color: var(--ink-2);
+  max-width: 44ch;
+}
+.land-cta { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem 1.5rem; margin-top: 2rem; }
+.landing .btn { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; }
+.land-invite { color: var(--ink-2); text-decoration: underline; text-underline-offset: 3px; }
+.land-invite:hover { color: var(--ink); }
+.land-art { display: flex; justify-content: center; color: var(--flow); opacity: 0.16; }
+.land-art svg { width: min(100%, 26rem); height: auto; }
+@media (max-width: 900px) {
+  .land-hero { grid-template-columns: 1fr; min-height: 0; padding: 2rem 0 1rem; }
+  .land-art { display: none; }
+}
+
+/* the wordmark as split-flap tiles: the promo ad's end card. Each tile is
+   three letters deep (two spins, then the real one); the top half of a layer
+   falls away and the bottom half of the next rises, staggered left to right.
+   DOM order is stacking order, so the static bases come first. */
+.flaps {
+  display: flex;
+  gap: clamp(3px, 0.5vw, 8px);
+  --fs: clamp(2.6rem, 7.2vw, 5.6rem);
+  --fh: calc(var(--fs) * 1.18);
+  --fw: calc(var(--fs) * 0.66);
+  perspective: 1200px;
+}
+.tile {
+  position: relative;
+  width: var(--fw);
+  height: var(--fh);
+  font-weight: 800;
+  font-size: var(--fs);
+  line-height: var(--fh);
+  letter-spacing: -0.03em;
+  text-align: center;
+  color: var(--ink);
+  transform-style: preserve-3d;
+}
+.tile.accent { color: var(--flow); }
+.tile .half {
+  position: absolute;
+  left: 0; right: 0;
+  height: calc(var(--fh) / 2);
+  overflow: hidden;
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  backface-visibility: hidden;
+}
+.tile .half i { position: absolute; left: 0; right: 0; height: var(--fh); font-style: normal; }
+.tile .top { top: 0; border-radius: 8px 8px 0 0; border-bottom: 0; transform-origin: bottom; }
+.tile .top i { top: 0; }
+.tile .bot { bottom: 0; border-radius: 0 0 8px 8px; transform-origin: top; }
+.tile .bot i { bottom: 0; }
+.tile::after { content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: var(--line); z-index: 4; }
+
+/* resting state, and the whole story under reduced motion: the real letter,
+   spins hidden, a fade instead of the flips */
+.tile .l1, .tile .l2 { display: none; }
+.flaps { animation: land-fade 0.6s ease both; }
+@keyframes land-fade { from { opacity: 0; } to { opacity: 1; } }
+
+@media (prefers-reduced-motion: no-preference) {
+  .flaps { animation: none; }
+  .tile .l1, .tile .l2 { display: block; }
+  .tile { --d: calc(300ms + var(--i) * 140ms); }
+  .tile .bot.l2, .tile .bot.l3 { transform: rotateX(90deg); }
+  .tile .top.l1 { animation: flap-down 110ms ease-in var(--d) forwards; }
+  .tile .bot.l2 { animation: flap-up 110ms ease-out calc(var(--d) + 55ms) forwards; }
+  .tile .top.l2 { animation: flap-down 110ms ease-in calc(var(--d) + 240ms) forwards; }
+  .tile .bot.l3 { animation: flap-up 110ms ease-out calc(var(--d) + 295ms) forwards; }
+}
+@keyframes flap-down { to { transform: rotateX(-90deg); } }
+@keyframes flap-up { from { transform: rotateX(90deg); } to { transform: rotateX(0); } }
+
+/* how it works: a numbered stack, numeral in mono, one column */
+.land-how { padding: 3rem 0; border-top: 1px solid var(--line); }
+.land-steps {
+  list-style: none;
+  counter-reset: step;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 1.5rem;
+  max-width: 44rem;
+}
+.land-steps li {
+  counter-increment: step;
+  display: grid;
+  grid-template-columns: 2.5rem 1fr;
+  gap: 0.75rem;
+  align-items: baseline;
+}
+.land-steps li::before {
+  content: counter(step);
+  font: 500 0.95rem var(--mono);
+  color: var(--flow);
+}
+.land-steps h3 { margin: 0; font-size: 1.15rem; font-weight: 700; letter-spacing: -0.01em; }
+.land-steps p { grid-column: 2; margin: 0.3rem 0 0; color: var(--ink-2); max-width: 60ch; }
+
+/* the example idea: the real card, no link, no hover state */
+.land-sample { padding: 3rem 0; border-top: 1px solid var(--line); }
+.land-sample .card { max-width: 48rem; }
+@media (max-width: 640px) {
+  .land-sample .card-head { flex-direction: column; gap: 0.6rem; }
+}
+.land-caption { margin: 0.8rem 0 0; font: 0.85rem var(--mono); color: var(--ink-3); max-width: 60ch; }
+
+.land-private { padding: 3rem 0 1rem; border-top: 1px solid var(--line); }
+.land-private p { margin: 0; color: var(--ink-2); max-width: 60ch; }
+
+/* anchor for the hero links; the form itself follows in #app */
+.land-signin { scroll-margin-top: 2rem; }

@@ -62,7 +62,8 @@ const state = {
   feedSort: "newest",  // "newest" | "closest"
   friend: null,        // { profile, levels } for the friend profile page
   waifu: { phase: "asking", ideaId: null, line: null }, // #/waifu: asking | sending | saved | failed
-  authMode: "signin",  // "signin" | "create" on the sign-in card
+  // "signin" | "create" on the sign-in card; the landing's invite link opens it on create
+  authMode: location.hash === "#create" ? "create" : "signin",
   waiting: "",         // progress text while an answer re-runs extraction
   extracting: new Map(), // idea_id -> { stage, seconds } while the list watches a new idea
   error: null,
@@ -1586,6 +1587,8 @@ let paintedRoute = null;
 let latest = null;   // a transition's callback paints whatever was built last
 
 function render({ animate = false } = {}) {
+  // the static landing (index.html) shows only while signed out
+  document.documentElement.classList.toggle("signed-in", !!state.session);
   latest = viewFor();
   const paint = () => mount(app, latest);
   const switched = paintedRoute !== null && paintedRoute !== state.route;
@@ -1689,6 +1692,7 @@ async function load() {
 
 addEventListener("hashchange", () => {
   state.route = currentRoute();
+  if (/^#(signin|create)$/.test(location.hash)) state.authMode = location.hash.slice(1);   // the landing's links
   status.textContent = "";
   state.detail = null;
   state.confirmDeleteIdea = false;

@@ -4,6 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>clouded</title>
+  <meta name="description" content="An idea database that says how far each idea is from something you could actually build: the skills it takes, the one that could kill it, and your gap. Invite-only, for a few friends.">
+  <meta property="og:title" content="clouded">
+  <meta property="og:description" content="How far is each idea from you? The skills it takes, the one that could kill it, and your gap. Invite-only.">
   <!-- Inline so the browser stops requesting /favicon.ico, whose 404 would
        otherwise sit in the console and hide a real error. -->
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ctext y='13' font-size='13'%3E%E2%98%81%3C/text%3E%3C/svg%3E">
@@ -13,8 +16,94 @@
   <link rel="stylesheet" href="style.css">
   <!-- The #/waifu scene only; every rule is scoped under .waifu. -->
   <link rel="stylesheet" href="waifu.css">
+  <!-- Signed-in visitors never see the landing, not even for a frame:
+       supabase-js keeps the session in localStorage, so look for it before
+       first paint. app.js keeps the class in sync after that. -->
+  <script>
+    try {
+      if (Object.keys(localStorage).some((k) => /^sb-.*-auth-token$/.test(k))) document.documentElement.classList.add("signed-in");
+    } catch {}
+  </script>
 </head>
 <body>
+  <!-- Landing for signed-out visitors. Static on purpose: this is the only
+       text a crawler or a link preview sees. Copy comes from the promo ad. -->
+  <section class="landing" id="landing" aria-label="About clouded">
+    <div class="land-hero">
+      <div class="land-copy">
+        <div class="flaps" role="img" aria-label="clouded">
+      <span class="tile" style="--i:0"><span class="half top l3"><i>c</i></span><span class="half bot l1"><i>k</i></span><span class="half bot l2"><i>r</i></span><span class="half bot l3"><i>c</i></span><span class="half top l2"><i>r</i></span><span class="half top l1"><i>k</i></span></span>
+      <span class="tile" style="--i:1"><span class="half top l3"><i>l</i></span><span class="half bot l1"><i>w</i></span><span class="half bot l2"><i>t</i></span><span class="half bot l3"><i>l</i></span><span class="half top l2"><i>t</i></span><span class="half top l1"><i>w</i></span></span>
+      <span class="tile accent" style="--i:2"><span class="half top l3"><i>o</i></span><span class="half bot l1"><i>a</i></span><span class="half bot l2"><i>e</i></span><span class="half bot l3"><i>o</i></span><span class="half top l2"><i>e</i></span><span class="half top l1"><i>a</i></span></span>
+      <span class="tile" style="--i:3"><span class="half top l3"><i>u</i></span><span class="half bot l1"><i>n</i></span><span class="half bot l2"><i>s</i></span><span class="half bot l3"><i>u</i></span><span class="half top l2"><i>s</i></span><span class="half top l1"><i>n</i></span></span>
+      <span class="tile" style="--i:4"><span class="half top l3"><i>d</i></span><span class="half bot l1"><i>g</i></span><span class="half bot l2"><i>b</i></span><span class="half bot l3"><i>d</i></span><span class="half top l2"><i>b</i></span><span class="half top l1"><i>g</i></span></span>
+      <span class="tile" style="--i:5"><span class="half top l3"><i>e</i></span><span class="half bot l1"><i>m</i></span><span class="half bot l2"><i>a</i></span><span class="half bot l3"><i>e</i></span><span class="half top l2"><i>a</i></span><span class="half top l1"><i>m</i></span></span>
+      <span class="tile" style="--i:6"><span class="half top l3"><i>d</i></span><span class="half bot l1"><i>x</i></span><span class="half bot l2"><i>h</i></span><span class="half bot l3"><i>d</i></span><span class="half top l2"><i>h</i></span><span class="half top l1"><i>x</i></span></span>
+        </div>
+        <h1 class="land-h">How far is each idea from you?</h1>
+        <p class="land-sub">No scores. No fake time estimates. Just the gap.</p>
+        <div class="land-cta">
+          <a class="btn" href="#signin">Sign in</a>
+          <a class="land-invite" href="#create">Have an invite? Create your account.</a>
+        </div>
+      </div>
+      <div class="land-art" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="0.6"><path d="M7 18h10a4 4 0 0 0 .5-7.97A6 6 0 0 0 6.1 9.6 4.2 4.2 0 0 0 7 18Z"/></svg>
+      </div>
+    </div>
+
+    <div class="land-how">
+      <h2>How it works</h2>
+      <ol class="land-steps">
+        <li>
+          <h3>Capture</h3>
+          <p>Type it in. No format, no fields, half-formed is fine.</p>
+        </li>
+        <li>
+          <h3>Extraction finds the hard part</h3>
+          <p>It lists what the idea takes as skills you can answer yes or no to, and marks the one most likely to kill the project.</p>
+        </li>
+        <li>
+          <h3>Your distance from buildable</h3>
+          <p>Rate what you can do, once. Every idea then says how far it is from you, and which single skill would move the most ideas.</p>
+        </li>
+      </ol>
+    </div>
+
+    <div class="land-sample">
+      <h2>What an idea looks like</h2>
+      <article class="card idea" aria-label="Example idea">
+        <div class="card-head">
+          <div>
+            <h3>A bird feeder that photographs whoever lands on it and names the species</h3>
+            <p class="raw">bird feeder that tells me which bird it is</p>
+          </div>
+          <div class="tally"><span class="s">1 short</span><span class="p">1 partial</span><span class="h">1 held</span></div>
+        </div>
+        <div class="crux partial"><span class="mark partial">[~]</span><span class="t">Run a person or object detector on embedded hardware in real time</span><span class="lbl">the hard part</span></div>
+        <ul class="caps">
+          <li class="have"><span class="mark have">[x]</span><span>Write and flash firmware for a microcontroller</span></li>
+          <li class="gap"><span class="mark gap">[ ]</span><span>Design an enclosure that survives a wet or outdoor environment</span></li>
+        </ul>
+        <div class="card-foot">
+          <span class="tag">embedded hardware</span>
+          <span class="tag">shared</span>
+          <span class="friend-line"><span class="mark friend">[+]</span>Priya holds the hard part</span>
+          <span class="spacer"></span>
+          <span>you</span>
+        </div>
+      </article>
+      <p class="land-caption">An example. Held, partial, short, and a friend who has done it: that is the whole vocabulary.</p>
+    </div>
+
+    <div class="land-private">
+      <p>Ideas are private by default. A group sees only what you share to it, and only people you invited are in it.</p>
+    </div>
+
+    <!-- Both hero links land here; the form itself is rendered by app.js below. -->
+    <div class="land-signin" id="signin"><span id="create"></span></div>
+  </section>
+
   <main id="app">
     <p class="muted">Loading…</p>
   </main>
