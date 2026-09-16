@@ -748,6 +748,13 @@ aside .domains li { display: block; padding: 0; border-top: 1px solid var(--line
 .capdetail.proposed .capdetail-name { font-style: italic; color: var(--ink-3); }
 .crux-tag { font: 0.78rem var(--mono); color: var(--crux); white-space: nowrap; }
 .capdetail-reason { margin: 0.25rem 0 0 1.9rem; color: var(--ink-2); font-size: 0.9rem; }
+:where(#app > :not(.waifu)) button.rate {
+  height: auto; padding: 0 0.15rem; margin: 0 -0.15rem; border: 0; border-radius: 4px;
+  background: none; font-weight: 500; cursor: pointer;
+}
+:where(#app > :not(.waifu)) button.rate:hover { background: var(--line); color: var(--ink); }
+.rate-hint { margin: 0.6rem 0 0; font-size: 0.8rem; color: var(--ink-3); }
+.moved { margin: 0.35rem 0 0; font: 500 0.85rem var(--mono); color: var(--ink-2); }
 
 .resolution { margin: 0.3rem 0 0 1.9rem; }
 .resolution summary { font: 0.78rem var(--mono); color: var(--ink-3); cursor: pointer; }

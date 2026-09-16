@@ -57,6 +57,7 @@ const state = {
   groups: [],          // { id, name, created_by, members: [{ user_id, display_name, added_at }], invites: [{ email }] }
   confirmDelete: null, // group id whose delete button is waiting for a second click
   confirmDeleteIdea: false, // the idea page's delete button is waiting for a second click
+  moved: "",           // idea page: what the last rating changed, one line
   feed: [],            // shared ideas from every group, newest first (decision 12)
   feedSort: "newest",  // "newest" | "closest"
   friend: null,        // { profile, levels } for the friend profile page
@@ -550,13 +551,48 @@ function refreshTally() {
 }
 
 function save(skillId, level) {
+  const before = new Map(state.levels);
   state.levels.set(skillId, level);
   refreshTally();
   status.textContent = "saving…";
   status.className = "status";
   setSkillLevel(state.session.user.id, skillId, level)
-    .then(() => { status.textContent = "saved"; })
+    .then(ensureIdeas)
+    .then(() => { status.textContent = whatMoved(skillId, before, state.levels); })
     .catch((err) => { status.textContent = err.message; status.className = "status error"; });
+}
+
+// The list loads ideas and capabilities; the profile and the idea page do
+// not, and "what moved" needs them once.
+async function ensureIdeas() {
+  if (state.ideas.length) return;
+  const me = state.session.user.id;
+  [state.ideas, state.caps] = await Promise.all([ideas(me), capabilities()]);
+}
+
+// The one line the product exists to produce: a level changed, and this is
+// what it did to your ideas. Distances before and after, over your own ideas
+// (state.ideas is yours; a friend's shared ideas are not in it).
+function whatMoved(skillId, before, after) {
+  const capsById = new Map();
+  for (const c of state.caps) {
+    if (!capsById.has(c.idea_id)) capsById.set(c.idea_id, []);
+    capsById.get(c.idea_id).push(c);
+  }
+  let closer = 0, further = 0, cleared = 0;
+  for (const idea of state.ideas) {
+    const ex = extractionOf(idea, capsById);
+    const a = distanceOf(ex, before), b = distanceOf(ex, after);
+    if (!a || !b) continue;
+    if (b.score < a.score) { closer++; if (b.gap === 0 && a.gap > 0) cleared++; }
+    else if (b.score > a.score) further++;
+  }
+  const n = (k, one, many) => `${k} ${k === 1 ? one : many}`;
+  const parts = [];
+  if (closer) parts.push(`${n(closer, "idea", "ideas")} moved closer`);
+  if (cleared) parts.push(`${cleared} now ${cleared === 1 ? "has" : "have"} no gap left`);
+  if (further) parts.push(`${n(further, "idea", "ideas")} moved further away`);
+  return `${skillId} → ${after.get(skillId)}. ${parts.length ? parts.join("; ") + "." : "Nothing moved."}`;
 }
 
 // Radios, so the keyboard works and focus stays put. An unrated skill checks
@@ -1162,12 +1198,45 @@ async function watch(ideaId, since) {
   }
 }
 
+// The mark on the idea page is the control: a click cycles your level for
+// that skill, so rating happens where the gap shows and not only on the
+// profile form. A proposed capability has no skill to rate and stays text.
+function levelMark(cap, k) {
+  if (!cap.skill_id) return mark(k);
+  const current = state.levels.get(cap.skill_id) ?? "none";
+  const next = LEVELS[(LEVELS.indexOf(current) + 1) % LEVELS.length];
+  return el("button", {
+    class: `mark ${k} rate`, type: "button", "data-skill": cap.skill_id,
+    title: `you: ${current} · click for ${next}`,
+    "aria-label": `${capLabel(cap)} — you: ${current}. Set ${next}`,
+    onclick: () => rate(cap.skill_id, next)
+  }, MARK[k]);
+}
+
+async function rate(skillId, level) {
+  const before = new Map(state.levels);
+  state.levels.set(skillId, level);
+  state.moved = "saving…";
+  render();
+  try {
+    await setSkillLevel(state.session.user.id, skillId, level);
+    await ensureIdeas();
+    state.moved = whatMoved(skillId, before, state.levels);
+  } catch (err) {
+    state.levels = before;
+    state.moved = err.message;
+  }
+  render();
+  // mount() rebuilt the page; put the keyboard back where it was
+  document.querySelector(`button.rate[data-skill="${skillId}"]`)?.focus();
+}
+
 function capabilityDetail(cap) {
   const k = classify(cap, state.levels);
   const isCrux = cap.crux_rank === 1;
   return el("li", { class: `capdetail ${k}${isCrux ? " is-crux" : ""}` },
     el("div", { class: "capdetail-head" },
-      mark(k),
+      levelMark(cap, k),
       el("span", { class: "capdetail-name" }, capLabel(cap)),
       isCrux && el("span", { class: "crux-tag" }, "the hard part")
     ),
@@ -1317,7 +1386,9 @@ function ideaView() {
 
     caps.length > 0 && el("section", {},
       el("h3", {}, "What it would take"),
-      el("ul", { class: "capdetails" }, ordered.map(capabilityDetail))
+      el("ul", { class: "capdetails" }, ordered.map(capabilityDetail)),
+      el("p", { class: "rate-hint" }, "Click a mark to rate yourself on that skill."),
+      state.moved && el("p", { class: "moved", role: "status" }, state.moved)
     ),
 
     mine && shareControl(idea, groups),
@@ -1604,6 +1675,7 @@ addEventListener("hashchange", () => {
   status.textContent = "";
   state.detail = null;
   state.confirmDeleteIdea = false;
+  state.moved = "";
   state.friend = null;
   state.waiting = "";
   run(load);
