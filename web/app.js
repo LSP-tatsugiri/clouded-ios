@@ -1303,11 +1303,15 @@ function ideaView() {
 
 // A proposal is the model asking for a skill the table does not have. Nothing
 // is created automatically, which is the invariant; this is the human step.
+// There is no undo: promotion inserts the skill and repoints capabilities,
+// and db.js has nothing that reverses either, so a decided card only moves
+// to "Already decided".
 function proposalCard(p) {
   const settled = p.promoted || p.rejected;
+  const formId = `promote-${p.key}`;
 
   const form = el("form", {
-    class: "promote",
+    class: "promote", id: formId,
     onsubmit: (e) => {
       e.preventDefault();
       const f = form.elements;
@@ -1324,24 +1328,25 @@ function proposalCard(p) {
       });
     }
   },
-    el("label", {}, "Skill id",
-      el("input", { name: "skillId", value: p.key, required: true, autocomplete: "off" })),
-    el("label", {}, "Name — a checkable task, not a depth label",
-      el("input", {
-        name: "name", required: true, autocomplete: "off",
-        placeholder: "Measure a real object and design a part that fits it"
-      })),
-    el("label", {}, "Domain",
-      el("input", {
-        name: "domain", autocomplete: "off", list: "domains",
-        placeholder: [...new Set(state.skills.map((s) => s.domain).filter(Boolean))][0] ?? ""
-      })),
-    el("label", {}, "Aliases, comma separated",
-      el("input", { name: "aliases", value: p.names.join(", "), autocomplete: "off" })),
-    el("label", { class: "check" },
+    el("div", { class: "grid2" },
+      el("label", { class: "fld" }, "Skill id",
+        el("input", { name: "skillId", value: p.key, required: true, autocomplete: "off" })),
+      el("label", { class: "fld" }, "Domain",
+        el("input", {
+          name: "domain", autocomplete: "off", list: "domains",
+          placeholder: `e.g. ${[...new Set(state.skills.map((s) => s.domain).filter(Boolean))][0] ?? "fabrication"}`
+        })),
+      el("label", { class: "fld full" }, "Name, as a checkable task, not a depth label",
+        el("input", {
+          name: "name", required: true, autocomplete: "off",
+          placeholder: "e.g. Measure a real object and design a part that fits it"
+        })),
+      el("label", { class: "fld full" }, "Aliases, comma separated",
+        el("input", { name: "aliases", value: p.names.join(", "), autocomplete: "off" }))
+    ),
+    el("label", { class: "chk hazard" },
       el("input", { type: "checkbox", name: "hazard" }),
-      el("span", {}, "involves a real hazard")),
-    el("button", { type: "submit", disabled: state.busy }, "Promote to a skill")
+      el("span", {}, "Involves a real hazard"))
   );
 
   const reject = el("form", {
@@ -1353,25 +1358,35 @@ function proposalCard(p) {
       run(async () => { await rejectSkill(p.key, why); await load(); });
     }
   },
-    el("input", { name: "why", placeholder: "Why this is not a skill", autocomplete: "off" }),
-    el("button", { class: "secondary", type: "submit", disabled: state.busy }, "Reject")
+    el("input", { name: "why", placeholder: "Why this isn't a skill", required: true, autocomplete: "off" }),
+    el("button", { class: "btn sm warn", type: "submit", disabled: state.busy }, "Reject")
   );
 
-  return el("article", { class: settled ? "proposal settled" : "proposal" },
-    el("div", { class: "idea-head" },
-      el("div", { class: "idea-title" }, p.key),
-      el("span", { class: "counts" },
-        `${p.idea_ids.length} idea${p.idea_ids.length === 1 ? "" : "s"} · ${p.run_count} run${p.run_count === 1 ? "" : "s"}` +
-        (p.crux_count ? ` · crux ×${p.crux_count}` : ""))
+  const n = (count, word) => `${count} ${word}${count === 1 ? "" : "s"}`;
+  return el("article", { class: settled ? "card rv gone" : "card rv", id: `p-${p.key}` },
+    el("div", { class: "card-head" },
+      el("h3", {}, p.key),
+      el("div", { class: "meta" },
+        el("span", { class: "tag" }, n(p.idea_ids.length, "idea")),
+        el("span", { class: "tag" }, n(p.run_count, "run")),
+        p.crux_count > 0 && el("span", { class: "tag hard" }, `the hard part ×${p.crux_count}`)
+      )
     ),
-    p.names.length > 1 && el("div", { class: "idea-raw" }, `also seen as: ${p.names.filter((n) => n !== p.key).join(", ")}`),
-    p.reasons.length > 0 && el("ul", { class: "caps" },
-      p.reasons.map((r) => el("li", {}, el("span", { class: "mark" }, "·"), el("span", {}, r)))),
+    p.names.length > 1 && el("p", { class: "raw" }, `also seen as: ${p.names.filter((x) => x !== p.key).join(", ")}`),
+    p.reasons.length > 0 && el("div", { class: "why" },
+      el("b", {}, "Why the model proposed it: "),
+      p.reasons.length === 1 ? p.reasons[0] : el("ul", {}, p.reasons.map((r) => el("li", {}, r)))
+    ),
 
-    p.promoted && el("p", { class: "tag" }, `promoted to ${p.promoted}`),
-    p.rejected && el("p", { class: "tag warn" }, `rejected: ${p.rejected}`),
+    p.promoted && el("p", { class: "decided" }, mark("have"), ` promoted to ${p.promoted}`),
+    p.rejected && el("p", { class: "decided" }, mark("gap"), ` rejected: ${p.rejected}`),
     !settled && form,
-    !settled && reject
+    // the promote button submits the form above through its id, so the
+    // reject form can sit beside it without nesting forms
+    !settled && el("div", { class: "actions" },
+      el("button", { type: "submit", class: "btn sm", form: formId, disabled: state.busy }, "Promote to a skill"),
+      reject
+    )
   );
 }
 
@@ -1382,22 +1397,43 @@ function reviewView() {
   }
   const open = state.proposals.filter((p) => !p.promoted && !p.rejected);
   const settled = state.proposals.filter((p) => p.promoted || p.rejected);
+  const jump = (p) => el("a", {
+    href: `#p-${p.key}`,
+    onclick: (e) => {
+      // a plain hash link would change the route; scroll instead
+      e.preventDefault();
+      document.getElementById(`p-${p.key}`)?.scrollIntoView({ behavior: reduceMotion() ? "auto" : "smooth", block: "start" });
+    }
+  },
+    el("span", { class: "key" }, p.key),
+    el("span", { class: "c" }, p.crux_count > 0 ? "crux" : "")
+  );
 
   return el("div", {},
     header(),
-    el("p", { class: "muted" },
-      "The model proposes a skill when nothing in the table covers a capability. " +
-      "Nothing is created until you say so."),
+    el("div", { class: "page-head" },
+      el("div", {},
+        el("h1", {}, "Proposed skills"),
+        el("p", {}, "The model proposes a skill when nothing in the table covers a capability. Nothing is added until you promote it."))
+    ),
     state.error && el("p", { class: "error" }, state.error),
     el("datalist", { id: "domains" },
       [...new Set(state.skills.map((s) => s.domain).filter(Boolean))].map((d) => el("option", { value: d }))),
-    el("h2", { class: "section" }, `Waiting for review (${open.length})`),
-    open.length
-      ? el("div", { class: "proposals" }, open.map(proposalCard))
-      : el("p", { class: "muted" }, "Nothing proposed. Every capability matched a skill already in the table."),
-    settled.length > 0 && el("details", { class: "settled-block" },
-      el("summary", {}, `Already decided (${settled.length})`),
-      el("div", { class: "proposals" }, settled.map(proposalCard))
+    el("div", { class: "layout" },
+      el("div", {},
+        open.length
+          ? el("div", { class: "cards" }, open.map(proposalCard))
+          : el("p", { class: "muted" }, "Nothing proposed. Every capability matched a skill already in the table."),
+        settled.length > 0 && el("details", { class: "settled-block" },
+          el("summary", {}, `Already decided (${settled.length})`),
+          el("div", { class: "cards" }, settled.map(proposalCard))
+        )
+      ),
+      el("aside", { "aria-label": "Queue" },
+        el("h2", {}, "Waiting for review"),
+        el("p", {}, `${open.length} proposal${open.length === 1 ? "" : "s"} waiting.`),
+        el("ol", { class: "domains queue" }, open.map((p) => el("li", {}, jump(p))))
+      )
     )
   );
 }

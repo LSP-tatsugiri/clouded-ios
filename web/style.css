@@ -218,7 +218,7 @@ aside a:hover { color: var(--flow); }
   white-space: nowrap;
 }
 .tag.prop, .tag.warn { border-style: dashed; color: var(--partial); border-color: var(--partial); }
-.tag.crux { color: var(--crux); border-color: var(--crux); }
+.tag.hard { color: var(--crux); border-color: var(--crux); }
 .tag.level-solid { color: var(--held); border-color: var(--held); }
 .tag.level-some { color: var(--partial); border-color: var(--partial); }
 
@@ -593,6 +593,43 @@ aside .domains li { display: block; padding: 0; border-top: 1px solid var(--line
 .domains .c { font: 0.8rem var(--mono); color: var(--ink-3); white-space: nowrap; }
 .unrated-only { margin-top: 1rem; }
 
+/* ---------------------------------------------------------------- review */
+
+.rv h3 { margin: 0; font: 500 1.1rem var(--mono); overflow-wrap: anywhere; }
+.rv .meta { font: 0.8rem var(--mono); color: var(--ink-3); display: flex; gap: 0.4rem; flex-wrap: wrap; justify-content: flex-end; }
+.rv .why {
+  margin: 0.75rem 0 1rem;
+  padding: 0.7rem 0.9rem;
+  border-radius: 12px;
+  background: var(--flow-wash);
+  color: var(--ink-2);
+  font-size: 0.93rem;
+}
+.rv .why b { color: var(--ink); font-weight: 700; }
+.rv .why ul { margin: 0.3rem 0 0; padding-left: 1.2rem; }
+.rv .raw { margin-top: 0.5rem; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem 1rem; }
+.grid2 .fld { margin: 0; }
+.grid2 .full { grid-column: 1 / -1; }
+@media (max-width: 640px) { .grid2 { grid-template-columns: 1fr; } }
+.rv .hazard { margin-top: 0.75rem; }
+.rv .actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--line);
+}
+.rv .reject { display: flex; gap: 0.5rem; flex: 1; justify-content: flex-end; }
+.rv .reject input { max-width: 18rem; }
+.rv.gone { opacity: 0.6; }
+.decided { margin: 0.75rem 0 0; font-size: 0.93rem; color: var(--ink-2); }
+.settled-block { margin-top: 2rem; }
+.settled-block summary { cursor: pointer; font-weight: 700; color: var(--ink-2); margin-bottom: 0.9rem; }
+.queue .key { font: 0.85rem var(--mono); }
+
 /* ---------------------------------------------------------------- legacy
    The old per-view rules, on aliases of the new tokens, so every view keeps
    rendering while the redesign lands one view at a time. Each view's commit
@@ -698,43 +735,3 @@ a.idea-title:hover { text-decoration: underline; text-underline-offset: 2px; }
 .runs { margin-top: 1.5rem; }
 .runs summary { font-size: 0.85rem; color: var(--muted); cursor: pointer; }
 .runs .caps { margin-top: 0.5rem; }
-
-/* review */
-
-.section { font-size: 0.95rem; margin: 1.5rem 0 0.75rem; }
-.proposals { display: flex; flex-direction: column; gap: 1rem; }
-
-.proposal {
-  padding: 1rem;
-  background: var(--card);
-  border: 1px solid var(--line);
-  border-left: 3px solid var(--accent);
-  border-radius: 8px;
-}
-
-.proposal.settled { border-left-color: var(--line); opacity: 0.75; }
-.proposal .caps li { color: var(--muted); }
-.proposal .tag { display: inline-block; margin: 0.5rem 0 0; }
-
-.promote {
-  display: grid;
-  gap: 0.6rem;
-  margin-top: 0.9rem;
-  padding-top: 0.9rem;
-  border-top: 1px solid var(--line);
-}
-
-.promote input[type="text"], .promote input:not([type]) { width: 100%; }
-.promote .check { flex-direction: row; align-items: center; gap: 0.35rem; }
-.promote button { justify-self: start; }
-
-.reject { display: flex; gap: 0.5rem; margin-top: 0.6rem; }
-.reject input { flex: 1; }
-
-button.secondary { color: var(--fg); background: none; border: 1px solid var(--line); }
-button.secondary:hover { background: var(--line); }
-
-.settled-block { margin-top: 2rem; }
-.settled-block summary { cursor: pointer; font-size: 0.9rem; color: var(--muted); margin-bottom: 0.75rem; }
-
-.share .check { margin: 0; }
