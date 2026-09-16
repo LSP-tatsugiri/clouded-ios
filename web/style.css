@@ -9,6 +9,7 @@
   --line: #dde1ec;
   --flow: #3461e6; --crux: #c93a30; --held: #1a7d4a; --partial: #8f5f08;
   --crux-wash: #c93a3012; --flow-wash: #3461e610;
+  --lift: 0 10px 30px -12px rgba(15, 20, 34, 0.25);
   --display: "Bricolage Grotesque", system-ui, -apple-system, "Segoe UI", sans-serif;
   --mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
   color-scheme: light;
@@ -21,6 +22,7 @@
     --line: #26304a;
     --flow: #5b84ff; --crux: #ff6a5c; --held: #4fd18b; --partial: #f2b544;
     --crux-wash: #ff6a5c14; --flow-wash: #5b84ff14;
+    --lift: 0 10px 30px -12px rgba(0, 0, 0, 0.6);
     color-scheme: dark;
   }
 }
@@ -629,6 +631,47 @@ aside .domains li { display: block; padding: 0; border-top: 1px solid var(--line
 .settled-block { margin-top: 2rem; }
 .settled-block summary { cursor: pointer; font-weight: 700; color: var(--ink-2); margin-bottom: 0.9rem; }
 .queue .key { font: 0.85rem var(--mono); }
+
+/* ---------------------------------------------------------------- motion
+   Chosen from docs/redesign/motion-options (2026-09-16): springy controls,
+   and one card at a time in focus. Every rule here is scoped away from the
+   waifu scene and switched off under reduced motion. */
+
+@media (prefers-reduced-motion: no-preference) {
+  :not(.waifu) > header .tab, .seg button, .btn, .lvl label span, button.link,
+  :where(#app > :not(.waifu)) button {
+    transition: background-color 0.15s, color 0.15s, border-color 0.15s, opacity 0.15s,
+      transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s;
+  }
+  :not(.waifu) > header .tab:hover, .btn:hover, :where(#app > :not(.waifu)) button:not(.link):not(.seg button):hover { transform: scale(1.04); }
+  .btn:hover, :where(#app > :not(.waifu)) button:not(.link):not(.seg button):not(.ghost):not(.secondary):hover { box-shadow: 0 6px 14px -8px rgba(52, 97, 230, 0.5); }
+  :not(.waifu) > header .tab:active, .btn:active, .seg button:active, .lvl label:active span,
+  :where(#app > :not(.waifu)) button:active { transform: scale(0.94); transition-duration: 0.08s; }
+  :where(#app > :not(.waifu)) :is(input, textarea, select) { transition: border-color 0.15s, box-shadow 0.2s; }
+}
+
+/* the card under the pointer, tabbed to or being typed in steps forward;
+   the rest of its list steps back. The delay keeps a sweep down the list
+   from flickering. Blur only when motion is welcome. */
+:root { --frost-delay: 120ms; }
+.cards > .card:not(.busy):hover, .cards > .card:not(.busy):focus-within {
+  position: relative;
+  z-index: 1;
+  transform: scale(1.02);
+  box-shadow: var(--lift);
+}
+.cards:has(> .card:not(.busy):hover, > .card:not(.busy):focus-within) > .card:not(:hover):not(:focus-within):not(.busy) {
+  opacity: 0.55;
+  transform: scale(0.985);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .cards > .card {
+    transition: filter 0.28s ease var(--frost-delay), opacity 0.28s ease var(--frost-delay),
+      transform 0.28s cubic-bezier(0.2, 0.8, 0.2, 1) var(--frost-delay), box-shadow 0.28s ease var(--frost-delay);
+  }
+  .cards > .card:hover, .cards > .card:focus-within { transition-delay: 0ms; }
+  .cards:has(> .card:not(.busy):hover, > .card:not(.busy):focus-within) > .card:not(:hover):not(:focus-within):not(.busy) { filter: blur(3px); }
+}
 
 /* ---------------------------------------------------------------- sign-in */
 

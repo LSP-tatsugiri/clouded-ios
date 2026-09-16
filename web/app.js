@@ -272,7 +272,7 @@ function ideaRow({ idea, extraction }) {
   const title = idea.objective || idea.raw;
   const landed = justLanded.has(idea.id);
 
-  return el("article", { class: landed ? "card idea fade-in" : "card idea", "data-idea": idea.id },
+  return el("article", { class: landed ? "card idea fade-in" : "card idea", "data-idea": idea.id, tabindex: 0 },
     el("div", { class: "card-head" },
       el("div", {},
         el("h3", {}, el("a", { href: `#/idea/${idea.id}` }, title)),
@@ -335,7 +335,7 @@ function vagueRow(idea) {
     el("input", { name: "clarification", "aria-label": "Your answer", placeholder: "A few words is enough", required: true, autocomplete: "off" }),
     el("button", { type: "submit", class: "btn sm", disabled: state.busy }, "Answer")
   );
-  return el("article", { class: justLanded.has(idea.id) ? "card idea vague fade-in" : "card idea vague" },
+  return el("article", { class: justLanded.has(idea.id) ? "card idea vague fade-in" : "card idea vague", tabindex: 0 },
     el("div", { class: "card-head" }, el("div", {},
       el("h3", {}, el("a", { href: `#/idea/${idea.id}` }, idea.raw)),
       el("p", { class: "raw" }, "Too vague to extract yet"))),
@@ -711,7 +711,7 @@ function feedRow({ idea, extraction }, me) {
     : el("a", { href: `#/friend/${idea.user_id}`, class: "owner" }, state.names.get(idea.user_id) ?? "a friend");
   const title = idea.objective || idea.raw;
   if (idea.is_clear !== true) {
-    return el("article", { class: "card idea vague" },
+    return el("article", { class: "card idea vague", tabindex: 0 },
       el("div", { class: "card-head" }, el("div", {},
         el("h3", {}, el("a", { href: `#/idea/${idea.id}` }, title)),
         el("p", { class: "raw" }, idea.status === "extracted" ? "Too vague to extract yet" : idea.status))),
@@ -731,7 +731,7 @@ function feedRow({ idea, extraction }, me) {
     : null;
   const coverText = f.gaps ? `group covers ${f.covered} of ${f.gaps} ${f.gaps === 1 ? "gap" : "gaps"}` : "nothing missing for you";
 
-  return el("article", { class: "card idea" },
+  return el("article", { class: "card idea", tabindex: 0 },
     el("div", { class: "card-head" },
       el("div", {}, el("h3", {}, el("a", { href: `#/idea/${idea.id}` }, title))),
       tallyChips(d)
@@ -1366,7 +1366,7 @@ function proposalCard(p) {
   );
 
   const n = (count, word) => `${count} ${word}${count === 1 ? "" : "s"}`;
-  return el("article", { class: settled ? "card rv gone" : "card rv", id: `p-${p.key}` },
+  return el("article", { class: settled ? "card rv gone" : "card rv", id: `p-${p.key}`, tabindex: 0 },
     el("div", { class: "card-head" },
       el("h3", {}, p.key),
       el("div", { class: "meta" },
