@@ -183,3 +183,17 @@ have partials and the one short skill is not always the hard part.
 Known, unchanged: `watch()` re-renders the list every 2 s while an idea
 extracts, which clears anything being typed in the capture box or a card's
 answer box. Not new, just easier to notice now.
+
+## 9. Motion (2026-09-16, same branch)
+
+Chosen on the live options page (`Clouded Motion Options` artifact):
+1C springy controls, 2C page slide by tab order with the active pill
+gliding, 3A cards gliding on sort and filter, 4A one card in focus with
+the rest frosted. 1 and 4 are CSS plus `tabindex` on the cards. 2 and 3
+are the one change to plumbing: `render({ animate })` builds the view,
+then paints it through `document.startViewTransition` when the route
+changed or a sort/filter handler asked, stamping `data-vt` and
+`data-dir` on the root for the CSS; the header and the active tab carry
+`view-transition-name`s, and each card is named after its idea (skipped
+above 40 cards). No transition without the API, under reduced motion,
+or into or out of `#/waifu`, whose builders stay byte-identical.

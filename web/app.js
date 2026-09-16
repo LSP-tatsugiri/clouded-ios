@@ -114,10 +114,16 @@ function brandMark() {
 }
 
 function header() {
-  const tab = (href, label, route) =>
-    el("a", { href, class: state.route === route ? "tab on" : "tab" }, label);
-  return el("header", {},
-    el("h1", {}, state.route !== "waifu" && brandMark(), "clouded"),
+  const site = state.route !== "waifu";   // the waifu header keeps its plain markup
+  const tab = (href, label, route) => {
+    const on = state.route === route;
+    return el("a", {
+      href, class: on ? "tab on" : "tab",
+      style: site && on ? "view-transition-name: tab-on" : null
+    }, label);
+  };
+  return el("header", { style: site ? "view-transition-name: app-header" : null },
+    el("h1", {}, site && brandMark(), "clouded"),
     el("nav", {},
       tab("#/", "Ideas", "list"),
       tab("#/group", "Group", "group"),
@@ -265,14 +271,17 @@ function capItem(cap) {
   return el("li", { class: k }, mark(k), el("span", {}, capLabel(cap)));
 }
 
-function ideaRow({ idea, extraction }) {
+function ideaRow({ idea, extraction }, glide = true) {
   const d = distanceOf(extraction, state.levels);
   const crux = cruxOf(extraction);
   const anyProposed = extraction.capabilities.some((c) => !c.skill_id);
   const title = idea.objective || idea.raw;
   const landed = justLanded.has(idea.id);
 
-  return el("article", { class: landed ? "card idea fade-in" : "card idea", "data-idea": idea.id, tabindex: 0 },
+  return el("article", {
+    class: landed ? "card idea fade-in" : "card idea", "data-idea": idea.id, tabindex: 0,
+    style: glide ? `view-transition-name: idea-${idea.id}` : null
+  },
     el("div", { class: "card-head" },
       el("div", {},
         el("h3", {}, el("a", { href: `#/idea/${idea.id}` }, title)),
@@ -318,7 +327,7 @@ function extractingRow(idea, { stage, seconds }) {
 // answer is the same write the idea page makes (setClarification, which
 // re-runs extraction), and the wait is the same watcher a new idea gets, so
 // the card turns into the extracting card and then the full one.
-function vagueRow(idea) {
+function vagueRow(idea, glide = true) {
   const form = el("form", {
     class: "row",
     onsubmit: (e) => {
@@ -335,7 +344,10 @@ function vagueRow(idea) {
     el("input", { name: "clarification", "aria-label": "Your answer", placeholder: "A few words is enough", required: true, autocomplete: "off" }),
     el("button", { type: "submit", class: "btn sm", disabled: state.busy }, "Answer")
   );
-  return el("article", { class: justLanded.has(idea.id) ? "card idea vague fade-in" : "card idea vague", tabindex: 0 },
+  return el("article", {
+    class: justLanded.has(idea.id) ? "card idea vague fade-in" : "card idea vague", tabindex: 0,
+    style: glide ? `view-transition-name: idea-${idea.id}` : null
+  },
     el("div", { class: "card-head" }, el("div", {},
       el("h3", {}, el("a", { href: `#/idea/${idea.id}` }, idea.raw)),
       el("p", { class: "raw" }, "Too vague to extract yet"))),
@@ -349,10 +361,10 @@ function vagueRow(idea) {
 }
 
 function filterBar(domains, shownCount, total) {
-  const set = (k, v) => { state.filters[k] = v; render(); };
+  const set = (k, v) => { state.filters[k] = v; render({ animate: true }); };
   const sortButton = (key, label) => el("button", {
     type: "button", "aria-pressed": String(state.sort === key),
-    onclick: () => { state.sort = key; render(); }
+    onclick: () => { state.sort = key; render({ animate: true }); }
   }, label);
   const filtering = state.filters.domain || state.filters.crux || state.filters.proposed || state.filters.friend;
   return el("div", { class: "controls" },
@@ -383,7 +395,7 @@ function filterBar(domains, shownCount, total) {
       el("span", {}, "A friend can unblock it")
     ),
     filtering &&
-      el("button", { class: "link", onclick: () => { state.filters = { domain: "", crux: "", proposed: false, friend: false }; render(); } }, "clear"),
+      el("button", { class: "link", onclick: () => { state.filters = { domain: "", crux: "", proposed: false, friend: false }; render({ animate: true }); } }, "clear"),
     el("span", { class: "count" }, `${shownCount} of ${total} shown`)
   );
 }
@@ -451,7 +463,8 @@ function listView() {
   );
 
   const rated = state.levels.size;
-  const card = (r) => r.idea.is_clear === true ? ideaRow(r) : vagueRow(r.idea);
+  const glide = shown.length + vague.length <= 40;
+  const card = (r) => r.idea.is_clear === true ? ideaRow(r, glide) : vagueRow(r.idea, glide);
 
   // Closest to me groups by how many skills are short (the flat gap count
   // distance.js already gives); newest is one list by date, vague included.
@@ -665,7 +678,7 @@ function groupView() {
   const rows = feedRows();
   const sortButton = (key, label) => el("button", {
     type: "button", "aria-pressed": String(state.feedSort === key),
-    onclick: () => { state.feedSort = key; render(); }
+    onclick: () => { state.feedSort = key; render({ animate: true }); }
   }, label);
 
   return el("div", {},
@@ -680,7 +693,7 @@ function groupView() {
     state.error && el("p", { class: "error" }, state.error),
     el("div", { class: "layout" },
       rows.length
-        ? el("div", { class: "cards" }, rows.map((r) => feedRow(r, me)))
+        ? el("div", { class: "cards" }, rows.map((r) => feedRow(r, me, rows.length <= 40)))
         : el("p", { class: "muted" }, "Nothing shared yet. Share an idea from its page and it appears here for everyone in the group."),
       el("div", { class: "side" }, state.groups.map((g) => groupSection(g, me)))
     )
@@ -705,13 +718,13 @@ function feedRows() {
   return rows;
 }
 
-function feedRow({ idea, extraction }, me) {
+function feedRow({ idea, extraction }, me, glide = true) {
   const owner = idea.user_id === me
     ? el("span", { class: "owner" }, "you")
     : el("a", { href: `#/friend/${idea.user_id}`, class: "owner" }, state.names.get(idea.user_id) ?? "a friend");
   const title = idea.objective || idea.raw;
   if (idea.is_clear !== true) {
-    return el("article", { class: "card idea vague", tabindex: 0 },
+    return el("article", { class: "card idea vague", tabindex: 0, style: glide ? `view-transition-name: idea-${idea.id}` : null },
       el("div", { class: "card-head" }, el("div", {},
         el("h3", {}, el("a", { href: `#/idea/${idea.id}` }, title)),
         el("p", { class: "raw" }, idea.status === "extracted" ? "Too vague to extract yet" : idea.status))),
@@ -731,7 +744,7 @@ function feedRow({ idea, extraction }, me) {
     : null;
   const coverText = f.gaps ? `group covers ${f.covered} of ${f.gaps} ${f.gaps === 1 ? "gap" : "gaps"}` : "nothing missing for you";
 
-  return el("article", { class: "card idea", tabindex: 0 },
+  return el("article", { class: "card idea", tabindex: 0, style: glide ? `view-transition-name: idea-${idea.id}` : null },
     el("div", { class: "card-head" },
       el("div", {}, el("h3", {}, el("a", { href: `#/idea/${idea.id}` }, title))),
       tallyChips(d)
@@ -1443,14 +1456,41 @@ function reviewView() {
 
 // ---------------------------------------------------------------- plumbing
 
-function render() {
-  if (!state.session) return void mount(app, signInView());
-  if (state.route === "review") return void mount(app, reviewView());
-  if (state.route === "idea") return void mount(app, ideaView());
-  if (state.route === "group") return void mount(app, groupView());
-  if (state.route === "friend") return void mount(app, friendView());
-  if (state.route === "waifu") return void mount(app, waifuView());
-  mount(app, state.route === "profile" ? profileView() : listView());
+function viewFor() {
+  if (!state.session) return signInView();
+  if (state.route === "review") return reviewView();
+  if (state.route === "idea") return ideaView();
+  if (state.route === "group") return groupView();
+  if (state.route === "friend") return friendView();
+  if (state.route === "waifu") return waifuView();
+  return state.route === "profile" ? profileView() : listView();
+}
+
+// A page switch slides in the direction of travel along the tabs, and the
+// active tab's pill glides, through the View Transitions API; a sort or
+// filter change asks for the same (render({ animate: true })) so the cards,
+// each named after its idea, glide to their new places. Anything else, an
+// extraction tick or a save, paints plainly. Nothing animates without the
+// API, under reduced motion, or into or out of the waifu scene.
+const ROUTE_ORDER = { list: 0, idea: 0.5, group: 1, friend: 1.5, profile: 2, review: 3 };
+let paintedRoute = null;
+let latest = null;   // a transition's callback paints whatever was built last
+
+function render({ animate = false } = {}) {
+  latest = viewFor();
+  const paint = () => mount(app, latest);
+  const switched = paintedRoute !== null && paintedRoute !== state.route;
+  const can = state.session && document.startViewTransition && !reduceMotion()
+    && state.route !== "waifu" && paintedRoute !== "waifu";
+  if (can && (switched || animate)) {
+    document.documentElement.dataset.vt = switched ? "page" : "list";
+    document.documentElement.dataset.dir =
+      switched && (ROUTE_ORDER[state.route] ?? 0) < (ROUTE_ORDER[paintedRoute] ?? 0) ? "back" : "fwd";
+    document.startViewTransition(paint);
+  } else {
+    paint();
+  }
+  paintedRoute = state.route;
 }
 
 async function run(fn) {
