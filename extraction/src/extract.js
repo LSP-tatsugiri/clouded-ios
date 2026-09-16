@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 
-const MODEL = process.env.MODEL || "claude-sonnet-4-5-20250929";
+const MODEL = process.env.MODEL || "claude-sonnet-5";
 const API = "https://api.anthropic.com/v1/messages";
 
 const skills = JSON.parse(readFileSync(new URL("../data/skills.json", import.meta.url)));

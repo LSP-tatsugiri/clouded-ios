@@ -16,7 +16,7 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
 import { skills } from "./extract.js";
 
-const MODEL = process.env.MODEL || "claude-sonnet-4-5-20250929";
+const MODEL = process.env.MODEL || "claude-sonnet-5";
 const API = "https://api.anthropic.com/v1/messages";
 const REGISTRY = new URL("../out/proposed.json", import.meta.url);
 

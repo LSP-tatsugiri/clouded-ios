@@ -118,9 +118,16 @@ while out. Capture is the only phone-first part.
   Promotion there also repoints the capabilities that were waiting on the
   proposal, which the local flow does not do. Only a curator sees either the
   tab or the table; grant with `supabase/scripts/grant-curator.mjs`.
-- **Model is `claude-sonnet-5`** as of 2026-09-12; the committed baseline in
-  `out/` is from sonnet-5 (2026-09-13, prompt `e3446a126ffc`). Same-prompt
-  wobble on it: crux identical 16/19, verdict 19/19, skill overlap 0.89.
+- **Model is `claude-sonnet-5`** as of 2026-09-12, the default in both the
+  edge function and `extraction/src/` (the Node default matched the edge
+  function's only from 2026-09-16; before that `npm start` without `MODEL=`
+  hashed a sonnet-4-5 prompt). The committed baseline in `out/` is from
+  sonnet-5 (2026-09-13, prompt `e3446a126ffc`). Same-prompt wobble on it:
+  crux identical 16/19, verdict 19/19, skill overlap 0.89. **The baseline
+  is stale**: promoting `ui-mockup` on 2026-09-15 changed the skill list
+  and so the hash (now `b6a035830560`), and `npm start` re-extracts any
+  idea whose cached hash differs — a plain `npm start` is now a full
+  re-run, ~$0.30, not a cache hit. Re-baseline on purpose or not at all.
 - **The model sometimes marks two cruxes**, despite the invariant saying
   exactly one. It happened 5 times across 4 committed runs of 19 ideas, about
   1 idea in 10; `dryer` does it in the committed baseline. The database is
