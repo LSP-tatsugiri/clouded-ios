@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <!-- The brand mark: the cloud between square brackets. The inline copy in
+       app.js brandMark() is this markup without the style block, so it takes
+       --ink and --flow from the page; keep the two in step. -->
+  <style>
+    :root { --ink: #0f1422; --flow: #3461e6; }
+    @media (prefers-color-scheme: dark) { :root { --ink: #f2f4fa; --flow: #5b84ff; } }
+  </style>
+  <path d="M7 3H3v18h4M29 3h4v18h-4" stroke="var(--ink)"/>
+  <path d="M13 18h10a4 4 0 0 0 .5-7.97A6 6 0 0 0 12.1 9.6 4.2 4.2 0 0 0 13 18Z" stroke="var(--flow)"/>
+</svg>

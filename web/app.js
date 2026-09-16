@@ -110,9 +110,12 @@ function extractionOf(idea, capsById) {
 // waifu.css lays out as it always has.
 function brandMark() {
   const t = document.createElement("template");
+  // assets/mark.svg inline (minus its style block) so the brackets take
+  // --ink and the cloud --flow from the page; keep the two files in step
   t.innerHTML =
-    `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">` +
-    `<path d="M7 18h10a4 4 0 0 0 .5-7.97A6 6 0 0 0 6.1 9.6 4.2 4.2 0 0 0 7 18Z"/></svg>`;
+    `<svg viewBox="0 0 36 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">` +
+    `<path d="M7 3H3v18h4M29 3h4v18h-4" stroke="var(--ink)"/>` +
+    `<path d="M13 18h10a4 4 0 0 0 .5-7.97A6 6 0 0 0 12.1 9.6 4.2 4.2 0 0 0 13 18Z" stroke="var(--flow)"/></svg>`;
   return t.content.firstElementChild;
 }
 

@@ -7,9 +7,9 @@
   <meta name="description" content="An idea database that says how far each idea is from something you could actually build: the skills it takes, the one that could kill it, and your gap. Invite-only, for a few friends.">
   <meta property="og:title" content="clouded">
   <meta property="og:description" content="How far is each idea from you? The skills it takes, the one that could kill it, and your gap. Invite-only.">
-  <!-- Inline so the browser stops requesting /favicon.ico, whose 404 would
+  <!-- Declared so the browser stops requesting /favicon.ico, whose 404 would
        otherwise sit in the console and hide a real error. -->
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ctext y='13' font-size='13'%3E%E2%98%81%3C/text%3E%3C/svg%3E">
+  <link rel="icon" href="assets/mark.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -27,18 +27,20 @@
 </head>
 <body>
   <!-- Landing for signed-out visitors. Static on purpose: this is the only
-       text a crawler or a link preview sees. Copy comes from the promo ad. -->
+       text a crawler or a link preview sees. Copy comes from the promo ad;
+       the cards are the app's own card markup with made-up ideas. -->
   <section class="landing" id="landing" aria-label="About clouded">
     <div class="land-hero">
       <div class="land-copy">
         <div class="flaps" role="img" aria-label="clouded">
-      <span class="tile" style="--i:0"><span class="half top l3"><i>c</i></span><span class="half bot l1"><i>k</i></span><span class="half bot l2"><i>r</i></span><span class="half bot l3"><i>c</i></span><span class="half top l2"><i>r</i></span><span class="half top l1"><i>k</i></span></span>
-      <span class="tile" style="--i:1"><span class="half top l3"><i>l</i></span><span class="half bot l1"><i>w</i></span><span class="half bot l2"><i>t</i></span><span class="half bot l3"><i>l</i></span><span class="half top l2"><i>t</i></span><span class="half top l1"><i>w</i></span></span>
-      <span class="tile accent" style="--i:2"><span class="half top l3"><i>o</i></span><span class="half bot l1"><i>a</i></span><span class="half bot l2"><i>e</i></span><span class="half bot l3"><i>o</i></span><span class="half top l2"><i>e</i></span><span class="half top l1"><i>a</i></span></span>
-      <span class="tile" style="--i:3"><span class="half top l3"><i>u</i></span><span class="half bot l1"><i>n</i></span><span class="half bot l2"><i>s</i></span><span class="half bot l3"><i>u</i></span><span class="half top l2"><i>s</i></span><span class="half top l1"><i>n</i></span></span>
-      <span class="tile" style="--i:4"><span class="half top l3"><i>d</i></span><span class="half bot l1"><i>g</i></span><span class="half bot l2"><i>b</i></span><span class="half bot l3"><i>d</i></span><span class="half top l2"><i>b</i></span><span class="half top l1"><i>g</i></span></span>
-      <span class="tile" style="--i:5"><span class="half top l3"><i>e</i></span><span class="half bot l1"><i>m</i></span><span class="half bot l2"><i>a</i></span><span class="half bot l3"><i>e</i></span><span class="half top l2"><i>a</i></span><span class="half top l1"><i>m</i></span></span>
-      <span class="tile" style="--i:6"><span class="half top l3"><i>d</i></span><span class="half bot l1"><i>x</i></span><span class="half bot l2"><i>h</i></span><span class="half bot l3"><i>d</i></span><span class="half top l2"><i>h</i></span><span class="half top l1"><i>x</i></span></span>
+          <svg class="land-mark" viewBox="0 0 36 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3H3v18h4M29 3h4v18h-4" stroke="var(--ink)"/><path d="M13 18h10a4 4 0 0 0 .5-7.97A6 6 0 0 0 12.1 9.6 4.2 4.2 0 0 0 13 18Z" stroke="var(--flow)"/></svg>
+          <span class="tile" style="--i:0"><span class="half top l3"><i>c</i></span><span class="half bot l1"><i>k</i></span><span class="half bot l2"><i>r</i></span><span class="half bot l3"><i>c</i></span><span class="half top l2"><i>r</i></span><span class="half top l1"><i>k</i></span></span>
+          <span class="tile" style="--i:1"><span class="half top l3"><i>l</i></span><span class="half bot l1"><i>w</i></span><span class="half bot l2"><i>t</i></span><span class="half bot l3"><i>l</i></span><span class="half top l2"><i>t</i></span><span class="half top l1"><i>w</i></span></span>
+          <span class="tile accent" style="--i:2"><span class="half top l3"><i>o</i></span><span class="half bot l1"><i>a</i></span><span class="half bot l2"><i>e</i></span><span class="half bot l3"><i>o</i></span><span class="half top l2"><i>e</i></span><span class="half top l1"><i>a</i></span></span>
+          <span class="tile" style="--i:3"><span class="half top l3"><i>u</i></span><span class="half bot l1"><i>n</i></span><span class="half bot l2"><i>s</i></span><span class="half bot l3"><i>u</i></span><span class="half top l2"><i>s</i></span><span class="half top l1"><i>n</i></span></span>
+          <span class="tile" style="--i:4"><span class="half top l3"><i>d</i></span><span class="half bot l1"><i>g</i></span><span class="half bot l2"><i>b</i></span><span class="half bot l3"><i>d</i></span><span class="half top l2"><i>b</i></span><span class="half top l1"><i>g</i></span></span>
+          <span class="tile" style="--i:5"><span class="half top l3"><i>e</i></span><span class="half bot l1"><i>m</i></span><span class="half bot l2"><i>a</i></span><span class="half bot l3"><i>e</i></span><span class="half top l2"><i>a</i></span><span class="half top l1"><i>m</i></span></span>
+          <span class="tile" style="--i:6"><span class="half top l3"><i>d</i></span><span class="half bot l1"><i>x</i></span><span class="half bot l2"><i>h</i></span><span class="half bot l3"><i>d</i></span><span class="half top l2"><i>h</i></span><span class="half top l1"><i>x</i></span></span>
         </div>
         <h1 class="land-h">How far is each idea from you?</h1>
         <p class="land-sub">No scores. No fake time estimates. Just the gap.</p>
@@ -47,57 +49,101 @@
           <a class="land-invite" href="#create">Have an invite? Create your account.</a>
         </div>
       </div>
-      <div class="land-art" aria-hidden="true">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="0.6"><path d="M7 18h10a4 4 0 0 0 .5-7.97A6 6 0 0 0 6.1 9.6 4.2 4.2 0 0 0 7 18Z"/></svg>
+
+      <!-- three example ideas, one per band; the front one arrives the way a
+           new idea does: extracting, then the card, then the hard part
+           resolving letter by letter -->
+      <div class="land-stack" aria-label="Three example ideas">
+        <article class="card idea land-back land-c3" aria-hidden="true">
+          <div class="land-peek">
+            <p class="land-band far">Further out</p>
+            <div class="tally"><span class="s">4 short</span><span class="h">1 held</span></div>
+          </div>
+        </article>
+        <article class="card idea land-back land-c2" aria-hidden="true">
+          <div class="land-peek">
+            <p class="land-band now">Buildable now</p>
+            <div class="tally"><span class="h">3 held</span></div>
+          </div>
+        </article>
+        <article class="card idea land-front" aria-label="Example idea, one skill away">
+          <p class="land-band one">One skill away</p>
+          <div class="card-head">
+            <div>
+              <p class="card-title">A shared grocery list that my flatmates can edit from their phones</p>
+              <p class="raw">shared grocery list my flatmates can edit</p>
+            </div>
+            <div class="tally"><span class="s">1 short</span><span class="h">2 held</span></div>
+          </div>
+          <div class="crux gap"><span class="mark gap">[ ]</span><span class="t"><span class="flap land-flap" aria-label="Build a REST API with authentication"><span class="ch" style="--i:0"><span class="a">p</span><span class="b">B</span></span><span class="ch" style="--i:1"><span class="a">T</span><span class="b">u</span></span><span class="ch" style="--i:2"><span class="a">y</span><span class="b">i</span></span><span class="ch" style="--i:3"><span class="a">G</span><span class="b">l</span></span><span class="ch" style="--i:4"><span class="a">J</span><span class="b">d</span></span><span class="ch sp">&nbsp;</span><span class="ch" style="--i:6"><span class="a">?</span><span class="b">a</span></span><span class="ch sp">&nbsp;</span><span class="ch" style="--i:8"><span class="a">M</span><span class="b">R</span></span><span class="ch" style="--i:9"><span class="a">u</span><span class="b">E</span></span><span class="ch" style="--i:10"><span class="a">H</span><span class="b">S</span></span><span class="ch" style="--i:11"><span class="a">&</span><span class="b">T</span></span><span class="ch sp">&nbsp;</span><span class="ch" style="--i:13"><span class="a">b</span><span class="b">A</span></span><span class="ch" style="--i:14"><span class="a">E</span><span class="b">P</span></span><span class="ch" style="--i:15"><span class="a">L</span><span class="b">I</span></span><span class="ch sp">&nbsp;</span><span class="ch" style="--i:17"><span class="a">3</span><span class="b">w</span></span><span class="ch" style="--i:18"><span class="a">1</span><span class="b">i</span></span><span class="ch" style="--i:19"><span class="a">I</span><span class="b">t</span></span><span class="ch" style="--i:20"><span class="a">e</span><span class="b">h</span></span><span class="ch sp">&nbsp;</span><span class="ch" style="--i:22"><span class="a">L</span><span class="b">a</span></span><span class="ch" style="--i:23"><span class="a">2</span><span class="b">u</span></span><span class="ch" style="--i:24"><span class="a">H</span><span class="b">t</span></span><span class="ch" style="--i:25"><span class="a">P</span><span class="b">h</span></span><span class="ch" style="--i:26"><span class="a">c</span><span class="b">e</span></span><span class="ch" style="--i:27"><span class="a">H</span><span class="b">n</span></span><span class="ch" style="--i:28"><span class="a">y</span><span class="b">t</span></span><span class="ch" style="--i:29"><span class="a">G</span><span class="b">i</span></span><span class="ch" style="--i:30"><span class="a">c</span><span class="b">c</span></span><span class="ch" style="--i:31"><span class="a">F</span><span class="b">a</span></span><span class="ch" style="--i:32"><span class="a">R</span><span class="b">t</span></span><span class="ch" style="--i:33"><span class="a">l</span><span class="b">i</span></span><span class="ch" style="--i:34"><span class="a">1</span><span class="b">o</span></span><span class="ch" style="--i:35"><span class="a">S</span><span class="b">n</span></span></span></span><span class="lbl">the hard part</span></div>
+          <ul class="caps">
+            <li class="have"><span class="mark have">[x]</span><span>Build a single-page frontend that talks to an API</span></li>
+            <li class="have"><span class="mark have">[x]</span><span>Design a normalized relational schema with sane keys</span></li>
+          </ul>
+          <div class="card-foot">
+            <span class="tag">software</span>
+            <span class="tag">shared</span>
+            <span class="friend-line"><span class="mark friend">[+]</span>Priya holds the hard part</span>
+            <span class="spacer"></span>
+            <span>you</span>
+          </div>
+          <!-- the extracting state, over the card until the result lands -->
+          <div class="land-x card busy" aria-hidden="true">
+            <div class="card-head"><div><p class="card-title">shared grocery list my flatmates can edit</p><p class="raw">Just added</p></div></div>
+            <div class="progress"><div class="bar"><i></i></div><span>Extracting</span></div>
+            <p class="steps">Reading the idea and listing what it would take</p>
+          </div>
+        </article>
       </div>
     </div>
 
     <div class="land-how">
       <h2>How it works</h2>
       <ol class="land-steps">
-        <li>
+        <li class="card">
+          <div class="land-frag land-capture" aria-hidden="true">
+            <span class="land-input">a lamp that dims when the room goes quiet</span>
+            <span class="btn sm">Add idea</span>
+            <span class="cost">extracts on save, about 1¢</span>
+          </div>
           <h3>Capture</h3>
           <p>Type it in. No format, no fields, half-formed is fine.</p>
         </li>
-        <li>
+        <li class="card">
+          <div class="land-frag" aria-hidden="true">
+            <div class="crux gap"><span class="mark gap">[ ]</span><span class="t">Read a sensor over I2C or SPI from a microcontroller</span><span class="lbl">the hard part</span></div>
+          </div>
           <h3>Extraction finds the hard part</h3>
           <p>It lists what the idea takes as skills you can answer yes or no to, and marks the one most likely to kill the project.</p>
         </li>
-        <li>
+        <li class="card">
+          <div class="land-frag land-marks" aria-hidden="true">
+            <span><span class="mark have">[x]</span>held</span>
+            <span><span class="mark partial">[~]</span>partial</span>
+            <span><span class="mark gap">[ ]</span>short</span>
+          </div>
           <h3>Your distance from buildable</h3>
           <p>Rate what you can do, once. Every idea then says how far it is from you, and which single skill would move the most ideas.</p>
         </li>
       </ol>
     </div>
 
-    <div class="land-sample">
-      <h2>What an idea looks like</h2>
-      <article class="card idea" aria-label="Example idea">
+    <div class="land-friends">
+      <h2>Better with friends</h2>
+      <article class="card idea land-shared" aria-label="Example of a shared idea">
         <div class="card-head">
-          <div>
-            <h3>A bird feeder that photographs whoever lands on it and names the species</h3>
-            <p class="raw">bird feeder that tells me which bird it is</p>
-          </div>
-          <div class="tally"><span class="s">1 short</span><span class="p">1 partial</span><span class="h">1 held</span></div>
+          <div><p class="card-title">A 3D-printed mount that clamps to a golf bag and holds a phone to film swings</p><p class="raw">phone mount for the golf bag</p></div>
+          <div class="tally"><span class="s">4 short</span></div>
         </div>
-        <div class="crux partial"><span class="mark partial">[~]</span><span class="t">Run a person or object detector on embedded hardware in real time</span><span class="lbl">the hard part</span></div>
-        <ul class="caps">
-          <li class="have"><span class="mark have">[x]</span><span>Write and flash firmware for a microcontroller</span></li>
-          <li class="gap"><span class="mark gap">[ ]</span><span>Design an enclosure that survives a wet or outdoor environment</span></li>
-        </ul>
         <div class="card-foot">
-          <span class="tag">embedded hardware</span>
+          <span class="tag">mechanical design</span>
           <span class="tag">shared</span>
-          <span class="friend-line"><span class="mark friend">[+]</span>Priya holds the hard part</span>
+          <span class="friend-line"><span class="mark friend">[+]</span>Alex holds the hard part · group covers 2 of 4 gaps</span>
           <span class="spacer"></span>
           <span>you</span>
         </div>
       </article>
-      <p class="land-caption">An example. Held, partial, short, and a friend who has done it: that is the whole vocabulary.</p>
-    </div>
-
-    <div class="land-private">
-      <p>Ideas are private by default. A group sees only what you share to it, and only people you invited are in it.</p>
+      <p class="land-private">Ideas are private until you share them. A group sees only what you share to it, and only people you invited are in it.</p>
     </div>
 
     <!-- Both hero links land here; the form itself is rendered by app.js below. -->
