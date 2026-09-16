@@ -593,23 +593,42 @@ function nameForm() {
 // ---------------------------------------------------------------- group
 
 // One group in practice (docs/step-7-plan.md, decision 1): "create" shows
-// only when you are in none, and each group you are in gets a section, so
-// being in two by accident is merely two sections rather than a broken page.
+// only when you are in none, and each group you are in gets a side panel,
+// so being in two by accident is merely two panels rather than a broken page.
 function groupView() {
   const me = state.session.user.id;
+  if (!state.groups.length) {
+    return el("div", {}, header(), state.error && el("p", { class: "error" }, state.error), createGroupCard());
+  }
+  const rows = feedRows();
+  const sortButton = (key, label) => el("button", {
+    type: "button", "aria-pressed": String(state.feedSort === key),
+    onclick: () => { state.feedSort = key; render(); }
+  }, label);
+
   return el("div", {},
     header(),
+    el("div", { class: "page-head" },
+      el("div", {},
+        el("h1", {}, state.groups.length === 1 ? state.groups[0].name : "Group"),
+        el("p", {}, "Ideas your group shared, and who can help with each.")),
+      rows.length > 1 && el("div", { class: "seg", role: "group", "aria-label": "Sort feed" },
+        sortButton("newest", "Newest"), sortButton("closest", "Closest to me"))
+    ),
     state.error && el("p", { class: "error" }, state.error),
-    state.groups.length
-      ? [feedSection(me), state.groups.map((g) => groupSection(g, me))]
-      : createGroupCard()
+    el("div", { class: "layout" },
+      rows.length
+        ? el("div", { class: "cards" }, rows.map((r) => feedRow(r, me)))
+        : el("p", { class: "muted" }, "Nothing shared yet. Share an idea from its page and it appears here for everyone in the group."),
+      el("div", { class: "side" }, state.groups.map((g) => groupSection(g, me)))
+    )
   );
 }
 
 // The feed (decision 12): every member's shared ideas, yours included,
 // newest first, each measured against the reader's own profile. "Closest to
 // me" is the same sort the Ideas tab uses.
-function feedSection(me) {
+function feedRows() {
   const capsById = new Map();
   for (const c of state.caps) {
     if (!capsById.has(c.idea_id)) capsById.set(c.idea_id, []);
@@ -621,20 +640,7 @@ function feedSection(me) {
       compareKeys(sortKey(a.extraction, state.levels), sortKey(b.extraction, state.levels)) ||
       Date.parse(b.idea.created_at) - Date.parse(a.idea.created_at));
   }
-  const sortButton = (key, label) => el("button", {
-    class: state.feedSort === key ? "seg-on link" : "link",
-    onclick: () => { state.feedSort = key; render(); }
-  }, label);
-
-  return el("section", { class: "feed" },
-    el("div", { class: "feed-head" },
-      el("h2", {}, "Shared with the group"),
-      rows.length > 1 && el("span", { class: "muted" }, sortButton("newest", "newest"), " · ", sortButton("closest", "closest to me"))
-    ),
-    rows.length
-      ? el("ul", { class: "ideas" }, rows.map((r) => feedRow(r, me)))
-      : el("p", { class: "muted" }, "Nothing shared yet. Share an idea from its page and it appears here for everyone in the group.")
-  );
+  return rows;
 }
 
 function feedRow({ idea, extraction }, me) {
@@ -643,17 +649,17 @@ function feedRow({ idea, extraction }, me) {
     : el("a", { href: `#/friend/${idea.user_id}`, class: "owner" }, state.names.get(idea.user_id) ?? "a friend");
   const title = idea.objective || idea.raw;
   if (idea.is_clear !== true) {
-    return el("li", { class: "idea vague" },
-      el("div", { class: "idea-head" }, el("a", { href: `#/idea/${idea.id}`, class: "idea-title" }, title)),
-      el("div", { class: "meta" }, owner, el("span", { class: "tag warn" }, idea.status === "extracted" ? "too vague to extract" : idea.status))
+    return el("article", { class: "card idea vague" },
+      el("div", { class: "card-head" }, el("div", {},
+        el("h3", {}, el("a", { href: `#/idea/${idea.id}` }, title)),
+        el("p", { class: "raw" }, idea.status === "extracted" ? "Too vague to extract yet" : idea.status))),
+      el("div", { class: "card-foot" }, owner, el("span", {}, fmtDate(idea.created_at)))
     );
   }
   const held = state.levels;
   const d = distanceOf(extraction, held);
   const crux = cruxOf(extraction);
   const cruxClass = crux ? classify(crux, held) : null;
-  const counts = [`${d.gap} short`, d.partial ? `${d.partial} partial` : null, d.have ? `${d.have} held` : null]
-    .filter(Boolean).join(" · ");
 
   // who holds the crux: the reader counts here, unlike on the Ideas tab
   const f = friendsWhoHold(extraction, held, state.pool);
@@ -663,24 +669,21 @@ function feedRow({ idea, extraction }, me) {
     : null;
   const coverText = f.gaps ? `group covers ${f.covered} of ${f.gaps} ${f.gaps === 1 ? "gap" : "gaps"}` : "nothing missing for you";
 
-  return el("li", { class: "idea" },
-    el("div", { class: "idea-head" },
-      el("a", { href: `#/idea/${idea.id}`, class: "idea-title" }, title),
-      el("span", { class: "counts" }, counts)
+  return el("article", { class: "card idea" },
+    el("div", { class: "card-head" },
+      el("div", {}, el("h3", {}, el("a", { href: `#/idea/${idea.id}` }, title))),
+      tallyChips(d)
     ),
-    crux && el("div", { class: `crux ${cruxClass}` },
-      el("span", { class: "mark" }, MARK[cruxClass]),
-      el("span", { class: "crux-label" }, capLabel(crux)),
-      el("span", { class: "crux-tag" }, "the hard part")
-    ),
-    el("div", { class: "meta" },
+    crux && cruxBlock(crux),
+    el("ul", { class: "caps" }, extraction.capabilities.filter((c) => c !== crux).map(capItem)),
+    el("div", { class: "card-foot" },
       owner,
       idea.domain && el("span", { class: "tag" }, idea.domain),
-      el("span", { class: "muted" }, new Date(idea.created_at).toLocaleDateString())
-    ),
-    el("div", { class: holderText ? "friends unblock" : "friends" },
-      el("span", { class: "mark" }, holderText ? "[+]" : "[ ]"),
-      [holderText, coverText].filter(Boolean).join(" · "))
+      el("span", {}, fmtDate(idea.created_at)),
+      el("span", { class: "spacer" }),
+      holderText && el("span", { class: "friend-line" }, mark("friend"), holderText),
+      el("span", { class: f.covered ? "friend-line" : "friend-line dim" }, mark(f.covered ? "friend" : "gap"), coverText)
+    )
   );
 }
 
@@ -737,59 +740,78 @@ function createGroupCard() {
     }
   },
     el("h2", {}, "No group yet"),
-    el("p", { class: "muted" },
+    el("p", {},
       "A group is your friends. Ideas you share go to it, and it tells you which friend already holds the skill an idea needs. ",
       "Joining a group means your skill levels are readable by everyone in it."),
-    el("label", {}, "Group name",
-      el("input", { name: "name", value: suggested, maxlength: 60, required: true, autocomplete: "off" })),
-    el("button", { type: "submit", disabled: state.busy }, "Create group")
+    el("label", { class: "fld" }, "Group name",
+      el("span", { class: "row" },
+        el("input", { name: "name", value: suggested, maxlength: 60, required: true, autocomplete: "off" }),
+        el("button", { type: "submit", class: "btn sm", disabled: state.busy }, "Create group")))
   );
   return form;
 }
 
+// The side panel: members always visible, everything that changes the group
+// folded under "Manage group". The fold is rebuilt on every render, so it
+// reads its own open state off the page before the rebuild rather than
+// snapping shut after each rename or invite.
 function groupSection(g, me) {
   const creator = g.created_by === me;
-  return el("section", { class: "group" },
-    creator ? groupNameForm(g) : el("h2", {}, g.name),
-    el("p", { class: "muted" },
-      "Everyone here can read each other's skill levels and the ideas shared to the group."),
+  const wasOpen = document.querySelector(`.manage[data-group="${g.id}"]`)?.open || state.confirmDelete === g.id;
+  const initial = (name) => (name ?? "?").trim().charAt(0).toUpperCase() || "?";
+  const others = g.members.filter((m) => m.user_id !== me);
 
-    el("h3", {}, `Members (${g.members.length})`),
-    el("ul", { class: "members" }, g.members.map((m) => el("li", { class: "member" },
-      el("span", { class: "member-name" }, m.display_name ?? m.user_id, m.user_id === me && el("span", { class: "tag" }, "you"),
-        m.user_id === g.created_by && el("span", { class: "tag" }, "creator")),
-      creator && m.user_id !== me && el("button", {
-        class: "link", onclick: () => run(async () => { await removeMember(g.id, m.user_id); await load(); })
-      }, "Remove")
+  return el("aside", { "aria-label": g.name },
+    el("h2", {}, "Members"),
+    el("p", {}, "Everyone here can see each other's skill levels and the ideas shared to the group."),
+    el("ul", { class: "people" }, g.members.map((m) => el("li", {},
+      el("span", { class: "av", "aria-hidden": "true" }, initial(m.display_name)),
+      m.user_id === me
+        ? el("span", {}, m.display_name ?? m.user_id)
+        : el("a", { href: `#/friend/${m.user_id}` }, m.display_name ?? m.user_id),
+      m.user_id === me && el("span", { class: "tag" }, "you"),
+      m.user_id === g.created_by && el("span", { class: "tag" }, "creator")
     ))),
 
-    creator && inviteForm(g),
-    creator && g.invites.length > 0 && el("div", {},
-      el("h3", {}, `Invited, not joined yet (${g.invites.length})`),
-      el("ul", { class: "members" }, g.invites.map((i) => el("li", { class: "member" },
-        el("span", { class: "member-name" }, i.email),
-        el("button", { class: "link", onclick: () => run(async () => { await revokeInvite(g.id, i.email); await load(); }) }, "Revoke")
-      )))
-    ),
+    el("details", { class: "manage", "data-group": g.id, open: wasOpen },
+      el("summary", {}, "Manage group"),
+      creator && groupNameForm(g),
+      creator && others.length > 0 && el("div", {},
+        el("div", { class: "sub-h" }, "Members"),
+        el("ul", { class: "plain" }, others.map((m) => el("li", {},
+          el("span", {}, m.display_name ?? m.user_id),
+          el("button", {
+            class: "link", type: "button",
+            onclick: () => run(async () => { await removeMember(g.id, m.user_id); await load(); })
+          }, "Remove")
+        )))),
+      creator && inviteForm(g),
+      creator && g.invites.length > 0 && el("div", {},
+        el("div", { class: "sub-h" }, "Invited, not joined yet"),
+        el("ul", { class: "plain" }, g.invites.map((i) => el("li", {},
+          el("span", {}, i.email),
+          el("button", { class: "link", type: "button", onclick: () => run(async () => { await revokeInvite(g.id, i.email); await load(); }) }, "Revoke")
+        )))),
 
-    el("div", { class: "group-actions" },
-      creator
-        ? (state.confirmDelete === g.id
-          ? el("span", {},
-              el("span", { class: "muted" }, "Delete the group? Every idea shared to it goes back to private. "),
-              el("button", { class: "secondary danger", onclick: () => run(async () => { state.confirmDelete = null; await deleteGroup(g.id); await load(); }) }, "Yes, delete"),
-              el("button", { class: "link", onclick: () => { state.confirmDelete = null; render(); } }, "Keep it"))
-          : el("button", { class: "link", onclick: () => { state.confirmDelete = g.id; render(); } }, "Delete group"))
-        : el("button", {
-            class: "link", onclick: () => run(async () => { await removeMember(g.id, me); await load(); })
-          }, "Leave group")
+      el("div", { class: "group-actions" },
+        creator
+          ? (state.confirmDelete === g.id
+            ? el("div", {},
+                el("p", { class: "hint" }, "Delete the group? Every idea shared to it goes back to private."),
+                el("div", { class: "row" },
+                  el("button", { class: "btn sm warn", type: "button", onclick: () => run(async () => { state.confirmDelete = null; await deleteGroup(g.id); await load(); }) }, "Yes, delete"),
+                  el("button", { class: "btn sm ghost", type: "button", onclick: () => { state.confirmDelete = null; render(); } }, "Keep it")))
+            : el("button", { class: "link danger", type: "button", onclick: () => { state.confirmDelete = g.id; render(); } }, "Delete group"))
+          : el("button", {
+              class: "link danger", type: "button", onclick: () => run(async () => { await removeMember(g.id, me); await load(); })
+            }, "Leave group")
+      )
     )
   );
 }
 
 function groupNameForm(g) {
   const form = el("form", {
-    class: "name-form",
     onsubmit: (e) => {
       e.preventDefault();
       const name = form.elements.name.value.trim();
@@ -797,9 +819,10 @@ function groupNameForm(g) {
       run(async () => { await renameGroup(g.id, name); await load(); });
     }
   },
-    el("label", {}, "Group name",
-      el("input", { name: "name", value: g.name, maxlength: 60, required: true, autocomplete: "off" })),
-    el("button", { type: "submit", class: "secondary", disabled: state.busy }, "Rename")
+    el("label", { class: "fld" }, "Group name",
+      el("span", { class: "row" },
+        el("input", { name: "name", value: g.name, maxlength: 60, required: true, autocomplete: "off" }),
+        el("button", { type: "submit", class: "btn sm ghost", disabled: state.busy }, "Rename")))
   );
   return form;
 }
@@ -822,11 +845,11 @@ function inviteForm(g) {
       });
     }
   },
-    el("h3", {}, "Invite a friend"),
-    el("p", { class: "muted" }, "By email. They create their own account from the sign-in page and land here. Each idea they add costs the owner about a cent."),
-    el("div", { class: "invite-row" },
-      el("input", { name: "email", type: "email", required: true, placeholder: "friend@example.com", autocomplete: "off" }),
-      el("button", { type: "submit", disabled: state.busy }, "Invite")),
+    el("label", { class: "fld" }, "Invite a friend by email",
+      el("span", { class: "row" },
+        el("input", { name: "email", type: "email", required: true, placeholder: "friend@example.com", autocomplete: "off" }),
+        el("button", { type: "submit", class: "btn sm", disabled: state.busy }, "Invite"))),
+    el("p", { class: "hint" }, "They make their own account from the sign-in page and land here. Each idea they add costs the owner about a cent."),
     status
   );
   return form;

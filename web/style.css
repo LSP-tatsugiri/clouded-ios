@@ -462,6 +462,55 @@ input.txt, .fld input, .row input, :where(#app > :not(.waifu)) textarea {
   .flap.done .ch { transition: none; }
 }
 
+/* ---------------------------------------------------------------- group */
+
+.owner { font-weight: 700; color: var(--ink); text-decoration: none; }
+a.owner:hover { color: var(--flow); }
+
+.side { position: sticky; top: 1.25rem; display: grid; gap: 1rem; }
+.side aside { position: static; }
+@media (max-width: 900px) { .side { position: static; } }
+
+.av {
+  display: inline-grid;
+  place-items: center;
+  width: 1.9rem;
+  height: 1.9rem;
+  border-radius: 50%;
+  background: var(--flow-wash);
+  color: var(--flow);
+  font-weight: 700;
+  font-size: 0.85rem;
+  border: 1px solid var(--line);
+  flex-shrink: 0;
+}
+.people { list-style: none; margin: 0 0 1rem; padding: 0; }
+.people li {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.45rem 0;
+  border-top: 1px solid var(--line);
+  font-size: 0.95rem;
+  min-width: 0;
+}
+.people li > span:not(.av):not(.tag), .people a { min-width: 0; overflow-wrap: anywhere; }
+.people a { color: inherit; }
+.people a:hover { color: var(--flow); }
+
+.manage { border-top: 1px solid var(--line); padding-top: 0.75rem; }
+.manage summary { cursor: pointer; font-weight: 700; color: var(--ink-2); }
+.manage[open] summary { margin-bottom: 0.75rem; color: var(--ink); }
+.manage .fld:first-of-type { margin-top: 0; }
+.manage .invite { margin-top: 0.75rem; }
+.manage .status { display: block; margin-top: 0.4rem; }
+.group-actions { margin-top: 1rem; }
+.group-actions .row { margin-top: 0.5rem; }
+
+.group-create { max-width: 32rem; margin-top: 2rem; }
+.group-create h2 { margin: 0 0 0.5rem; font-size: 1.3rem; font-weight: 800; letter-spacing: -0.02em; }
+.group-create p { margin: 0 0 0.5rem; color: var(--ink-2); }
+
 /* ---------------------------------------------------------------- legacy
    The old per-view rules, on aliases of the new tokens, so every view keeps
    rendering while the redesign lands one view at a time. Each view's commit
@@ -689,65 +738,8 @@ nav { display: flex; align-items: baseline; gap: 1rem; }
   .skill { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
 }
 
-/* group */
-
+/* profile name form (replaced with the profile view) */
 .name-form { display: flex; gap: 0.5rem; align-items: flex-end; margin: 0.75rem 0 1rem; }
 .name-form label { flex: 1; max-width: 24rem; }
 .name-form input { width: 100%; }
-
-.group + .group { margin-top: 2.5rem; padding-top: 1.5rem; border-top: 1px solid var(--line); }
-.group h2 { margin: 0.75rem 0 0.25rem; }
-.group h3 {
-  font-size: 0.72rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--muted);
-  margin: 1.5rem 0 0.25rem;
-}
-.group-create { max-width: 32rem; margin-top: 1rem; }
-.group-create h2 { margin-top: 0; }
-
-.members { list-style: none; margin: 0; padding: 0; }
-.member {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  padding: 0.5rem 0;
-  border-top: 1px solid var(--line);
-}
-.member-name { display: flex; align-items: center; gap: 0.5rem; }
-
-.invite .muted { margin: 0 0 0.5rem; }
-.invite-row { display: flex; gap: 0.5rem; max-width: 32rem; }
-.invite-row input { flex: 1; }
-
-.group-actions { margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--line); }
-.group-actions .muted { margin-right: 0.5rem; }
-button.danger { color: var(--bad, #b42318); border-color: currentColor; margin-right: 0.5rem; }
-
-/* the friend skill pool, on shared rows only */
-
-.friends {
-  display: flex;
-  align-items: baseline;
-  gap: 0.45rem;
-  margin-top: 0.4rem;
-  font-size: 0.85rem;
-  color: var(--muted);
-}
-.friends.unblock { color: var(--fg); }
-.friends.unblock .mark { color: var(--accent); }
 .share .check { margin: 0; }
-
-/* feed and friend page */
-
-.feed { margin-bottom: 1rem; }
-.feed-head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; }
-.feed-head h2 { margin: 0.75rem 0 0.25rem; }
-.feed-head .link { font-size: 0.85rem; }
-.feed-head .seg-on, .filters .seg-on { color: var(--fg); text-decoration: none; font-weight: 600; }
-.owner { font-size: 0.8rem; color: var(--fg); font-weight: 600; }
-a.owner { text-decoration: none; border-bottom: 1px solid var(--line); }
-a.owner:hover { border-bottom-color: var(--fg); }
-.tag.level-solid { background: var(--accent); color: #fff; }
