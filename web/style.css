@@ -758,6 +758,8 @@ aside .domains li { display: block; padding: 0; border-top: 1px solid var(--line
 .share { margin: 1.75rem 0 0; padding-top: 1rem; border-top: 1px solid var(--line); }
 .share label { color: var(--ink); }
 .share .muted { margin: 0.4rem 0 0; }
+.delete { margin: 1rem 0 0; }
+.delete .row { margin-top: 0.5rem; }
 
 .runs { margin-top: 1.5rem; }
 .runs summary { font-size: 0.88rem; color: var(--ink-3); cursor: pointer; }

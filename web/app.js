@@ -12,7 +12,7 @@ import {
   classify, compareKeys, cruxOf, cruxStatus, distanceOf, friendsWhoHold, leverage, sortKey
 } from "/extraction/src/distance.js";
 import {
-  addIdea, amCurator, capabilities, capabilitiesFor, createGroup, db, deleteGroup, groupMembers,
+  addIdea, amCurator, capabilities, capabilitiesFor, createGroup, db, deleteGroup, deleteIdea, groupMembers,
   groupSkills, idea as fetchIdea, ideas, invite, mediaUrl, myGroups, myProfile, mySkills, pendingInvites,
   profilesFor, promoteSkill, proposedSkills, rejectSkill, removeMember, renameGroup, revokeInvite, runsFor,
   session, setClarification, setDisplayName, setShare, setSkillLevel, sharedIdeas, signIn, signOut,
@@ -56,6 +56,7 @@ const state = {
   profile: null,       // { user_id, display_name } — yours
   groups: [],          // { id, name, created_by, members: [{ user_id, display_name, added_at }], invites: [{ email }] }
   confirmDelete: null, // group id whose delete button is waiting for a second click
+  confirmDeleteIdea: false, // the idea page's delete button is waiting for a second click
   feed: [],            // shared ideas from every group, newest first (decision 12)
   feedSort: "newest",  // "newest" | "closest"
   friend: null,        // { profile, levels } for the friend profile page
@@ -1207,6 +1208,25 @@ function shareControl(idea, groups) {
   );
 }
 
+// Owner only. Two clicks, like deleting a group; the row, its capabilities and
+// its runs go together, and the list is where you land afterwards.
+function deleteControl(idea) {
+  return el("div", { class: "delete" },
+    state.confirmDeleteIdea
+      ? el("div", {},
+          el("p", { class: "hint" }, "Delete this idea? Its extraction goes with it."),
+          el("div", { class: "row" },
+            el("button", { class: "btn sm warn", type: "button", onclick: () => run(async () => {
+              state.confirmDeleteIdea = false;
+              await deleteIdea(idea.id, idea.image_path);
+              state.detail = null;
+              location.hash = "#/";
+            }) }, "Yes, delete"),
+            el("button", { class: "btn sm ghost", type: "button", onclick: () => { state.confirmDeleteIdea = false; render(); } }, "Keep it")))
+      : el("button", { class: "link danger", type: "button", onclick: () => { state.confirmDeleteIdea = true; render(); } }, "Delete idea")
+  );
+}
+
 function answerBox(idea) {
   const form = el("form", {
     class: "answer",
@@ -1301,6 +1321,7 @@ function ideaView() {
     ),
 
     mine && shareControl(idea, groups),
+    mine && deleteControl(idea),
 
     // extraction_runs are readable by the owner only, so a friend would see 0
     mine && el("details", { class: "runs" },
@@ -1582,6 +1603,7 @@ addEventListener("hashchange", () => {
   state.route = currentRoute();
   status.textContent = "";
   state.detail = null;
+  state.confirmDeleteIdea = false;
   state.friend = null;
   state.waiting = "";
   run(load);

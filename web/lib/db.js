@@ -249,6 +249,15 @@ export async function setShare(id, groupId) {
     "setShare");
 }
 
+// The row goes first; capabilities and extraction_runs cascade with it. The
+// picture is only readable through the row's visibility, so a failed removal
+// leaves an unreachable object, not a leak — not worth failing the delete over.
+export async function deleteIdea(id, imagePath) {
+  const { error } = await db.from("ideas").delete().eq("id", id);
+  if (error) throw new Error(`deleteIdea: ${error.message}`);
+  if (imagePath) await db.storage.from("idea-media").remove([imagePath]).catch(() => {});
+}
+
 // ---------------------------------------------------------------- curation
 
 // True when the signed-in user may review proposed skills. The policy only
