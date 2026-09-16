@@ -22,7 +22,16 @@ import { el, mount } from "./lib/dom.js";
 import { FAILED, SAVED, SENDING, bandFor, forcedBand, opener } from "./lib/waifu.js";
 
 const LEVELS = ["none", "some", "solid"];
-const MARK = { have: "[x]", partial: "[~]", gap: "[ ]", proposed: "[?]" };
+const MARK = { have: "[x]", partial: "[~]", gap: "[ ]", proposed: "[?]", friend: "[+]" };
+// Closest-to-me bands, by the short count: key, heading, one line under it.
+const BANDS = [
+  ["now", "Buildable now", "No skill missing."],
+  ["one", "One skill away", "One skill short."],
+  ["far", "Further out", "Two or more skills short."],
+  ["vague", "Needs a detail", "Answer one question and extraction runs."]
+];
+const mark = (k) => el("span", { class: `mark ${k}` }, MARK[k]);
+const fmtDate = (iso) => new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 
 // Declared before `state`, because state's initialiser calls currentRoute(),
 // which reads this. A const declared further down would still be in its
@@ -93,11 +102,22 @@ function extractionOf(idea, capsById) {
   return { clear: idea.is_clear === true, capabilities: capsById.get(idea.id) ?? [] };
 }
 
+// The wordmark's cloud. Static markup, so a fragment is fine (el() cannot
+// make namespaced SVG elements); left off the waifu scene, whose header
+// waifu.css lays out as it always has.
+function brandMark() {
+  const t = document.createElement("template");
+  t.innerHTML =
+    `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">` +
+    `<path d="M7 18h10a4 4 0 0 0 .5-7.97A6 6 0 0 0 6.1 9.6 4.2 4.2 0 0 0 7 18Z"/></svg>`;
+  return t.content.firstElementChild;
+}
+
 function header() {
   const tab = (href, label, route) =>
     el("a", { href, class: state.route === route ? "tab on" : "tab" }, label);
   return el("header", {},
-    el("h1", {}, "clouded"),
+    el("h1", {}, state.route !== "waifu" && brandMark(), "clouded"),
     el("nav", {},
       tab("#/", "Ideas", "list"),
       tab("#/group", "Group", "group"),
@@ -179,55 +199,59 @@ function nameList(ids) {
 
 function friendLine(row) {
   const m = friendMarker(row);
-  return m.text && el("div", { class: m.cruxHeld ? "friends unblock" : "friends" },
-    el("span", { class: "mark" }, m.cruxHeld ? "[+]" : "[ ]"), m.text);
+  return m.text && el("span", { class: m.cruxHeld ? "friend-line" : "friend-line dim" },
+    mark(m.cruxHeld ? "friend" : "gap"), m.text);
+}
+
+// short / partial / held chips; zeros are left out
+function tallyChips(d) {
+  return el("div", { class: "tally" },
+    d.gap > 0 && el("span", { class: "s" }, `${d.gap} short`),
+    d.partial > 0 && el("span", { class: "p" }, `${d.partial} partial`),
+    d.have > 0 && el("span", { class: "h" }, `${d.have} held`)
+  );
+}
+
+function cruxBlock(crux) {
+  const k = classify(crux, state.levels);
+  return el("div", { class: `crux ${k}` },
+    mark(k),
+    el("span", { class: "t" }, capLabel(crux)),
+    el("span", { class: "lbl" }, "the hard part")
+  );
+}
+
+function capItem(cap) {
+  const k = classify(cap, state.levels);
+  return el("li", { class: k }, mark(k), el("span", {}, capLabel(cap)));
 }
 
 function ideaRow({ idea, extraction }) {
-  const held = state.levels;
-  const d = distanceOf(extraction, held);
+  const d = distanceOf(extraction, state.levels);
   const crux = cruxOf(extraction);
-  const cruxClass = crux ? classify(crux, held) : null;
   const anyProposed = extraction.capabilities.some((c) => !c.skill_id);
   const title = idea.objective || idea.raw;
 
-  const counts = d && [
-    `${d.gap} short`,
-    d.partial ? `${d.partial} partial` : null,
-    d.have ? `${d.have} held` : null
-  ].filter(Boolean).join(" · ");
-
-  return el("li", { class: "idea" },
-    el("div", { class: "idea-head" },
-      el("a", { href: `#/idea/${idea.id}`, class: "idea-title" }, title),
-      d && el("span", { class: "counts" }, counts)
+  return el("article", { class: "card idea", "data-idea": idea.id },
+    el("div", { class: "card-head" },
+      el("div", {},
+        el("h3", {}, el("a", { href: `#/idea/${idea.id}` }, title)),
+        title !== idea.raw && el("p", { class: "raw" }, idea.raw)),
+      d && tallyChips(d)
     ),
-    title !== idea.raw && el("div", { class: "idea-raw" }, idea.raw),
-
-    crux && el("div", { class: `crux ${cruxClass}` },
-      el("span", { class: "mark" }, MARK[cruxClass]),
-      el("span", { class: "crux-label" }, capLabel(crux)),
-      el("span", { class: "crux-tag" }, "the hard part")
-    ),
-
-    el("div", { class: "meta" },
+    crux && cruxBlock(crux),
+    // the rest of the capabilities, crux first already shown above
+    el("ul", { class: "caps" }, extraction.capabilities.filter((c) => c !== crux).map(capItem)),
+    el("div", { class: "card-foot" },
       idea.domain && el("span", { class: "tag" }, idea.domain),
-      anyProposed && el("span", { class: "tag warn" }, "proposed skill"),
+      anyProposed && el("span", { class: "tag prop" }, "proposed skill"),
       idea.status !== "extracted" && el("span", { class: "tag warn" }, idea.status),
       idea.shared_to && el("span", { class: "tag" }, "shared"),
-      idea.image_path && el("span", { class: "tag", title: "has a picture" }, "▣")
-    ),
-    friendLine({ idea, extraction }),
-
-    // the rest of the capabilities, crux first already shown above
-    el("ul", { class: "caps" },
-      extraction.capabilities.filter((c) => c !== crux).map((c) => {
-        const k = classify(c, held);
-        return el("li", { class: k },
-          el("span", { class: "mark" }, MARK[k]),
-          el("span", {}, capLabel(c))
-        );
-      })
+      idea.image_path && el("span", { class: "tag", title: "has a picture" }, "▣"),
+      friendLine({ idea, extraction }),
+      el("span", { class: "spacer" }),
+      el("span", {}, "you"),
+      el("span", {}, fmtDate(idea.created_at))
     )
   );
 }
@@ -237,65 +261,70 @@ function ideaRow({ idea, extraction }) {
 // and waits would be a time estimate in disguise. The stages are real events.
 function extractingRow(idea, { stage, seconds }) {
   const text = stage === "saving" ? "saving the result…" : `extracting… ${seconds}s`;
-  return el("li", { class: "idea extracting" },
-    el("div", { class: "idea-title" }, idea.raw),
+  return el("article", { class: "card idea extracting" },
+    el("div", { class: "card-head" }, el("div", {}, el("h3", {}, idea.raw))),
     el("div", { class: "progress" }, el("div", { class: "progress-bar" })),
     el("p", { class: "muted" }, text)
   );
 }
 
 function vagueRow(idea) {
-  return el("li", { class: "idea vague" },
-    el("a", { href: `#/idea/${idea.id}`, class: "idea-title" }, idea.raw),
+  return el("article", { class: "card idea vague" },
+    el("div", { class: "card-head" }, el("div", {},
+      el("h3", {}, el("a", { href: `#/idea/${idea.id}` }, idea.raw)),
+      el("p", { class: "raw" }, "Too vague to extract yet"))),
     idea.clarifying_question && el("p", { class: "question" }, idea.clarifying_question),
-    el("p", { class: "muted" }, el("a", { href: `#/idea/${idea.id}`, class: "tab" }, "answer this →"))
+    el("p", { class: "muted" }, el("a", { href: `#/idea/${idea.id}` }, "answer this →"))
   );
 }
 
-function filterBar(domains) {
+function filterBar(domains, shownCount, total) {
   const set = (k, v) => { state.filters[k] = v; render(); };
   const sortButton = (key, label) => el("button", {
-    class: state.sort === key ? "seg-on link" : "link",
+    type: "button", "aria-pressed": String(state.sort === key),
     onclick: () => { state.sort = key; render(); }
   }, label);
-  return el("div", { class: "filters" },
-    el("span", { class: "muted" }, sortButton("closest", "closest to me"), " · ", sortButton("newest", "newest")),
-    el("select", { onchange: (e) => set("domain", e.target.value) },
-      el("option", { value: "", selected: state.filters.domain === "" }, "any domain"),
+  const filtering = state.filters.domain || state.filters.crux || state.filters.proposed || state.filters.friend;
+  return el("div", { class: "controls" },
+    el("div", { class: "seg", role: "group", "aria-label": "Sort" },
+      sortButton("closest", "Closest to me"), sortButton("newest", "Newest")),
+    el("select", { "aria-label": "Domain", onchange: (e) => set("domain", e.target.value) },
+      el("option", { value: "", selected: state.filters.domain === "" }, "Any domain"),
       domains.map((d) => el("option", { value: d, selected: state.filters.domain === d }, d))
     ),
-    el("select", { onchange: (e) => set("crux", e.target.value) },
-      [["", "any crux"], ["have", "crux held"], ["partial", "crux partial"], ["gap", "crux is a gap"]]
+    el("select", { "aria-label": "Crux", onchange: (e) => set("crux", e.target.value) },
+      [["", "Any crux"], ["have", "Crux held"], ["partial", "Crux partial"], ["gap", "Crux is a gap"]]
         .map(([v, label]) => el("option", { value: v, selected: state.filters.crux === v }, label))
     ),
-    el("label", { class: "check" },
+    el("label", { class: "chk" },
       el("input", {
         type: "checkbox",
         checked: state.filters.proposed,
         onchange: (e) => set("proposed", e.target.checked)
       }),
-      el("span", {}, "has a proposed skill")
+      el("span", {}, "Has a proposed skill")
     ),
-    el("label", { class: "check" },
+    el("label", { class: "chk" },
       el("input", {
         type: "checkbox",
         checked: state.filters.friend,
         onchange: (e) => set("friend", e.target.checked)
       }),
-      el("span", {}, "a friend can unblock it")
+      el("span", {}, "A friend can unblock it")
     ),
-    (state.filters.domain || state.filters.crux || state.filters.proposed || state.filters.friend) &&
-      el("button", { class: "link", onclick: () => { state.filters = { domain: "", crux: "", proposed: false, friend: false }; render(); } }, "clear")
+    filtering &&
+      el("button", { class: "link", onclick: () => { state.filters = { domain: "", crux: "", proposed: false, friend: false }; render(); } }, "clear"),
+    el("span", { class: "count" }, `${shownCount} of ${total} shown`)
   );
 }
 
 function leveragePanel(items) {
   const top = leverage(items, state.levels).slice(0, 10);
-  return el("aside", { class: "leverage" },
+  return el("aside", { class: "leverage", "aria-label": "Highest leverage" },
     el("h2", {}, "Highest leverage"),
-    el("p", { class: "muted" }, "Learn this, and this many ideas move."),
+    el("p", {}, "Learn one of these and this many ideas move closer."),
     el("ol", {}, top.map((e) => el("li", {},
-      el("span", { class: "n" }, String(e.ideaIds.length)),
+      el("span", { class: "k" }, String(e.ideaIds.length)),
       el("span", {}, e.skillId ? skillName(e.skillId) : `${e.proposedName} (proposed)`)
     ))),
     !top.length && el("p", { class: "muted" }, "Nothing to learn — every capability is held.")
@@ -335,7 +364,7 @@ function listView() {
     (!f.friend || friendMarker(r).cruxHeld));
 
   const add = el("form", {
-    class: "add",
+    class: "capture",
     onsubmit: (e) => {
       e.preventDefault();
       const input = add.elements.raw;
@@ -345,33 +374,49 @@ function listView() {
       run(async () => { await addIdea(raw); input.value = ""; await load(); });
     }
   },
-    el("input", { name: "raw", placeholder: "An idea, in as few words as you like", autocomplete: "off" }),
-    el("button", { type: "submit", disabled: state.busy }, "Add"),
+    el("input", { name: "raw", "aria-label": "New idea", placeholder: "An idea, in as few words as you like", autocomplete: "off" }),
+    el("button", { type: "submit", class: "btn", disabled: state.busy }, "Add idea"),
     // adding runs extraction server-side, which is a paid API call
-    el("span", { class: "muted cost" }, "extracts on save · ~1¢")
+    el("span", { class: "cost" }, "extracts on save, about 1¢")
   );
 
   const rated = state.levels.size;
+  const card = (r) => r.idea.is_clear === true ? ideaRow(r) : vagueRow(r.idea);
+
+  // Closest to me groups by how many skills are short (the flat gap count
+  // distance.js already gives); newest is one list by date, vague included.
+  let body;
+  if (state.sort === "newest") {
+    const all = [...shown, ...vague].sort((a, b) => Date.parse(b.idea.created_at) - Date.parse(a.idea.created_at));
+    body = el("div", { class: "cards" }, all.map(card));
+  } else {
+    const bandOf = (r) => {
+      const gap = distanceOf(r.extraction, state.levels).gap;
+      return gap === 0 ? "now" : gap === 1 ? "one" : "far";
+    };
+    const byBand = new Map(BANDS.map(([k]) => [k, []]));
+    for (const r of shown) byBand.get(bandOf(r)).push(r);
+    for (const r of vague) byBand.get("vague").push(r);
+    body = BANDS.map(([k, h, p]) => {
+      const items = byBand.get(k);
+      return items.length > 0 && el("section", { class: `band ${k}` },
+        el("div", { class: "band-head" }, el("h2", {}, h), el("span", { class: "n" }, String(items.length)), el("p", {}, p)),
+        el("div", { class: "cards" }, items.map(card)));
+    });
+  }
 
   return el("div", {},
     header(),
     add,
     state.error && el("p", { class: "error" }, state.error),
-    filterBar(domains),
-    el("p", { class: "muted" },
-      `${shown.length} of ${clear.length} ideas · closest to buildable first` +
-      (rated ? "" : " · rate your skills on the Profile tab to make this mean anything")),
-    el("div", { class: "columns" },
-      el("div", {},
-        extracting.length > 0 && el("ul", { class: "ideas" },
+    filterBar(domains, shown.length, clear.length),
+    !rated && el("p", { class: "muted" }, "Rate your skills on the Profile tab to make the distances mean anything."),
+    el("div", { class: "layout" },
+      el("div", { class: "list" },
+        extracting.length > 0 && el("div", { class: "cards extracting-cards" },
           extracting.map((r) => extractingRow(r.idea, state.extracting.get(r.idea.id)))),
-        el("ul", { class: "ideas" }, shown.map(ideaRow)),
-        !shown.length && el("p", { class: "muted" }, "No idea matches those filters."),
-        vague.length > 0 && el("section", { class: "vague-section" },
-          el("h2", {}, `Too vague to extract (${vague.length})`),
-          el("p", { class: "muted" }, "The app should ask, not guess."),
-          el("ul", { class: "ideas" }, vague.map((r) => vagueRow(r.idea)))
-        )
+        body,
+        !shown.length && !vague.length && el("p", { class: "muted" }, "No idea matches those filters.")
       ),
       leveragePanel(clear.map((r) => ({ id: r.idea.id, extraction: r.extraction })))
     )

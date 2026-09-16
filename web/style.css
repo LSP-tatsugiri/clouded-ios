@@ -111,6 +111,7 @@ button.link.danger { color: var(--crux); }
 
 :not(.waifu) > header {
   align-items: center;
+  flex-wrap: wrap;
   margin-bottom: 0;
   padding: 1.5rem 0 1.25rem;
   border-bottom: 1px solid var(--line);
@@ -124,7 +125,7 @@ button.link.danger { color: var(--crux); }
   letter-spacing: -0.04em;
 }
 :not(.waifu) > header h1 svg { width: 1.6rem; height: 1.6rem; color: var(--flow); }
-:not(.waifu) > header nav { align-items: center; gap: 0.25rem; }
+:not(.waifu) > header nav { align-items: center; flex-wrap: wrap; gap: 0.25rem; }
 :not(.waifu) > header .tab {
   padding: 0.45rem 0.9rem;
   border: 0;
@@ -307,6 +308,98 @@ input.txt, .fld input, .row input, :where(#app > :not(.waifu)) textarea {
 @keyframes fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .fade-in { animation: none; } }
 
+/* ---------------------------------------------------------------- ideas */
+
+.capture { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; margin: 2rem 0 1.25rem; }
+.capture input {
+  flex: 1 1 16rem;
+  height: 3.25rem;
+  padding: 0 1.1rem;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: var(--bg-2);
+  font-size: 1.1rem;
+  min-width: 0;
+}
+
+.controls { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem 1rem; padding-bottom: 1.25rem; }
+.controls select { max-width: 16rem; }
+.count { margin-left: auto; font: 0.85rem var(--mono); color: var(--ink-3); }
+.controls + .muted { margin: -0.5rem 0 1.25rem; }
+
+.band { margin: 0 0 2.25rem; }
+.band-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0.75rem; margin: 0 0 0.9rem; }
+.band-head h2 { margin: 0; font-size: 1.3rem; font-weight: 800; letter-spacing: -0.02em; }
+.band-head p { margin: 0; color: var(--ink-3); font-size: 0.95rem; }
+.band-head .n { font: 500 0.85rem var(--mono); color: var(--ink-3); }
+.band.now .band-head h2 { color: var(--held); }
+.extracting-cards { margin-bottom: 0.9rem; }
+
+/* the idea card: Ideas tab and the group feed */
+
+.card-head { display: flex; justify-content: space-between; gap: 1.5rem; align-items: start; }
+.card-head > div:first-child { min-width: 0; }
+.card h3 {
+  margin: 0;
+  font-size: 1.15rem;
+  line-height: 1.35;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  max-width: 40rem;
+  overflow-wrap: anywhere;
+}
+.card h3 a { color: inherit; text-decoration: none; }
+.card h3 a:hover { color: var(--flow); }
+.raw { margin: 0.25rem 0 0; color: var(--ink-3); font-size: 0.92rem; }
+
+.tally { display: flex; gap: 0.35rem; flex-shrink: 0; font: 500 0.78rem var(--mono); }
+.tally span { padding: 0.15rem 0.5rem; border-radius: 6px; border: 1px solid var(--line); white-space: nowrap; }
+.tally .h { color: var(--held); }
+.tally .p { color: var(--partial); }
+.tally .s { color: var(--ink-2); }
+
+.crux {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 0.75rem;
+  align-items: center;
+  margin: 0.95rem 0 0.8rem;
+  padding: 0.7rem 0.9rem;
+  border-radius: 12px;
+  background: var(--crux-wash);
+  border-left: 3px solid var(--crux);
+}
+.crux .t { font-weight: 700; overflow-wrap: anywhere; }
+.crux .lbl { font: 0.78rem var(--mono); color: var(--crux); white-space: nowrap; }
+@media (max-width: 640px) {
+  .crux { grid-template-columns: auto 1fr; gap: 0.2rem 0.75rem; }
+  .crux .lbl { grid-column: 2; }
+}
+
+.caps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 0.3rem 1.5rem; }
+.caps li { display: flex; gap: 0.55rem; font-size: 0.93rem; color: var(--ink-2); min-width: 0; }
+.caps li > span:last-child { overflow-wrap: anywhere; }
+.caps li.proposed { font-style: italic; color: var(--ink-3); }
+.caps:empty { display: none; }
+@media (max-width: 640px) { .caps { grid-template-columns: 1fr; } }
+
+.card-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.95rem;
+  padding-top: 0.8rem;
+  border-top: 1px solid var(--line);
+  font-size: 0.88rem;
+  color: var(--ink-3);
+}
+.friend-line { color: var(--flow); display: inline-flex; gap: 0.4rem; align-items: center; }
+.friend-line.dim { color: var(--ink-3); }
+
+.card.vague .question { margin: 0.75rem 0 0; }
+.card.vague .muted { margin: 0.5rem 0 0; }
+
 /* ---------------------------------------------------------------- legacy
    The old per-view rules, on aliases of the new tokens, so every view keeps
    rendering while the redesign lands one view at a time. Each view's commit
@@ -329,64 +422,15 @@ input { padding: 0.5rem 0.65rem; background: var(--bg); border: 1px solid var(--
 form.card { display: flex; flex-direction: column; gap: 0.75rem; }
 form.card:not(.group-create) { max-width: 22rem; margin: 4rem auto 0; padding: 1.75rem; }
 
-/* list */
-
-.add { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
-.add input { flex: 1; }
-
-.ideas { list-style: none; margin: 0.5rem 0 0; padding: 0; }
-
-.idea {
-  padding: 0.9rem 0;
-  border-top: 1px solid var(--line);
-}
+/* rows the idea page, feed and review still build (replaced view by view) */
 
 .idea-title { font-weight: 500; }
 .idea-raw { color: var(--muted); font-size: 0.85rem; margin-top: 0.15rem; }
-
-/* a row still waiting on extraction: indeterminate on purpose, see extractingRow() */
-.idea.extracting .muted { margin: 0.3rem 0 0; }
-.progress {
-  height: 4px;
-  margin-top: 0.6rem;
-  border-radius: 999px;
-  background: var(--line);
-  overflow: hidden;
-}
-.progress-bar {
-  width: 35%;
-  height: 100%;
-  border-radius: 999px;
-  background: var(--accent);
-  animation: progress-sweep 1.4s ease-in-out infinite;
-}
-@keyframes progress-sweep {
-  from { transform: translateX(-100%); }
-  to   { transform: translateX(300%); }
-}
-@media (prefers-reduced-motion: reduce) {
-  .progress-bar { animation: none; width: 100%; opacity: 0.5; }
-}
-
 .meta { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.45rem; }
 
 /* the picture that came with an idea, on the idea page */
 .media { display: block; margin-top: 0.6rem; max-width: 420px; }
 .media img { display: block; max-width: 100%; border-radius: 6px; border: 1px solid var(--line); }
-
-.tag {
-  font-size: 0.72rem;
-  padding: 0.1rem 0.45rem;
-  color: var(--muted);
-  border: 1px solid var(--line);
-  border-radius: 999px;
-}
-
-.tag.warn {
-  color: var(--warn-fg);
-  background: var(--warn-bg);
-  border-color: transparent;
-}
 
 .question {
   margin: 0.5rem 0 0;
@@ -396,88 +440,10 @@ form.card:not(.group-create) { max-width: 22rem; margin: 4rem auto 0; padding: 1
   font-size: 0.9rem;
 }
 
-/* list: filters, columns, leverage */
-
-.filters {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 0.5rem;
-}
-
-select {
-  font: inherit;
-  font-size: 0.85rem;
-  padding: 0.3rem 0.5rem;
-  color: var(--fg);
-  background: var(--card);
-  border: 1px solid var(--line);
-  border-radius: 6px;
-}
-
-.check { flex-direction: row; align-items: center; gap: 0.35rem; font-size: 0.85rem; }
-.check input { width: auto; }
-
-.columns { display: grid; grid-template-columns: 1fr 14rem; gap: 2rem; align-items: start; }
-
-@media (max-width: 48rem) {
-  .columns { grid-template-columns: 1fr; }
-  .leverage { order: -1; }
-}
-
-.leverage {
-  position: sticky;
-  top: 1rem;
-  padding: 0.9rem 1rem;
-  background: var(--card);
-  border: 1px solid var(--line);
-  border-radius: 8px;
-}
-
-.leverage h2 { font-size: 0.95rem; margin: 0; }
-.leverage .muted { margin: 0.2rem 0 0.6rem; font-size: 0.8rem; }
-.leverage ol { margin: 0; padding: 0; list-style: none; font-size: 0.85rem; }
-.leverage li { display: flex; gap: 0.5rem; padding: 0.2rem 0; }
-.leverage .n { color: var(--accent); font-weight: 600; min-width: 1.2rem; text-align: right; }
-
-/* list: idea rows */
-
 .idea-head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; }
 .counts { font-size: 0.78rem; color: var(--muted); white-space: nowrap; }
-
-.mark {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 0.8rem;
-  color: var(--muted);
-}
-
-.crux {
-  display: flex;
-  align-items: baseline;
-  gap: 0.45rem;
-  margin-top: 0.5rem;
-  padding: 0.35rem 0.5rem;
-  border-left: 3px solid var(--line);
-  background: var(--card);
-  font-size: 0.9rem;
-}
-
-.crux.have { border-left-color: var(--accent); }
-.crux.partial { border-left-color: var(--warn-fg); }
-.crux.gap, .crux.proposed { border-left-color: var(--error); }
-
 .crux-label { flex: 1; }
 .crux-tag { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
-
-.caps { list-style: none; margin: 0.45rem 0 0; padding: 0; }
-.caps li { display: flex; gap: 0.45rem; font-size: 0.85rem; color: var(--muted); padding: 0.1rem 0; }
-.caps li.have .mark { color: var(--accent); }
-
-.vague-section { margin-top: 2.5rem; }
-.vague-section h2 { font-size: 0.95rem; margin: 0; }
-.vague-section .muted { margin: 0.2rem 0 0; }
-.idea.vague .idea-title { font-weight: 400; color: var(--muted); }
 
 /* idea page */
 
