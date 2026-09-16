@@ -1,45 +1,82 @@
-/* One screen, read mostly. Light and dark from the system, no toggle. */
+/* clouded — the web client's one stylesheet.
+   Tokens and fonts come from docs/redesign/desktop-mockup.html, the approved
+   design; that file is the source of truth for colours and type. Light and
+   dark follow the system, no toggle. Every #/waifu rule lives in waifu.css. */
 
 :root {
-  --bg: #fbfbfa;
-  --fg: #1b1b19;
-  --muted: #6b6b66;
-  --line: #e3e3df;
-  --card: #ffffff;
-  --accent: #2f6f5e;
-  --warn-bg: #f5efe2;
-  --warn-fg: #7a5c1e;
-  --error: #9b2c2c;
+  --bg: #f6f7fb; --bg-2: #ffffff;
+  --ink: #0f1422; --ink-2: #4a5570; --ink-3: #5f6984;
+  --line: #dde1ec;
+  --flow: #3461e6; --crux: #c93a30; --held: #1a7d4a; --partial: #8f5f08;
+  --crux-wash: #c93a3012; --flow-wash: #3461e610;
+  --display: "Bricolage Grotesque", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+  color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #17181a;
-    --fg: #e8e8e4;
-    --muted: #93938c;
-    --line: #2c2e31;
-    --card: #1f2124;
-    --accent: #6fbfa6;
-    --warn-bg: #332c1c;
-    --warn-fg: #d8bd7d;
-    --error: #e08585;
+    --bg: #0b0f18; --bg-2: #121827;
+    --ink: #f2f4fa; --ink-2: #aab3c7; --ink-3: #7a85a0;
+    --line: #26304a;
+    --flow: #5b84ff; --crux: #ff6a5c; --held: #4fd18b; --partial: #f2b544;
+    --crux-wash: #ff6a5c14; --flow-wash: #5b84ff14;
+    color-scheme: dark;
   }
 }
+
+/* ---------------------------------------------------------------- base */
 
 * { box-sizing: border-box; }
 
 body {
   margin: 0;
   background: var(--bg);
-  color: var(--fg);
-  font: 16px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  color: var(--ink);
+  font: 16px/1.5 var(--display);
 }
 
 #app {
-  max-width: 46rem;
+  max-width: 76rem;
   margin: 0 auto;
-  padding: 2rem 1rem 4rem;
+  padding: 0 2rem 5rem;
 }
+
+@media (max-width: 900px) {
+  #app { padding: 0 1rem 4rem; }
+}
+
+/* Element defaults the waifu scene inherits (waifu.css overrides what it
+   restyles, nothing more), so these stay what they were. The redesigned
+   defaults further down are scoped to every view except that one. */
+button, input, select, textarea { font: inherit; color: inherit; }
+input:focus-visible, button:focus-visible { outline: 2px solid var(--flow); outline-offset: 1px; }
+button {
+  padding: 0.5rem 0.9rem;
+  color: var(--bg);
+  background: var(--flow);
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+}
+button[disabled] { opacity: 0.55; cursor: default; }
+
+h1 { font-size: 1.35rem; margin: 0; letter-spacing: -0.01em; }
+.muted { color: var(--ink-3); font-size: 0.9rem; }
+.error { color: var(--crux); font-size: 0.9rem; }
+.cost { font-size: 0.75rem; white-space: nowrap; align-self: center; }
+
+/* everything but the waifu scene: `:where()` keeps the specificity at the
+   bare element, so a class on the element still wins */
+:where(#app > :not(.waifu)) :focus-visible { outline: 2px solid var(--flow); outline-offset: 2px; }
+:where(#app > :not(.waifu)) a { color: var(--flow); }
+:where(#app > :not(.waifu)) .cost { font: 0.8rem var(--mono); color: var(--ink-3); }
+
+/* ---------------------------------------------------------------- header
+   The waifu scene reuses header() and waifu.css styles it through
+   `.waifu header h1`, `.waifu .tab` and `.waifu button.link`, so the plain
+   rules here are what that page has always had. The redesigned header only
+   applies outside .waifu, so #/waifu keeps its overlaid underline tabs. */
 
 header {
   display: flex;
@@ -49,69 +86,248 @@ header {
   margin-bottom: 1.5rem;
 }
 
-h1 { font-size: 1.35rem; margin: 0; letter-spacing: -0.01em; }
-.muted { color: var(--muted); font-size: 0.9rem; }
-.error { color: var(--error); font-size: 0.9rem; }
+nav { display: flex; align-items: baseline; gap: 1rem; }
 
-/* sign-in */
+.tab {
+  color: var(--ink-3);
+  font-size: 0.9rem;
+  text-decoration: none;
+  padding-bottom: 2px;
+  border-bottom: 2px solid transparent;
+}
+.tab.on { color: var(--ink); border-bottom-color: var(--flow); }
+.tab:hover { color: var(--ink); }
 
-.card {
+button.link {
+  padding: 0;
+  color: var(--ink-3);
+  background: none;
+  font-size: 0.85rem;
+  text-decoration: underline;
+}
+:where(#app > :not(.waifu)) button.link { font-size: 0.88rem; text-underline-offset: 3px; }
+:where(#app > :not(.waifu)) button.link:hover { color: var(--ink); }
+button.link.danger { color: var(--crux); }
+
+:not(.waifu) > header {
+  align-items: center;
+  margin-bottom: 0;
+  padding: 1.5rem 0 1.25rem;
+  border-bottom: 1px solid var(--line);
+}
+:not(.waifu) > header h1 {
   display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  max-width: 22rem;
-  margin: 4rem auto 0;
-  padding: 1.75rem;
-  background: var(--card);
-  border: 1px solid var(--line);
-  border-radius: 10px;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1.75rem;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+}
+:not(.waifu) > header h1 svg { width: 1.6rem; height: 1.6rem; color: var(--flow); }
+:not(.waifu) > header nav { align-items: center; gap: 0.25rem; }
+:not(.waifu) > header .tab {
+  padding: 0.45rem 0.9rem;
+  border: 0;
+  border-radius: 999px;
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--ink-2);
+}
+:not(.waifu) > header .tab:hover { color: var(--ink); background: var(--flow-wash); }
+:not(.waifu) > header .tab.on { color: var(--ink); background: var(--bg-2); box-shadow: inset 0 0 0 1px var(--line); }
+:not(.waifu) > header button.link {
+  margin-left: 0.75rem;
+  font-size: 0.9rem;
+  text-decoration: none;
 }
 
-.card h1 { margin-bottom: 0; }
-.card .muted { margin: -0.4rem 0 0.5rem; }
-.card .switch { margin: 0.9rem 0 0; text-align: center; }
+/* ---------------------------------------------------------------- shared pieces */
+
+.page-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  flex-wrap: wrap;
+  gap: 1rem 2rem;
+  margin: 2rem 0 1.5rem;
+}
+.page-head h1 { font-size: 2.2rem; font-weight: 800; letter-spacing: -0.035em; line-height: 1.1; }
+.page-head p { margin: 0.35rem 0 0; color: var(--ink-2); max-width: 36rem; }
+
+/* main column plus a sticky side panel; the panel drops under the column
+   when the window is narrow */
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 19rem;
+  gap: 2rem;
+  align-items: start;
+}
+@media (max-width: 900px) {
+  .layout { grid-template-columns: minmax(0, 1fr); }
+  .layout aside { position: static; }
+}
+
+aside {
+  position: sticky;
+  top: 1.25rem;
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 1.25rem 1.25rem 1rem;
+}
+aside h2 { margin: 0; font-size: 1.15rem; font-weight: 800; }
+aside > p { margin: 0.2rem 0 1rem; color: var(--ink-3); font-size: 0.9rem; }
+aside ol { list-style: none; margin: 0; padding: 0; }
+aside ol li {
+  display: grid;
+  grid-template-columns: 2.3rem 1fr;
+  gap: 0.5rem;
+  padding: 0.55rem 0;
+  border-top: 1px solid var(--line);
+  font-size: 0.9rem;
+  line-height: 1.35;
+}
+aside .k { font: 500 1.05rem var(--mono); color: var(--flow); }
+aside ol li:first-child .k { font-size: 1.35rem; }
+aside a { color: inherit; text-decoration: none; }
+aside a:hover { color: var(--flow); }
+
+.card {
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 1.2rem 1.35rem 1.1rem;
+}
+.cards { display: grid; gap: 0.9rem; }
+
+/* status marks keep their bracket text and gain a colour */
+.mark { font: 500 0.85rem var(--mono); white-space: pre; color: var(--ink-3); }
+.m-held, .mark.have { color: var(--held); }
+.m-partial, .mark.partial { color: var(--partial); }
+.m-short, .mark.gap { color: var(--ink-3); }
+.m-prop, .mark.proposed { color: var(--ink-3); font-style: italic; }
+.m-friend { color: var(--flow); }
+
+.tag {
+  padding: 0.12rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  font-size: 0.8rem;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+.tag.prop, .tag.warn { border-style: dashed; color: var(--partial); border-color: var(--partial); }
+.tag.crux { color: var(--crux); border-color: var(--crux); }
+.tag.level-solid { color: var(--held); border-color: var(--held); }
+.tag.level-some { color: var(--partial); border-color: var(--partial); }
+
+:where(#app > :not(.waifu)) button, .btn {
+  height: 3.25rem;
+  padding: 0 1.4rem;
+  border-radius: 14px;
+  border: 0;
+  background: var(--flow);
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+}
+.btn.sm, button.sm, button.secondary { height: 2.4rem; border-radius: 10px; padding: 0 1rem; }
+.btn.ghost, button.secondary { background: none; color: var(--ink); border: 1px solid var(--line); }
+.btn.warn, button.secondary.warn { background: none; color: var(--crux); border: 1px solid var(--crux); }
+
+/* two-way toggle */
+.seg {
+  display: inline-flex;
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+}
+.seg button {
+  border: 0;
+  background: none;
+  padding: 0.35rem 0.95rem;
+  border-radius: 999px;
+  cursor: pointer;
+  color: var(--ink-2);
+  font-weight: 500;
+}
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+
+select {
+  height: 2.3rem;
+  padding: 0 0.75rem;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--bg-2);
+}
+
+label.chk, label.check {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--ink-2);
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+label.chk input, label.check input { accent-color: var(--flow); width: 1rem; height: 1rem; margin: 0; }
+
+.row { display: flex; gap: 0.5rem; }
+input.txt, .fld input, .row input, :where(#app > :not(.waifu)) textarea {
+  height: 2.4rem;
+  padding: 0 0.8rem;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  min-width: 0;
+  flex: 1;
+}
+:where(#app > :not(.waifu)) textarea { height: auto; padding: 0.5rem 0.8rem; resize: vertical; }
+:where(#app > :not(.waifu)) :is(input, textarea)::placeholder { color: var(--ink-3); opacity: 0.75; font-style: italic; }
+:where(#app > :not(.waifu)) :is(input, textarea):focus { outline: none; border-color: var(--flow); box-shadow: 0 0 0 3px var(--flow-wash); }
+
+.fld { display: grid; gap: 0.35rem; font-size: 0.88rem; color: var(--ink-2); margin: 0.75rem 0 0; }
+.sub-h { margin: 1rem 0 0.3rem; font-size: 0.88rem; font-weight: 700; color: var(--ink-2); }
+.plain { list-style: none; margin: 0; padding: 0; }
+.plain li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0;
+  border-top: 1px solid var(--line);
+  font-size: 0.92rem;
+  overflow-wrap: anywhere;
+}
+.hint { margin: 0.4rem 0 0; font-size: 0.82rem; color: var(--ink-3); }
+.spacer { flex: 1; }
+
+.fade-in { animation: fade 0.5s ease both; }
+@keyframes fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .fade-in { animation: none; } }
+
+/* ---------------------------------------------------------------- legacy
+   The old per-view rules, on aliases of the new tokens, so every view keeps
+   rendering while the redesign lands one view at a time. Each view's commit
+   deletes its chunk; the aliases go with the last one. */
+
+:root {
+  --fg: var(--ink); --muted: var(--ink-3); --card: var(--bg-2); --accent: var(--flow);
+  --warn-bg: var(--flow-wash); --warn-fg: var(--partial); --error: var(--crux);
+}
 
 label {
   display: flex;
   flex-direction: column;
   gap: 0.3rem;
   font-size: 0.85rem;
-  color: var(--muted);
+  color: var(--ink-3);
 }
+input { padding: 0.5rem 0.65rem; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; }
 
-input {
-  font: inherit;
-  padding: 0.5rem 0.65rem;
-  color: var(--fg);
-  background: var(--bg);
-  border: 1px solid var(--line);
-  border-radius: 6px;
-}
-
-input:focus-visible, button:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
-}
-
-button {
-  font: inherit;
-  padding: 0.5rem 0.9rem;
-  color: var(--bg);
-  background: var(--accent);
-  border: 0;
-  border-radius: 6px;
-  cursor: pointer;
-}
-
-button[disabled] { opacity: 0.55; cursor: default; }
-
-button.link {
-  padding: 0;
-  color: var(--muted);
-  background: none;
-  font-size: 0.85rem;
-  text-decoration: underline;
-}
+form.card { display: flex; flex-direction: column; gap: 0.75rem; }
+form.card:not(.group-create) { max-width: 22rem; margin: 4rem auto 0; padding: 1.75rem; }
 
 /* list */
 
@@ -423,10 +639,10 @@ nav { display: flex; align-items: baseline; gap: 1rem; }
 
 .seg-group { display: flex; flex-shrink: 0; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
 
-.seg { display: block; }
-.seg input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.seg-group .seg { display: block; }
+.seg-group .seg input { position: absolute; width: 1px; height: 1px; opacity: 0; }
 
-.seg span {
+.seg-group .seg span {
   display: block;
   padding: 0.25rem 0.7rem;
   font-size: 0.78rem;
@@ -436,10 +652,10 @@ nav { display: flex; align-items: baseline; gap: 1rem; }
   user-select: none;
 }
 
-.seg:first-child span { border-left: 0; }
-.seg span:hover { background: var(--line); }
-.seg input:checked + span { background: var(--accent); color: var(--bg); }
-.seg input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: -2px; }
+.seg-group .seg:first-child span { border-left: 0; }
+.seg-group .seg span:hover { background: var(--line); }
+.seg-group .seg input:checked + span { background: var(--accent); color: var(--bg); }
+.seg-group .seg input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: -2px; }
 
 @media (max-width: 30rem) {
   .skill { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
