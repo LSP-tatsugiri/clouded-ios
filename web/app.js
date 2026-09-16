@@ -137,7 +137,7 @@ function header() {
 function signInView() {
   const creating = state.authMode === "create";
   const form = el("form", {
-    class: "card",
+    class: "card signin",
     onsubmit: (e) => {
       e.preventDefault();
       const email = form.elements.email.value.trim();
@@ -145,17 +145,17 @@ function signInView() {
       run(() => (creating ? signUp(email, password) : signIn(email, password)));
     }
   },
-    el("h1", {}, "clouded"),
+    el("h1", {}, brandMark(), "clouded"),
     el("p", { class: "muted" },
       "How far each idea is from something you could actually build."),
-    el("label", {}, "Email",
+    el("label", { class: "fld" }, "Email",
       el("input", { name: "email", type: "email", required: true, autocomplete: "username" })),
-    el("label", {}, "Password",
+    el("label", { class: "fld" }, "Password",
       el("input", {
         name: "password", type: "password", required: true, minlength: 8,
         autocomplete: creating ? "new-password" : "current-password"
       })),
-    el("button", { type: "submit", disabled: state.busy },
+    el("button", { type: "submit", class: "btn", disabled: state.busy },
       state.busy ? (creating ? "Creating…" : "Signing in…") : (creating ? "Create account" : "Sign in")),
     state.error && el("p", { class: "error" }, state.error),
     el("p", { class: "muted switch" },
@@ -773,18 +773,20 @@ function friendView() {
 
   return el("div", {},
     header(),
-    el("p", {}, el("a", { href: "#/group", class: "tab" }, "← group")),
-    el("h2", { class: "detail-title" }, f.profile.display_name),
-    el("p", { class: "muted" }, `${solid} solid · ${some} some`),
+    el("p", { class: "back" }, el("a", { href: "#/group" }, "← group")),
+    el("div", { class: "page-head" },
+      el("div", {},
+        el("h1", {}, f.profile.display_name),
+        el("p", { class: "tally-text" }, `${solid} solid, ${some} some`))),
     byDomain.size
-      ? [...byDomain].map(([domain, list]) => el("section", { class: "domain" },
+      ? [...byDomain].map(([domain, list]) => el("section", { class: "dom card" },
           el("h2", {}, domain),
-          el("ul", { class: "skills" }, list.map(({ skill, level }) => el("li", { class: "skill" },
-            el("div", { class: "skill-text" },
-              el("div", { class: "skill-name" }, skill.name),
-              el("div", { class: "skill-id" }, skill.id)),
+          list.map(({ skill, level }) => el("div", { class: "skill" },
+            el("div", {},
+              el("div", { class: "nm" }, skill.name),
+              el("code", {}, skill.id)),
             el("span", { class: `tag level-${level}` }, level)
-          )))
+          ))
         ))
       : el("p", { class: "muted" }, "They have not rated any skill yet.")
   );
@@ -1151,7 +1153,7 @@ function capabilityDetail(cap) {
   const isCrux = cap.crux_rank === 1;
   return el("li", { class: `capdetail ${k}${isCrux ? " is-crux" : ""}` },
     el("div", { class: "capdetail-head" },
-      el("span", { class: "mark" }, MARK[k]),
+      mark(k),
       el("span", { class: "capdetail-name" }, capLabel(cap)),
       isCrux && el("span", { class: "crux-tag" }, "the hard part")
     ),
@@ -1214,13 +1216,13 @@ function answerBox(idea) {
       });
     }
   },
-    el("label", {}, "Your answer",
+    el("label", { class: "fld" }, "Your answer",
       el("textarea", {
         name: "clarification", rows: 2, required: true,
         placeholder: "Say what the thing actually is"
       })),
-    el("p", { class: "muted" }, "Answering re-runs extraction. That is one API call, about a cent."),
-    el("button", { type: "submit", disabled: state.busy }, state.busy ? "Working…" : "Answer and re-extract")
+    el("p", { class: "hint" }, "Answering re-runs extraction. That is one API call, about a cent."),
+    el("button", { type: "submit", class: "btn sm", disabled: state.busy }, state.busy ? "Working…" : "Answer and re-extract")
   );
   return form;
 }
@@ -1251,8 +1253,9 @@ function ideaView() {
 
   return el("div", {},
     header(),
-    el("p", {}, el("a", { href: "#/", class: "tab" }, "← all ideas")),
+    el("p", { class: "back" }, el("a", { href: "#/" }, "← all ideas")),
 
+    el("div", { class: "card detail" },
     el("h2", { class: "detail-title" }, idea.objective || idea.raw),
     el("p", { class: "idea-raw" }, `captured as: ${idea.raw}`),
     idea.clarification && el("p", { class: "idea-raw" }, `you clarified: ${idea.clarification}`),
@@ -1274,9 +1277,8 @@ function ideaView() {
     state.error && el("p", { class: "error" }, state.error),
     state.waiting && el("p", { class: "muted" }, state.waiting),
 
-    idea.is_clear === false && el("section", { class: "question-block" },
-      el("h3", {}, "Too vague to extract"),
-      idea.clarifying_question && el("p", { class: "question" }, idea.clarifying_question),
+    idea.is_clear === false && el("section", { class: "ask" },
+      el("p", {}, el("b", {}, "Too vague to extract. "), idea.clarifying_question),
       mine && answerBox(idea)
     ),
 
@@ -1290,11 +1292,12 @@ function ideaView() {
     // extraction_runs are readable by the owner only, so a friend would see 0
     mine && el("details", { class: "runs" },
       el("summary", {}, `Extraction history (${runs.length})`),
-      el("ul", { class: "caps" }, runs.map((r) => el("li", {},
+      el("ul", { class: "runs-list" }, runs.map((r) => el("li", {},
         el("span", { class: "mark" }, r.error ? "✕" : "·"),
         el("span", {}, `${new Date(r.created_at).toLocaleString()} · ${r.model} · ${r.prompt_hash}` +
           (r.error ? ` · ${r.error.slice(0, 80)}` : ""))
       )))
+    )
     )
   );
 }

@@ -565,8 +565,8 @@ a.owner:hover { color: var(--flow); }
 .lvl [data-l="some"] input:checked + span { background: var(--partial); color: var(--bg-2); }
 .lvl [data-l="solid"] input:checked + span { background: var(--held); color: var(--bg-2); }
 
-.skill:not(:has(input:checked)) .lvl { border-style: dashed; }
-.skill:not(:has(input:checked)) .nm::after {
+.profile .skill:not(:has(input:checked)) .lvl { border-style: dashed; }
+.profile .skill:not(:has(input:checked)) .nm::after {
   content: "not rated";
   margin-left: 0.6rem;
   vertical-align: 2px;
@@ -630,108 +630,75 @@ aside .domains li { display: block; padding: 0; border-top: 1px solid var(--line
 .settled-block summary { cursor: pointer; font-weight: 700; color: var(--ink-2); margin-bottom: 0.9rem; }
 .queue .key { font: 0.85rem var(--mono); }
 
-/* ---------------------------------------------------------------- legacy
-   The old per-view rules, on aliases of the new tokens, so every view keeps
-   rendering while the redesign lands one view at a time. Each view's commit
-   deletes its chunk; the aliases go with the last one. */
+/* ---------------------------------------------------------------- sign-in */
 
-:root {
-  --fg: var(--ink); --muted: var(--ink-3); --card: var(--bg-2); --accent: var(--flow);
-  --warn-bg: var(--flow-wash); --warn-fg: var(--partial); --error: var(--crux);
-}
-
-label {
+.signin {
   display: flex;
   flex-direction: column;
-  gap: 0.3rem;
-  font-size: 0.85rem;
-  color: var(--ink-3);
+  gap: 0.75rem;
+  max-width: 24rem;
+  margin: 4rem auto 0;
+  padding: 1.75rem;
 }
-input { padding: 0.5rem 0.65rem; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; }
+.signin h1 { display: flex; align-items: center; gap: 0.5rem; font-size: 1.75rem; font-weight: 800; letter-spacing: -0.04em; }
+.signin h1 svg { width: 1.6rem; height: 1.6rem; color: var(--flow); }
+.signin .muted { margin: -0.4rem 0 0.5rem; color: var(--ink-2); }
+.signin .fld { margin: 0; }
+.signin .btn { margin-top: 0.25rem; }
+.signin .switch { margin: 0.9rem 0 0; text-align: center; }
 
-form.card { display: flex; flex-direction: column; gap: 0.75rem; }
-form.card:not(.group-create) { max-width: 22rem; margin: 4rem auto 0; padding: 1.75rem; }
+/* ---------------------------------------------------------------- idea page
+   Not redesigned yet: the tokens, the card and the coloured marks only, the
+   layout as it was. */
 
-/* rows the idea page, feed and review still build (replaced view by view) */
+.back { margin: 1.5rem 0 0; }
+.back a { color: var(--ink-3); text-decoration: none; font-weight: 500; }
+.back a:hover { color: var(--ink); }
+.detail { margin-top: 1rem; }
+.detail-title { font-size: 1.5rem; font-weight: 800; letter-spacing: -0.02em; margin: 0 0 0.25rem; line-height: 1.25; }
+.idea-raw { color: var(--ink-3); font-size: 0.9rem; margin: 0.15rem 0 0; overflow-wrap: anywhere; }
+.meta { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; margin-top: 0.75rem; }
 
-.idea-title { font-weight: 500; }
-.idea-raw { color: var(--muted); font-size: 0.85rem; margin-top: 0.15rem; }
-.meta { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.45rem; }
+/* the picture that came with an idea */
+.media { display: block; margin-top: 0.75rem; max-width: 420px; }
+.media img { display: block; max-width: 100%; border-radius: 12px; border: 1px solid var(--line); }
 
-/* the picture that came with an idea, on the idea page */
-.media { display: block; margin-top: 0.6rem; max-width: 420px; }
-.media img { display: block; max-width: 100%; border-radius: 6px; border: 1px solid var(--line); }
+.detail .ask { margin: 1.5rem 0; }
+.detail .ask p b { color: var(--partial); }
+.answer { display: grid; gap: 0.5rem; margin-top: 0.75rem; }
+.answer .fld { margin: 0; }
+.answer .hint { margin: 0; }
+.answer .btn { justify-self: start; }
 
-.question {
-  margin: 0.5rem 0 0;
-  padding-left: 0.75rem;
-  border-left: 2px solid var(--line);
-  color: var(--muted);
-  font-size: 0.9rem;
-}
-
-.idea-head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; }
-.counts { font-size: 0.78rem; color: var(--muted); white-space: nowrap; }
-.crux-label { flex: 1; }
-.crux-tag { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
-
-/* idea page */
-
-a.idea-title { color: inherit; text-decoration: none; }
-a.idea-title:hover { text-decoration: underline; text-underline-offset: 2px; }
-
-.detail-title { font-size: 1.3rem; margin: 0.75rem 0 0.25rem; line-height: 1.35; }
-.cost { font-size: 0.75rem; white-space: nowrap; align-self: center; }
-
-.question-block {
-  margin: 1.5rem 0;
-  padding: 1rem;
-  background: var(--warn-bg);
-  border-radius: 8px;
-}
-
-.question-block h3 { margin: 0 0 0.5rem; font-size: 0.95rem; color: var(--warn-fg); }
-.question-block .question { border-left-color: var(--warn-fg); margin-bottom: 0.9rem; }
-
-.answer { display: grid; gap: 0.5rem; }
-.answer textarea {
-  font: inherit;
-  padding: 0.5rem 0.65rem;
-  color: var(--fg);
-  background: var(--bg);
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  resize: vertical;
-}
-.answer .muted { margin: 0; }
-.answer button { justify-self: start; }
-
+.detail h3 { margin: 1.5rem 0 0.25rem; font-size: 1.05rem; font-weight: 800; }
 .capdetails { list-style: none; margin: 0.5rem 0 0; padding: 0; }
-
-.capdetail {
-  padding: 0.7rem 0;
-  border-top: 1px solid var(--line);
+.capdetail { padding: 0.7rem 0; border-top: 1px solid var(--line); }
+.capdetail.is-crux {
+  padding: 0.7rem 0.9rem;
+  border-top: 0;
+  border-left: 3px solid var(--crux);
+  border-radius: 12px;
+  background: var(--crux-wash);
 }
+.capdetail.is-crux + .capdetail { border-top: 0; }
+.capdetail-head { display: flex; align-items: baseline; gap: 0.55rem; }
+.capdetail-name { flex: 1; overflow-wrap: anywhere; }
+.capdetail.is-crux .capdetail-name { font-weight: 700; }
+.capdetail.proposed .capdetail-name { font-style: italic; color: var(--ink-3); }
+.crux-tag { font: 0.78rem var(--mono); color: var(--crux); white-space: nowrap; }
+.capdetail-reason { margin: 0.25rem 0 0 1.9rem; color: var(--ink-2); font-size: 0.9rem; }
 
-.capdetail.is-crux { border-left: 3px solid var(--error); padding-left: 0.7rem; }
-.capdetail.is-crux.have { border-left-color: var(--accent); }
-.capdetail.is-crux.partial { border-left-color: var(--warn-fg); }
-
-.capdetail-head { display: flex; align-items: baseline; gap: 0.45rem; }
-.capdetail-name { flex: 1; }
-.capdetail.have .capdetail-head .mark { color: var(--accent); }
-.capdetail-reason { margin: 0.25rem 0 0 1.6rem; color: var(--muted); font-size: 0.85rem; }
-
-.resolution { margin: 0.3rem 0 0 1.6rem; }
-.resolution summary { font-size: 0.75rem; color: var(--muted); cursor: pointer; }
-.resolution dl { margin: 0.4rem 0 0; font-size: 0.8rem; display: grid; grid-template-columns: auto 1fr; gap: 0.15rem 0.6rem; }
-.resolution dt { color: var(--muted); }
-.resolution dd { margin: 0; }
+.resolution { margin: 0.3rem 0 0 1.9rem; }
+.resolution summary { font: 0.78rem var(--mono); color: var(--ink-3); cursor: pointer; }
+.resolution dl { margin: 0.4rem 0 0; font-size: 0.85rem; display: grid; grid-template-columns: auto 1fr; gap: 0.15rem 0.6rem; }
+.resolution dt { color: var(--ink-3); }
+.resolution dd { margin: 0; overflow-wrap: anywhere; }
 
 .share { margin: 1.75rem 0 0; padding-top: 1rem; border-top: 1px solid var(--line); }
-.share label { flex-direction: row; align-items: center; gap: 0.5rem; }
+.share label { color: var(--ink); }
 .share .muted { margin: 0.4rem 0 0; }
 
 .runs { margin-top: 1.5rem; }
-.runs summary { font-size: 0.85rem; color: var(--muted); cursor: pointer; }
-.runs .caps { margin-top: 0.5rem; }
+.runs summary { font-size: 0.88rem; color: var(--ink-3); cursor: pointer; }
+.runs-list { list-style: none; margin: 0.5rem 0 0; padding: 0; }
+.runs-list li { display: flex; gap: 0.55rem; font: 0.8rem var(--mono); color: var(--ink-2); padding: 0.15rem 0; overflow-wrap: anywhere; }
