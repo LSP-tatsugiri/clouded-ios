@@ -46,7 +46,7 @@ const state = {
   caps: [],
   skills: [],          // 51 rows, seeded by migration, cached after first load
   levels: new Map(),   // skill_id -> none | some | solid
-  filters: { domain: "", crux: "", proposed: false, friend: false },
+  filters: { domain: "", crux: "", proposed: false, friend: false, q: "" },
   sort: "closest",     // Ideas tab: closest (the distance sort) | newest
   pool: new Map(),     // skill_id -> [user_id] of group mates holding it solid
   names: new Map(),    // user_id -> display_name, for everyone in your groups
@@ -368,10 +368,11 @@ function filterBar(domains, shownCount, total) {
     type: "button", "aria-pressed": String(state.sort === key),
     onclick: () => { state.sort = key; render({ animate: true }); }
   }, label);
-  const filtering = state.filters.domain || state.filters.crux || state.filters.proposed || state.filters.friend;
+  const filtering = state.filters.domain || state.filters.crux || state.filters.proposed || state.filters.friend || state.filters.q;
   return el("div", { class: "controls" },
     el("div", { class: "seg", role: "group", "aria-label": "Sort" },
       sortButton("closest", "Closest to me"), sortButton("newest", "Newest")),
+    searchBox,
     el("select", { "aria-label": "Domain", onchange: (e) => set("domain", e.target.value) },
       el("option", { value: "", selected: state.filters.domain === "" }, "Any domain"),
       domains.map((d) => el("option", { value: d, selected: state.filters.domain === d }, d))
@@ -397,7 +398,7 @@ function filterBar(domains, shownCount, total) {
       el("span", {}, "A friend can unblock it")
     ),
     filtering &&
-      el("button", { class: "link", onclick: () => { state.filters = { domain: "", crux: "", proposed: false, friend: false }; render({ animate: true }); } }, "clear"),
+      el("button", { class: "link", onclick: () => { state.filters = { domain: "", crux: "", proposed: false, friend: false, q: "" }; searchBox.value = ""; render({ animate: true }); } }, "clear"),
     el("span", { class: "count" }, `${shownCount} of ${total} shown`)
   );
 }
@@ -441,7 +442,15 @@ function listView() {
 
   const domains = [...new Set(state.ideas.map((i) => i.domain).filter(Boolean))].sort();
   const f = state.filters;
+  // every word typed must appear somewhere in what the card shows
+  const terms = f.q.toLowerCase().split(/\s+/).filter(Boolean);
+  const matches = (idea) => {
+    const hay = `${idea.raw} ${idea.objective ?? ""} ${idea.domain ?? ""}`.toLowerCase();
+    return terms.every((t) => hay.includes(t));
+  };
+  const vagueShown = vague.filter((r) => matches(r.idea));
   const shown = clear.filter((r) =>
+    matches(r.idea) &&
     (!f.domain || r.idea.domain === f.domain) &&
     (!f.crux || cruxStatus(r.extraction, state.levels) === f.crux) &&
     (!f.proposed || r.extraction.capabilities.some((c) => !c.skill_id)) &&
@@ -465,14 +474,14 @@ function listView() {
   );
 
   const rated = state.levels.size;
-  const glide = shown.length + vague.length <= 40;
+  const glide = shown.length + vagueShown.length <= 40;
   const card = (r) => r.idea.is_clear === true ? ideaRow(r, glide) : vagueRow(r.idea, glide);
 
   // Closest to me groups by how many skills are short (the flat gap count
   // distance.js already gives); newest is one list by date, vague included.
   let body;
   if (state.sort === "newest") {
-    const all = [...shown, ...vague].sort((a, b) => Date.parse(b.idea.created_at) - Date.parse(a.idea.created_at));
+    const all = [...shown, ...vagueShown].sort((a, b) => Date.parse(b.idea.created_at) - Date.parse(a.idea.created_at));
     body = el("div", { class: "cards" }, all.map(card));
   } else {
     const bandOf = (r) => {
@@ -481,7 +490,7 @@ function listView() {
     };
     const byBand = new Map(BANDS.map(([k]) => [k, []]));
     for (const r of shown) byBand.get(bandOf(r)).push(r);
-    for (const r of vague) byBand.get("vague").push(r);
+    for (const r of vagueShown) byBand.get("vague").push(r);
     body = BANDS.map(([k, h, p]) => {
       const items = byBand.get(k);
       return items.length > 0 && el("section", { class: `band ${k}` },
@@ -516,6 +525,14 @@ function listView() {
 // radio change would pull focus out of the control being used. The bar, the
 // text and the per-domain counts in the side panel are all repainted here.
 const status = el("span", { class: "status" }, "");
+
+// One element for the session, like `status`: mount() rebuilds the page on
+// every keystroke, and a rebuilt input would lose its text and the caret.
+// No glide while typing — a view transition per keystroke fights the caret.
+const searchBox = el("input", {
+  type: "search", class: "search", "aria-label": "Search ideas", placeholder: "Search", autocomplete: "off",
+  oninput: () => { state.filters.q = searchBox.value; render(); searchBox.focus(); }
+});
 const tally = el("p", { class: "tally-text" }, "");
 const ratedBar = el("div", { class: "rated-bar", "aria-hidden": "true" });
 const domainCounts = new Map();   // domain -> the "rated/total" span in the side panel

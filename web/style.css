@@ -326,6 +326,10 @@ input.txt, .fld input, .row input, :where(#app > :not(.waifu)) textarea {
 
 .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem 1rem; padding-bottom: 1.25rem; }
 .controls select { max-width: 16rem; }
+.controls .search {
+  width: 12rem; height: 2.3rem; padding: 0 0.75rem; border-radius: 10px;
+  border: 1px solid var(--line); background: var(--bg-2);
+}
 .count { margin-left: auto; font: 0.85rem var(--mono); color: var(--ink-3); }
 .controls + .muted { margin: -0.5rem 0 1.25rem; }
 
