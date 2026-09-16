@@ -1,0 +1,630 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>clouded · desktop redesign mockup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #f6f7fb; --bg-2: #ffffff; --ink: #0f1422; --ink-2: #4a5570; --ink-3: #5f6984;
+  --line: #dde1ec; --flow: #3461e6; --crux: #c93a30; --held: #1a7d4a; --partial: #8f5f08;
+  --crux-wash: #c93a3012; --flow-wash: #3461e610;
+  --display: "Bricolage Grotesque", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0b0f18; --bg-2: #121827; --ink: #f2f4fa; --ink-2: #aab3c7; --ink-3: #7a85a0;
+    --line: #26304a; --flow: #5b84ff; --crux: #ff6a5c; --held: #4fd18b; --partial: #f2b544;
+    --crux-wash: #ff6a5c14; --flow-wash: #5b84ff14; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0b0f18; --bg-2: #121827; --ink: #f2f4fa; --ink-2: #aab3c7; --ink-3: #7a85a0;
+  --line: #26304a; --flow: #5b84ff; --crux: #ff6a5c; --held: #4fd18b; --partial: #f2b544;
+  --crux-wash: #ff6a5c14; --flow-wash: #5b84ff14; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.5 var(--display); }
+button, input, select { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--flow); outline-offset: 2px; }
+.mock-bar { display: flex; justify-content: center; gap: 1rem; align-items: center; padding: .5rem; font: .8rem var(--mono); color: var(--ink-3); border-bottom: 1px dashed var(--line); }
+.mock-bar button { background: none; border: 1px solid var(--line); border-radius: 999px; padding: .2rem .7rem; cursor: pointer; color: var(--ink-2); }
+
+.shell { max-width: 76rem; margin: 0 auto; padding: 0 2rem 5rem; }
+.top { display: flex; align-items: center; justify-content: space-between; padding: 1.5rem 0 1.25rem; border-bottom: 1px solid var(--line); }
+.brand { font-size: 1.75rem; font-weight: 800; letter-spacing: -0.04em; display: flex; align-items: center; gap: .5rem; }
+.brand svg { width: 1.6rem; height: 1.6rem; color: var(--flow); }
+nav { display: flex; align-items: center; gap: .25rem; }
+nav a { text-decoration: none; color: var(--ink-2); padding: .45rem .9rem; border-radius: 999px; font-weight: 500; }
+nav a:hover { color: var(--ink); background: var(--flow-wash); }
+nav a.on { color: var(--ink); background: var(--bg-2); box-shadow: inset 0 0 0 1px var(--line); }
+nav .out { margin-left: .75rem; font-size: .9rem; color: var(--ink-3); }
+
+.capture { display: flex; gap: .6rem; align-items: center; margin: 2rem 0 1.25rem; }
+.capture input { flex: 1; height: 3.25rem; padding: 0 1.1rem; border-radius: 14px; border: 1px solid var(--line); background: var(--bg-2); font-size: 1.1rem; }
+.capture input::placeholder { color: var(--ink-3); }
+.capture input:focus { outline: none; border-color: var(--flow); box-shadow: 0 0 0 3px var(--flow-wash); }
+.btn { height: 3.25rem; padding: 0 1.4rem; border-radius: 14px; border: 0; background: var(--flow); color: #fff; font-weight: 700; cursor: pointer; }
+.btn.sm { height: 2.4rem; border-radius: 10px; padding: 0 1rem; }
+.btn.ghost { background: none; color: var(--ink); border: 1px solid var(--line); }
+.cost { font: .8rem var(--mono); color: var(--ink-3); white-space: nowrap; }
+
+.controls { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem 1rem; padding-bottom: 1.25rem; }
+.seg { display: inline-flex; padding: 3px; border-radius: 999px; background: var(--bg-2); border: 1px solid var(--line); }
+.seg button { border: 0; background: none; padding: .35rem .95rem; border-radius: 999px; cursor: pointer; color: var(--ink-2); font-weight: 500; }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+select { height: 2.3rem; padding: 0 .75rem; border-radius: 10px; border: 1px solid var(--line); background: var(--bg-2); }
+label.chk { display: inline-flex; align-items: center; gap: .4rem; color: var(--ink-2); font-size: .95rem; cursor: pointer; }
+label.chk input { accent-color: var(--flow); width: 1rem; height: 1rem; }
+.count { margin-left: auto; font: .85rem var(--mono); color: var(--ink-3); }
+
+.layout { display: grid; grid-template-columns: minmax(0, 1fr) 19rem; gap: 2rem; align-items: start; }
+
+.band { margin: 0 0 2.25rem; }
+.band-head { display: flex; align-items: baseline; gap: .75rem; margin: 0 0 .9rem; }
+.band-head h2 { margin: 0; font-size: 1.3rem; font-weight: 800; letter-spacing: -0.02em; }
+.band-head p { margin: 0; color: var(--ink-3); font-size: .95rem; }
+.band-head .n { font: 500 .85rem var(--mono); color: var(--ink-3); }
+.band.now .band-head h2 { color: var(--held); }
+.cards { display: grid; gap: .9rem; }
+
+.card { background: var(--bg-2); border: 1px solid var(--line); border-radius: 18px; padding: 1.2rem 1.35rem 1.1rem; }
+.card-head { display: flex; justify-content: space-between; gap: 1.5rem; align-items: start; }
+.card h3 { margin: 0; font-size: 1.15rem; line-height: 1.35; font-weight: 700; letter-spacing: -0.01em; max-width: 40rem; }
+.card h3 a { color: inherit; text-decoration: none; }
+.card h3 a:hover { color: var(--flow); }
+.raw { margin: .25rem 0 0; color: var(--ink-3); font-size: .92rem; }
+.tally { display: flex; gap: .35rem; flex-shrink: 0; font: 500 .78rem var(--mono); }
+.tally span { padding: .15rem .5rem; border-radius: 6px; border: 1px solid var(--line); white-space: nowrap; }
+.tally .h { color: var(--held); } .tally .p { color: var(--partial); } .tally .s { color: var(--ink-2); }
+
+.crux { display: grid; grid-template-columns: auto 1fr auto; gap: .75rem; align-items: center; margin: .95rem 0 .8rem; padding: .7rem .9rem; border-radius: 12px; background: var(--crux-wash); border-left: 3px solid var(--crux); }
+.crux .t { font-weight: 700; }
+.crux .lbl { font: .78rem var(--mono); color: var(--crux); white-space: nowrap; }
+.mark { font: 500 .85rem var(--mono); white-space: pre; }
+.m-held { color: var(--held); } .m-partial { color: var(--partial); } .m-short { color: var(--ink-3); } .m-prop { color: var(--ink-3); } .m-friend { color: var(--flow); }
+
+.caps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: .3rem 1.5rem; }
+.caps li { display: flex; gap: .55rem; font-size: .93rem; color: var(--ink-2); }
+.caps li.prop { font-style: italic; color: var(--ink-3); }
+
+.card-foot { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin-top: .95rem; padding-top: .8rem; border-top: 1px solid var(--line); font-size: .88rem; color: var(--ink-3); }
+.tag { padding: .12rem .55rem; border-radius: 999px; border: 1px solid var(--line); font-size: .8rem; color: var(--ink-2); }
+.tag.prop { border-style: dashed; color: var(--partial); border-color: var(--partial); }
+.friend { color: var(--flow); display: inline-flex; gap: .4rem; align-items: center; }
+.spacer { flex: 1; }
+
+/* extracting state */
+.card.busy .progress { margin: 1rem 0 .2rem; display: flex; align-items: center; gap: .8rem; font: .85rem var(--mono); color: var(--ink-2); }
+.bar { flex: 1; max-width: 18rem; height: 5px; border-radius: 3px; background: var(--line); overflow: hidden; }
+.bar i { display: block; height: 100%; width: 0; background: var(--flow); transition: width .25s linear; }
+.steps { font: .8rem var(--mono); color: var(--ink-3); margin: .35rem 0 0; }
+
+/* vague state */
+.ask { margin: .95rem 0 0; padding: .9rem 1rem; border-radius: 12px; border: 1px dashed var(--partial); }
+.ask p { margin: 0 0 .6rem; color: var(--ink); }
+.ask p b { color: var(--partial); font-weight: 700; }
+.ask .row { display: flex; gap: .5rem; }
+.ask input { flex: 1; height: 2.4rem; padding: 0 .8rem; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); }
+
+/* split-flap */
+.flap { display: inline-flex; flex-wrap: wrap; row-gap: 2px; }
+.flap .ch { display: inline-block; min-width: .56em; text-align: center; font-family: var(--mono); font-weight: 500; font-size: .95rem; background: var(--bg-2); border-radius: 3px; margin-right: 1px; box-shadow: inset 0 -1px 0 var(--line); position: relative; }
+.flap .ch::after { content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: var(--crux-wash); }
+.flap .ch.sp { background: none; box-shadow: none; }
+.flap.done .ch { background: none; box-shadow: none; font-family: var(--display); font-weight: 700; font-size: 1rem; min-width: 0; margin: 0; transition: all .3s; }
+.flap.done .ch::after { display: none; }
+.fade-in { animation: fade .5s ease both; }
+@keyframes fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+/* side panel */
+aside { position: sticky; top: 1.25rem; background: var(--bg-2); border: 1px solid var(--line); border-radius: 18px; padding: 1.25rem 1.25rem 1rem; }
+aside h2 { margin: 0; font-size: 1.15rem; font-weight: 800; }
+aside > p { margin: .2rem 0 1rem; color: var(--ink-3); font-size: .9rem; }
+aside ol { list-style: none; margin: 0; padding: 0; }
+aside li { display: grid; grid-template-columns: 2.3rem 1fr; gap: .5rem; padding: .55rem 0; border-top: 1px solid var(--line); font-size: .9rem; line-height: 1.35; }
+aside .k { font: 500 1.05rem var(--mono); color: var(--flow); }
+aside li:first-child .k { font-size: 1.35rem; }
+aside a { color: inherit; text-decoration: none; }
+aside a:hover { color: var(--flow); }
+
+.newest .band-head { display: none; }
+/* shared page chrome */
+.view[hidden] { display: none; }
+.page-head { display: flex; justify-content: space-between; align-items: end; gap: 2rem; margin: 2rem 0 1.5rem; }
+.page-head h1 { margin: 0; font-size: 2.2rem; font-weight: 800; letter-spacing: -0.035em; line-height: 1.1; }
+.page-head p { margin: .35rem 0 0; color: var(--ink-2); max-width: 36rem; }
+.row { display: flex; gap: .5rem; }
+input.txt, .fld input, .name-form input, .rv input { height: 2.4rem; padding: 0 .8rem; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); min-width: 0; flex: 1; }
+input::placeholder { color: var(--ink-3); opacity: .75; font-style: italic; }
+.link { background: none; border: 0; padding: 0; cursor: pointer; color: var(--ink-3); font-size: .88rem; text-decoration: underline; text-underline-offset: 3px; }
+.link:hover { color: var(--ink); }
+.link.danger { color: var(--crux); margin-top: 1rem; }
+
+/* group */
+.owner { font-weight: 700; color: var(--ink); text-decoration: none; }
+.owner:hover { color: var(--flow); }
+.av { display: inline-grid; place-items: center; width: 1.9rem; height: 1.9rem; border-radius: 50%; background: var(--flow-wash); color: var(--flow); font-weight: 700; font-size: .85rem; border: 1px solid var(--line); }
+.people { list-style: none; margin: 0 0 1rem; padding: 0; }
+.people li { display: flex; align-items: center; gap: .55rem; padding: .45rem 0; border-top: 1px solid var(--line); font-size: .95rem; }
+.people a { color: inherit; }
+.manage { border-top: 1px solid var(--line); padding-top: .75rem; }
+.manage summary { cursor: pointer; font-weight: 700; color: var(--ink-2); }
+.manage[open] summary { margin-bottom: .75rem; color: var(--ink); }
+.fld { display: grid; gap: .35rem; font-size: .88rem; color: var(--ink-2); margin: .75rem 0 0; }
+.sub-h { margin: 1rem 0 .3rem; font-size: .88rem; font-weight: 700; color: var(--ink-2); }
+.plain { list-style: none; margin: 0; padding: 0; }
+.plain li { display: flex; justify-content: space-between; align-items: center; padding: .35rem 0; border-top: 1px solid var(--line); font-size: .92rem; }
+.hint { margin: .4rem 0 0; font-size: .82rem; color: var(--ink-3); }
+.cover { display: inline-flex; gap: .4rem; align-items: center; }
+.cover .m-short { color: var(--ink-3); }
+
+/* profile */
+.name-form { display: grid; gap: .35rem; font-size: .88rem; color: var(--ink-2); min-width: 22rem; }
+.rated { margin: 0 0 1.75rem; }
+.rated-bar { display: flex; height: 8px; border-radius: 4px; overflow: hidden; background: var(--line); }
+.rated-bar i { display: block; height: 100%; }
+.rated p { margin: .5rem 0 0; font: .85rem var(--mono); color: var(--ink-2); }
+.dom { margin: 0 0 2rem; scroll-margin-top: 1rem; }
+.dom h2 { margin: 0 0 .5rem; font-size: 1.3rem; font-weight: 800; letter-spacing: -0.02em; }
+.skill { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 1.5rem; align-items: center; padding: .75rem 1rem; border-radius: 12px; }
+.skill + .skill { border-top: 1px solid var(--line); border-radius: 0; }
+.skill .nm { font-weight: 500; }
+.skill code { display: block; font: .78rem var(--mono); color: var(--ink-3); }
+.skill.unrated .nm::after { content: "not rated"; margin-left: .6rem; font: .72rem var(--mono); color: var(--partial); border: 1px dashed var(--partial); border-radius: 999px; padding: .05rem .45rem; vertical-align: 2px; }
+.lvl { display: inline-flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--bg-2); }
+.skill.unrated .lvl { border-style: dashed; }
+.lvl button { border: 0; background: none; padding: .38rem .85rem; cursor: pointer; font-size: .88rem; color: var(--ink-2); }
+.lvl button + button { border-left: 1px solid var(--line); }
+.lvl button:hover { background: var(--flow-wash); }
+.lvl button[aria-pressed="true"][data-l="none"] { background: var(--ink-3); color: var(--bg-2); }
+.lvl button[aria-pressed="true"][data-l="some"] { background: var(--partial); color: var(--bg-2); }
+.lvl button[aria-pressed="true"][data-l="solid"] { background: var(--held); color: var(--bg-2); }
+.domains { list-style: none; margin: 0; padding: 0; }
+aside .domains li { display: block; padding: 0; border-top: 1px solid var(--line); }
+.domains a { display: flex; justify-content: space-between; align-items: baseline; gap: .75rem; padding: .55rem 0; font-size: .92rem; }
+.domains a > span:first-child { min-width: 0; overflow-wrap: anywhere; }
+.domains .c { font: .8rem var(--mono); color: var(--ink-3); }
+
+/* review */
+.rv h3 { margin: 0; font: 500 1.1rem var(--mono); }
+.rv .meta { font: .8rem var(--mono); color: var(--ink-3); display: flex; gap: .4rem; flex-wrap: wrap; }
+.rv .why { margin: .75rem 0 1rem; padding: .7rem .9rem; border-radius: 12px; background: var(--flow-wash); color: var(--ink-2); font-size: .93rem; }
+.rv .why b { color: var(--ink); font-weight: 700; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem 1rem; }
+.grid2 .full { grid-column: 1 / -1; }
+.rv .actions { display: flex; align-items: center; gap: .75rem; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--line); }
+.rv .reject { display: flex; gap: .5rem; flex: 1; justify-content: flex-end; }
+.rv .reject input { max-width: 18rem; }
+.btn.warn { background: none; color: var(--crux); border: 1px solid var(--crux); }
+.rv.gone { opacity: .45; }
+
+@media (prefers-reduced-motion: reduce) { .fade-in { animation: none; } .bar i { transition: none; } }
+</style>
+</head>
+<body>
+<div class="mock-bar">
+  <span>Desktop mockup, sample data</span>
+  <button type="button" id="theme">Theme: system</button>
+  <button type="button" id="replay">Replay extraction</button>
+</div>
+
+<div class="shell">
+  <header class="top">
+    <div class="brand">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M7 18h10a4 4 0 0 0 .5-7.97A6 6 0 0 0 6.1 9.6 4.2 4.2 0 0 0 7 18Z"/></svg>
+      clouded
+    </div>
+    <nav aria-label="Main">
+      <a href="#ideas" data-view="ideas" class="on" aria-current="page">Ideas</a>
+      <a href="#group" data-view="group">Group</a>
+      <a href="#profile" data-view="profile">Profile</a>
+      <a href="#review" data-view="review">Review</a>
+      <a href="#" class="out">Sign out</a>
+    </nav>
+  </header>
+
+  <section class="view" id="v-ideas">
+  <form class="capture" onsubmit="return false">
+    <input aria-label="New idea" placeholder="An idea, in as few words as you like">
+    <button class="btn" type="submit">Add idea</button>
+    <span class="cost">extracts on save, about 1¢</span>
+  </form>
+
+  <div class="controls">
+    <div class="seg" role="group" aria-label="Sort">
+      <button type="button" data-sort="distance" aria-pressed="true">Closest to me</button>
+      <button type="button" data-sort="newest" aria-pressed="false">Newest</button>
+    </div>
+    <select aria-label="Domain"><option>Any domain</option><option>Fabrication</option><option>Embedded</option><option>Software / web</option><option>Animation</option></select>
+    <select aria-label="Crux"><option>Any crux</option><option>parametric-cad</option><option>bldc-foc</option></select>
+    <label class="chk"><input type="checkbox"> Has a proposed skill</label>
+    <label class="chk"><input type="checkbox"> A friend can unblock it</label>
+    <span class="count" id="count">7 of 27 shown</span>
+  </div>
+
+  <div class="layout">
+    <main id="list"></main>
+    <aside aria-label="Highest leverage">
+      <h2>Highest leverage</h2>
+      <p>Learn one of these and this many ideas move closer.</p>
+      <ol>
+        <li><span class="k">10</span><a href="#">Model a part parametrically in CAD from measured dimensions</a></li>
+        <li><span class="k">7</span><a href="#">Size and isolate power rails for motors alongside logic</a></li>
+        <li><span class="k">6</span><a href="#">Choose filament and print orientation for the part's service environment</a></li>
+        <li><span class="k">5</span><a href="#">Measure a real object and design a printed part that fits it</a></li>
+        <li><span class="k">4</span><a href="#">Model a clean, topologically sane mesh in Blender</a></li>
+        <li><span class="k">4</span><a href="#">Block and animate a camera that serves the shot</a></li>
+        <li><span class="k">3</span><a href="#">Integrate a third-party data API with keys, rate limits and errors</a></li>
+        <li><span class="k">3</span><a href="#">Build and ship a SwiftUI app to a device</a></li>
+      </ol>
+    </aside>
+  </div>
+  </section>
+
+  <section class="view" id="v-group" hidden>
+    <div class="page-head">
+      <div><h1>test's friends</h1><p>Ideas your group shared, and who can help with each.</p></div>
+      <div class="seg" role="group" aria-label="Sort feed">
+        <button type="button" aria-pressed="true">Newest</button>
+        <button type="button" aria-pressed="false">Closest to me</button>
+      </div>
+    </div>
+    <div class="layout">
+      <main id="feed" class="cards"></main>
+      <aside aria-label="Group">
+        <h2>Members</h2>
+        <p>Everyone here can see each other's skill levels and the ideas shared to the group.</p>
+        <ul class="people">
+          <li><span class="av">T</span>test <span class="tag">you</span><span class="tag">creator</span></li>
+          <li><span class="av">A</span><a href="#">Alex</a></li>
+          <li><span class="av">D</span><a href="#">dan the idea man</a></li>
+        </ul>
+        <details class="manage">
+          <summary>Manage group</summary>
+          <label class="fld">Group name
+            <span class="row"><input value="test's friends"><button class="btn sm ghost" type="button">Rename</button></span></label>
+          <div class="sub-h">Members</div>
+          <ul class="plain">
+            <li>Alex <button class="link" type="button">Remove</button></li>
+            <li>dan the idea man <button class="link" type="button">Remove</button></li>
+          </ul>
+          <label class="fld">Invite a friend by email
+            <span class="row"><input type="email" placeholder="friend@example.com"><button class="btn sm" type="button">Invite</button></span></label>
+          <p class="hint">They make their own account from the sign-in page and land here. Each idea they add costs you about a cent.</p>
+          <div class="sub-h">Invited, not joined yet</div>
+          <ul class="plain"><li>kyle@example.com <button class="link" type="button">Revoke</button></li></ul>
+          <button class="link danger" type="button">Leave group</button>
+        </details>
+      </aside>
+    </div>
+  </section>
+
+  <section class="view" id="v-profile" hidden>
+    <div class="page-head">
+      <div><h1>Your skills</h1><p>Be honest. An inflated profile makes every distance wrong.</p></div>
+      <form class="name-form" onsubmit="return false">
+        <label for="nm">Your name, as friends see it</label>
+        <span class="row"><input id="nm" value="test"><button class="btn sm ghost" type="submit">Save</button></span>
+      </form>
+    </div>
+    <div class="rated">
+      <div class="rated-bar" id="ratedBar"></div>
+      <p id="ratedText"></p>
+    </div>
+    <div class="layout">
+      <main id="skills"></main>
+      <aside aria-label="Domains">
+        <h2>Domains</h2>
+        <p>Rated out of total in each.</p>
+        <ol id="domains" class="domains"></ol>
+        <label class="chk" style="margin-top:1rem"><input type="checkbox" id="unratedOnly"> Show only unrated</label>
+      </aside>
+    </div>
+  </section>
+
+  <section class="view" id="v-review" hidden>
+    <div class="page-head">
+      <div><h1>Proposed skills</h1><p>The model proposes a skill when nothing in the table covers a capability. Nothing is added until you promote it.</p></div>
+    </div>
+    <div class="layout">
+      <main id="queue" class="cards"></main>
+      <aside aria-label="Queue">
+        <h2>Waiting for review</h2>
+        <p id="qcount"></p>
+        <ol id="qlist" class="domains"></ol>
+      </aside>
+    </div>
+  </section>
+</div>
+
+<script>
+const MARK = { held: "[x]", partial: "[~]", short: "[ ]", prop: "[?]", friend: "[+]" };
+const ideas = [
+  { id: 1, band: "now", date: "2026-09-10", title: "A weight-sensing coaster that logs how much you drink through the day", raw: "smart coaster pcb",
+    crux: ["held", "Read a sensor over I2C or SPI from a microcontroller"], domain: "embedded",
+    caps: [["held", "Write and flash firmware for a microcontroller"], ["held", "Solder a through-hole board from a schematic"], ["held", "Draw a schematic in an EDA tool from a working breadboard"]] },
+  { id: 2, band: "now", date: "2026-09-08", title: "A to-do app that syncs across my phone and laptop", raw: "todo app",
+    crux: ["held", "Build a REST API with authentication"], domain: "software / web",
+    caps: [["held", "Design a normalized relational schema with sane keys"], ["held", "Build a single-page frontend that talks to an API"]] },
+  { id: 3, band: "one", date: "2026-09-12", title: "A programmable haptic knob with software-defined detents", raw: "haptic feedback knob",
+    crux: ["short", "Close a field-oriented control loop on a BLDC motor"], domain: "embedded",
+    caps: [["held", "Write and flash firmware for a microcontroller"], ["partial", "Route a PCB layout and send it for fabrication"], ["held", "Read a sensor over I2C or SPI"]],
+    friend: "Alex holds the hard part" },
+  { id: 4, band: "one", date: "2026-09-16", busy: true, title: "A screw dispenser that counts parts by weight and logs them to a parts database", raw: "screw dispenser that counts",
+    crux: ["short", "Mechanically separate one small part at a time from a hopper"], domain: "fabrication",
+    caps: [["held", "Read a sensor over I2C or SPI"], ["held", "Build a REST API with authentication"], ["held", "Write and flash firmware for a microcontroller"]] },
+  { id: 5, band: "far", date: "2026-09-13", title: "A 3D-printed cactus pot with a Pokémon design embossed on the surface", raw: "cactus pot with pokemon design",
+    crux: ["partial", "Model a clean, topologically sane mesh in Blender"], domain: "3D printing",
+    caps: [["short", "Model a part parametrically in CAD from measured dimensions"], ["short", "Choose filament and print orientation for the part's service environment"]] },
+  { id: 6, band: "far", date: "2026-09-11", title: "A web app where people upload geotagged photos and see them on a map of places they've been", raw: "Geo tagged picture on website to track where you have been.",
+    crux: ["held", "Build a single-page frontend that talks to an API"], domain: "software / web", proposed: true,
+    caps: [["held", "Design a normalized relational schema with sane keys"], ["held", "Build a REST API with authentication"], ["prop", "map-visualization (proposed)"], ["prop", "exif-geo-extraction (proposed)"]] },
+  { id: 7, band: "vague", date: "2026-09-15", title: "something with the fish tank", raw: "something with the fish tank", vague: "Is this a Blender animation, a physical build, or an app?" },
+];
+const BANDS = [
+  ["now", "Buildable now", "You hold everything these need."],
+  ["one", "One skill away", "Learn the hard part and you can start."],
+  ["far", "Further out", "Two or more skills short."],
+  ["vague", "Needs a detail", "Answer one question and extraction runs."],
+];
+const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+let sort = "distance";
+
+function tally(caps, crux) {
+  const all = [crux, ...caps].map(c => c[0]);
+  const n = k => all.filter(x => x === k).length;
+  return `<div class="tally">${n("short") + n("prop") ? `<span class="s">${n("short") + n("prop")} short</span>` : ""}${n("partial") ? `<span class="p">${n("partial")} partial</span>` : ""}${n("held") ? `<span class="h">${n("held")} held</span>` : ""}</div>`;
+}
+const cap = ([k, t]) => `<li class="${k === "prop" ? "prop" : ""}"><span class="mark m-${k}">${MARK[k]}</span><span>${t}</span></li>`;
+const cruxRow = (c, flap) => `<div class="crux"><span class="mark m-${c[0]}">${MARK[c[0]]}</span><span class="t">${flap ? `<span class="flap" data-text="${c[1]}"></span>` : c[1]}</span><span class="lbl">the hard part</span></div>`;
+const fmt = d => new Date(d + "T12:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
+
+function card(i) {
+  if (i.vague) return `<article class="card"><div class="card-head"><div><h3><a href="#">${i.title}</a></h3><p class="raw">Too vague to extract yet</p></div></div>
+    <div class="ask"><p><b>One question:</b> ${i.vague}</p><div class="row"><input aria-label="Your answer" placeholder="A few words is enough"><button class="btn sm" type="button">Answer</button></div></div>
+    <div class="card-foot"><span>you</span><span>${fmt(i.date)}</span></div></article>`;
+  if (i.busy) return `<article class="card busy" id="busy"><div class="card-head"><div><h3><a href="#">${i.raw}</a></h3><p class="raw">Just added</p></div></div>
+    <div class="progress"><div class="bar"><i></i></div><span id="secs">Extracting, 0s</span></div><p class="steps" id="step">Reading the idea</p>
+    <div class="card-foot"><span>you</span><span>${fmt(i.date)}</span></div></article>`;
+  return body(i, false);
+}
+function body(i, flap) {
+  return `<article class="card"${flap ? ' id="busy"' : ""}><div class="card-head"><div><h3><a href="#">${i.title}</a></h3><p class="raw">${i.raw}</p></div>${tally(i.caps, i.crux)}</div>
+    ${cruxRow(i.crux, flap)}
+    <ul class="caps">${i.caps.map(cap).join("")}</ul>
+    <div class="card-foot"><span class="tag">${i.domain}</span>${i.proposed ? '<span class="tag prop">proposed skill</span>' : ""}
+    ${i.friend ? `<span class="friend"><span class="mark">[+]</span>${i.friend}</span>` : ""}<span class="spacer"></span><span>you</span><span>${fmt(i.date)}</span></div></article>`;
+}
+
+function render() {
+  const list = document.getElementById("list");
+  list.className = sort === "newest" ? "newest" : "";
+  if (sort === "newest") {
+    const s = [...ideas].sort((a, b) => b.date.localeCompare(a.date));
+    list.innerHTML = `<section class="band"><div class="cards">${s.map(card).join("")}</div></section>`;
+  } else {
+    list.innerHTML = BANDS.map(([k, h, p]) => {
+      const items = ideas.filter(i => i.band === k);
+      return items.length ? `<section class="band ${k}"><div class="band-head"><h2>${h}</h2><span class="n">${items.length}</span><p>${p}</p></div><div class="cards">${items.map(card).join("")}</div></section>` : "";
+    }).join("");
+  }
+  runExtraction();
+}
+
+let timers = [];
+function runExtraction() {
+  timers.forEach(clearInterval); timers = [];
+  const el = document.getElementById("busy");
+  if (!el) return;
+  const steps = ["Reading the idea", "Listing capabilities", "Matching to the skills table", "Finding the hard part"];
+  let t = 0;
+  const tick = setInterval(() => {
+    t++;
+    const bar = el.querySelector(".bar i"), secs = el.querySelector("#secs"), step = el.querySelector("#step");
+    if (!bar) return clearInterval(tick);
+    bar.style.width = Math.min(100, t * 20) + "%";
+    secs.textContent = `Extracting, ${t}s`;
+    step.textContent = steps[Math.min(steps.length - 1, Math.floor(t / 1.3))];
+    if (t >= 5) { clearInterval(tick); finish(el); }
+  }, 1000);
+  timers.push(tick);
+}
+
+function finish(el) {
+  const i = ideas.find(x => x.busy);
+  const wrap = document.createElement("div");
+  wrap.innerHTML = body(i, true);
+  const done = wrap.firstElementChild;
+  el.replaceWith(done);
+  done.classList.add("fade-in");
+  const flap = done.querySelector(".flap");
+  const text = flap.dataset.text;
+  if (reduce) { flap.textContent = text; flap.classList.add("done"); return; }
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+  flap.innerHTML = [...text].map(c => `<span class="ch${c === " " ? " sp" : ""}">${c === " " ? "&nbsp;" : chars[Math.floor(Math.random() * chars.length)]}</span>`).join("");
+  const nodes = [...flap.children];
+  let frame = 0;
+  const run = setInterval(() => {
+    frame++;
+    let settled = 0;
+    nodes.forEach((n, k) => {
+      if (text[k] === " ") { settled++; return; }
+      if (frame > 6 + k * 0.9) { n.textContent = text[k]; settled++; }
+      else n.textContent = chars[Math.floor(Math.random() * chars.length)];
+    });
+    if (settled === nodes.length) { clearInterval(run); setTimeout(() => flap.classList.add("done"), 350); }
+  }, 45);
+  timers.push(run);
+}
+
+document.querySelectorAll("#v-ideas .seg button").forEach(b => b.addEventListener("click", () => {
+  sort = b.dataset.sort;
+  document.querySelectorAll(".seg button").forEach(x => x.setAttribute("aria-pressed", String(x === b)));
+  render();
+}));
+document.getElementById("replay").addEventListener("click", render);
+const modes = ["system", "light", "dark"]; let m = 0;
+document.getElementById("theme").addEventListener("click", e => {
+  m = (m + 1) % 3;
+  if (modes[m] === "system") delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = modes[m];
+  e.target.textContent = "Theme: " + modes[m];
+});
+
+/* ---------- views ---------- */
+function show(v) {
+  document.querySelectorAll(".view").forEach(s => s.hidden = s.id !== "v-" + v);
+  document.querySelectorAll("nav a[data-view]").forEach(a => {
+    const on = a.dataset.view === v;
+    a.classList.toggle("on", on);
+    on ? a.setAttribute("aria-current", "page") : a.removeAttribute("aria-current");
+  });
+  document.getElementById("replay").hidden = v !== "ideas";
+  if (v === "ideas") render(); else { timers.forEach(clearInterval); }
+  window.scrollTo(0, 0);
+}
+document.querySelectorAll("nav a[data-view]").forEach(a => a.addEventListener("click", e => { e.preventDefault(); show(a.dataset.view); }));
+document.querySelectorAll("#v-group .seg button").forEach(b => b.addEventListener("click", () =>
+  document.querySelectorAll("#v-group .seg button").forEach(x => x.setAttribute("aria-pressed", String(x === b)))));
+
+/* ---------- group feed ---------- */
+const feed = [
+  { owner: "dan the idea man", date: "2026-09-15", domain: "quantitative finance",
+    title: "An automated trading system that computes gamma exposure from options open interest, finds call and put walls, and signals directional trades",
+    crux: ["short", "Estimate how fast dealers' combined delta changes as the underlying price moves"],
+    caps: [["held", "Integrate a third-party data API with keys, rate limits and errors"], ["short", "Price options and compute greeks from a model"], ["short", "Backtest a trading signal without look-ahead bias"]],
+    cover: [0, 3], friendCrux: null },
+  { owner: "you", date: "2026-09-13", domain: "mechanical design / 3D printing",
+    title: "A 3D-printed mount that clamps to a golf bag strap and holds an iPhone at an angle to film swings",
+    crux: ["short", "Measure a real object and design a printed part, clamp or fixture that fits it"],
+    caps: [["short", "Model a part parametrically in CAD from measured dimensions"], ["short", "Design a mount that holds a device rigid under vibration and impact"], ["short", "Choose filament and print orientation for the part's service environment"]],
+    cover: [2, 4], friendCrux: "Alex" },
+];
+document.getElementById("feed").innerHTML = feed.map(i => `<article class="card">
+  <div class="card-head"><div><h3><a href="#">${i.title}</a></h3></div>${tally(i.caps, i.crux)}</div>
+  ${cruxRow(i.crux)}
+  <ul class="caps">${i.caps.map(cap).join("")}</ul>
+  <div class="card-foot">
+    ${i.owner === "you" ? '<span class="owner">you</span>' : `<a href="#" class="owner">${i.owner}</a>`}
+    <span class="tag">${i.domain}</span><span>${fmt(i.date)}</span><span class="spacer"></span>
+    ${i.friendCrux ? `<span class="friend"><span class="mark">[+]</span>${i.friendCrux} holds the hard part</span>` : ""}
+    <span class="cover"><span class="mark ${i.cover[0] ? "m-friend" : "m-short"}">${i.cover[0] ? "[+]" : "[ ]"}</span>group covers ${i.cover[0]} of ${i.cover[1]} gaps</span>
+  </div></article>`).join("");
+
+/* ---------- profile ---------- */
+const skills = {
+  Fabrication: [
+    ["parametric-cad", "Model a part parametrically in CAD from measured dimensions", null],
+    ["print-tolerancing", "Measure a real object and design a printed part, clamp or fixture that fits it", null],
+    ["print-joinery", "Design snap-fit, dovetail or modular joints between printed parts", null],
+    ["print-material-choice", "Choose filament and print orientation for the part's service environment", null],
+    ["vibration-mount", "Design a mount that holds a device rigid under vibration and impact", null],
+    ["mechanism-design", "Design a multi-part linkage or moving mechanism that doesn't bind", "none"],
+  ],
+  Embedded: [
+    ["mcu-firmware", "Write and flash firmware for a microcontroller", "solid"],
+    ["i2c-spi-io", "Read a sensor over I2C or SPI from a microcontroller", "solid"],
+    ["pcb-schematic", "Draw a schematic in an EDA tool from a working breadboard", "some"],
+    ["pcb-layout", "Route a PCB layout and send it for fabrication", "some"],
+    ["tht-soldering", "Solder a through-hole board from a schematic", "solid"],
+    ["motor-power-rails", "Size and isolate power rails for motors alongside logic", null],
+  ],
+  "Software / web": [
+    ["rest-api-auth", "Build a REST API with authentication", "solid"],
+    ["spa-frontend", "Build a single-page frontend that talks to an API", "solid"],
+    ["relational-schema", "Design a normalized relational schema with sane keys", "some"],
+    ["swiftui-ship", "Build and ship a SwiftUI app to a device", "some"],
+  ],
+  Animation: [
+    ["blender-topology", "Model a clean, topologically sane mesh in Blender", "some"],
+    ["camera-blocking", "Block and animate a camera that serves the shot", null],
+    ["render-compositing", "Render in passes and composite the result", "some"],
+  ],
+};
+const slug = s => s.toLowerCase().replace(/[^a-z]+/g, "-");
+function drawProfile() {
+  const only = document.getElementById("unratedOnly").checked;
+  const all = Object.values(skills).flat();
+  const c = k => all.filter(s => s[2] === k).length;
+  const rated = all.length - c(null), total = all.length;
+  document.getElementById("ratedText").textContent =
+    `${rated} of ${total} rated: ${c("solid")} solid, ${c("some")} some, ${c("none")} none. ${c(null)} still unrated.`;
+  const pct = n => (n / total * 100) + "%";
+  document.getElementById("ratedBar").innerHTML =
+    `<i style="width:${pct(c("solid"))};background:var(--held)"></i><i style="width:${pct(c("some"))};background:var(--partial)"></i><i style="width:${pct(c("none"))};background:var(--ink-3)"></i>`;
+  document.getElementById("skills").innerHTML = Object.entries(skills).map(([d, list]) => {
+    const rows = list.filter(s => !only || s[2] === null);
+    if (!rows.length) return "";
+    return `<section class="dom card" id="d-${slug(d)}"><h2>${d}</h2>${rows.map(([id, nm, lv]) => `
+      <div class="skill${lv ? "" : " unrated"}"><div><div class="nm">${nm}</div><code>${id}</code></div>
+      <div class="lvl" role="group" aria-label="Level for ${id}">${["none", "some", "solid"].map(l =>
+        `<button type="button" data-id="${id}" data-l="${l}" aria-pressed="${lv === l}">${l}</button>`).join("")}</div></div>`).join("")}</section>`;
+  }).join("") || `<p class="card">Every skill is rated.</p>`;
+  document.getElementById("domains").innerHTML = Object.entries(skills).map(([d, list]) =>
+    `<li><a href="#d-${slug(d)}"><span>${d}</span><span class="c">${list.filter(s => s[2]).length}/${list.length}</span></a></li>`).join("");
+}
+document.getElementById("skills").addEventListener("click", e => {
+  const b = e.target.closest("button[data-l]"); if (!b) return;
+  const s = Object.values(skills).flat().find(x => x[0] === b.dataset.id);
+  s[2] = b.dataset.l; drawProfile();
+});
+document.getElementById("unratedOnly").addEventListener("change", drawProfile);
+document.getElementById("domains").addEventListener("click", e => {
+  const a = e.target.closest("a"); if (!a) return; e.preventDefault();
+  document.querySelector(a.getAttribute("href"))?.scrollIntoView({ behavior: reduce ? "auto" : "smooth" });
+});
+drawProfile();
+
+/* ---------- review ---------- */
+const proposals = [
+  { id: "scene-location-matching", ideas: 1, runs: 1, crux: 1,
+    why: "Identifying which real-world locations match specific anime frames needs a visual location-matching pipeline beyond generic embeddings." },
+  { id: "sound-actuator-driving", ideas: 1, runs: 1, crux: 1,
+    why: "Needs to drive loud buzzers, speakers or shaker motors hard enough to reliably wake someone." },
+  { id: "map-visualization", ideas: 1, runs: 2, crux: 0,
+    why: "Plotting user photo locations on an interactive map isn't covered by the frontend skill." },
+];
+function drawQueue() {
+  const open = proposals.filter(p => !p.done).length;
+  document.getElementById("qcount").textContent = `${open} proposal${open === 1 ? "" : "s"} in this sample (14 on the live site).`;
+  document.getElementById("qlist").innerHTML = proposals.map(p =>
+    `<li><a href="#p-${p.id}"><span style="font-family:var(--mono);font-size:.85rem${p.done ? ";text-decoration:line-through" : ""}">${p.id}</span><span class="c">${p.done || (p.crux ? "crux" : "")}</span></a></li>`).join("");
+}
+document.getElementById("queue").innerHTML = proposals.map(p => `<article class="card rv" id="p-${p.id}">
+  <div class="card-head"><h3>${p.id}</h3>
+    <div class="meta"><span class="tag">${p.ideas} idea</span><span class="tag">${p.runs} run${p.runs > 1 ? "s" : ""}</span>${p.crux ? `<span class="tag" style="color:var(--crux);border-color:var(--crux)">the hard part ×${p.crux}</span>` : ""}</div></div>
+  <p class="why"><b>Why the model proposed it:</b> ${p.why}</p>
+  <div class="grid2">
+    <label class="fld">Skill id<input value="${p.id}"></label>
+    <label class="fld">Domain<input placeholder="e.g. fabrication"></label>
+    <label class="fld full">Name, as a checkable task<input placeholder="e.g. Measure a real object and design a part that fits it"></label>
+    <label class="fld full">Aliases, comma separated<input value="${p.id}"></label>
+  </div>
+  <label class="chk" style="margin-top:.75rem"><input type="checkbox"> Involves a real hazard</label>
+  <div class="actions">
+    <button class="btn sm" type="button" data-act="Promoted" data-p="${p.id}">Promote to a skill</button>
+    <div class="reject"><input placeholder="Why this isn't a skill"><button class="btn sm warn" type="button" data-act="Rejected" data-p="${p.id}">Reject</button></div>
+  </div></article>`).join("");
+document.getElementById("queue").addEventListener("click", e => {
+  const b = e.target.closest("button[data-act]"); if (!b) return;
+  const p = proposals.find(x => x.id === b.dataset.p); p.done = b.dataset.act;
+  const card = b.closest(".rv"); card.classList.add("gone");
+  card.querySelector(".actions").innerHTML = `<span class="mark ${p.done === "Promoted" ? "m-held" : "m-short"}">${p.done === "Promoted" ? "[x]" : "[-]"}</span> ${p.done}. <button class="link" type="button">Undo</button>`;
+  drawQueue();
+});
+document.getElementById("qlist").addEventListener("click", e => {
+  const a = e.target.closest("a"); if (!a) return; e.preventDefault();
+  document.querySelector(a.getAttribute("href"))?.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+});
+drawQueue();
+
+const start = (location.hash || "#ideas").slice(1);
+show(["ideas", "group", "profile", "review"].includes(start) ? start : "ideas");
+</script>
+</body>
+</html>
