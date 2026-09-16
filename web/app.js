@@ -498,19 +498,41 @@ function listView() {
 // ---------------------------------------------------------------- profile
 
 // Updated in place rather than through a re-render: re-rendering on every
-// radio change would pull focus out of the control being used.
+// radio change would pull focus out of the control being used. The bar, the
+// text and the per-domain counts in the side panel are all repainted here.
 const status = el("span", { class: "status" }, "");
-const tally = el("p", { class: "muted" }, "");
+const tally = el("p", { class: "tally-text" }, "");
+const ratedBar = el("div", { class: "rated-bar", "aria-hidden": "true" });
+const domainCounts = new Map();   // domain -> the "rated/total" span in the side panel
+
+const slug = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+const reduceMotion = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 function refreshTally() {
   const n = { none: 0, some: 0, solid: 0, unrated: 0 };
+  const perDomain = new Map();
   for (const s of state.skills) {
     const lv = state.levels.get(s.id);
     if (lv) n[lv]++; else n.unrated++;
+    const d = s.domain || "other";
+    const c = perDomain.get(d) ?? { rated: 0, total: 0 };
+    c.total++; if (lv) c.rated++;
+    perDomain.set(d, c);
   }
-  const rated = state.skills.length - n.unrated;
+  const total = state.skills.length;
+  const rated = total - n.unrated;
   tally.textContent =
-    `${rated} of ${state.skills.length} rated · ${n.solid} solid · ${n.some} some · ${n.none} none`;
+    `${rated} of ${total} rated: ${n.solid} solid, ${n.some} some, ${n.none} none. ${n.unrated} still unrated.`;
+  const pct = (k) => total ? `${(n[k] / total * 100).toFixed(1)}%` : "0%";
+  ratedBar.replaceChildren(
+    el("i", { class: "solid", style: `width:${pct("solid")}` }),
+    el("i", { class: "some", style: `width:${pct("some")}` }),
+    el("i", { class: "none", style: `width:${pct("none")}` })
+  );
+  for (const [domain, span] of domainCounts) {
+    const d = perDomain.get(domain);
+    span.textContent = d ? `${d.rated}/${d.total}` : "";
+  }
 }
 
 function save(skillId, level) {
@@ -523,10 +545,13 @@ function save(skillId, level) {
     .catch((err) => { status.textContent = err.message; status.className = "status error"; });
 }
 
+// Radios, so the keyboard works and focus stays put. An unrated skill checks
+// nothing: a row with no level is not "none" (db.js, setSkillLevel), and the
+// dashed control and the "not rated" tag hang off that in CSS.
 function levelControl(skill) {
-  const current = state.levels.get(skill.id) ?? "none";
-  return el("div", { class: "seg-group", role: "radiogroup", "aria-label": skill.name },
-    LEVELS.map((lv) => el("label", { class: "seg" },
+  const current = state.levels.get(skill.id);
+  return el("div", { class: "lvl", role: "radiogroup", "aria-label": skill.name },
+    LEVELS.map((lv) => el("label", { "data-l": lv },
       el("input", {
         type: "radio", name: `lvl-${skill.id}`, value: lv,
         checked: current === lv,
@@ -538,13 +563,13 @@ function levelControl(skill) {
 }
 
 function skillRow(skill) {
-  return el("li", { class: "skill" },
-    el("div", { class: "skill-text" },
-      el("div", { class: "skill-name" },
+  return el("div", { class: "skill" },
+    el("div", {},
+      el("div", { class: "nm" },
         skill.name,
         skill.hazard && el("span", { class: "tag warn", title: "involves a real hazard" }, "hazard")
       ),
-      el("div", { class: "skill-id" }, skill.id)
+      el("code", {}, skill.id)
     ),
     levelControl(skill)
   );
@@ -557,19 +582,55 @@ function profileView() {
     if (!byDomain.has(d)) byDomain.set(d, []);
     byDomain.get(d).push(s);
   }
-  refreshTally();
-
-  return el("div", {},
-    header(),
-    nameForm(),
-    el("p", { class: "muted" }, "Be honest. An inflated profile makes every distance wrong."),
-    el("div", { class: "tally-row" }, tally, status),
-    state.error && el("p", { class: "error" }, state.error),
-    [...byDomain].map(([domain, list]) => el("section", { class: "domain" },
-      el("h2", {}, domain),
-      el("ul", { class: "skills" }, list.map(skillRow))
-    ))
+  domainCounts.clear();
+  const count = (domain) => {
+    const span = el("span", { class: "c" });
+    domainCounts.set(domain, span);
+    return span;
+  };
+  const jump = (domain) => el("a", {
+    href: `#d-${slug(domain)}`,
+    onclick: (e) => {
+      // a plain hash link would change the route; scroll instead
+      e.preventDefault();
+      document.getElementById(`d-${slug(domain)}`)?.scrollIntoView({ behavior: reduceMotion() ? "auto" : "smooth" });
+    }
+  },
+    el("span", {}, domain),
+    count(domain)
   );
+
+  const view = el("div", { class: "profile" },
+    header(),
+    el("div", { class: "page-head" },
+      el("div", {},
+        el("h1", {}, "Your skills"),
+        el("p", {}, "Be honest. An inflated profile makes every distance wrong.")),
+      nameForm()
+    ),
+    state.error && el("p", { class: "error" }, state.error),
+    el("div", { class: "rated" }, ratedBar, el("div", { class: "rated-row" }, tally, status)),
+    el("div", { class: "layout" },
+      el("div", {},
+        [...byDomain].map(([domain, list]) => el("section", { class: "dom card", id: `d-${slug(domain)}` },
+          el("h2", {}, domain),
+          list.map(skillRow)
+        )),
+        el("p", { class: "card all-rated" }, "Every skill is rated.")
+      ),
+      el("aside", { "aria-label": "Domains" },
+        el("h2", {}, "Domains"),
+        el("p", {}, "Rated out of total in each."),
+        el("ol", { class: "domains" }, [...byDomain.keys()].map((d) => el("li", {}, jump(d)))),
+        // pure CSS: the page hides rated rows while this is checked
+        el("label", { class: "chk unrated-only" },
+          el("input", { type: "checkbox", id: "unrated-only" }),
+          el("span", {}, "Show only unrated"))
+      )
+    )
+  );
+  refreshTally();
+  return view;
 }
 
 // The name friends see. Defaults to the email's local part at sign-up.
@@ -583,9 +644,10 @@ function nameForm() {
       run(async () => { state.profile = { ...state.profile, ...(await setDisplayName(state.session.user.id, name)) }; });
     }
   },
-    el("label", {}, "Your name, as friends see it",
-      el("input", { name: "name", value: state.profile?.display_name ?? "", maxlength: 60, required: true, autocomplete: "nickname" })),
-    el("button", { type: "submit", class: "secondary", disabled: state.busy }, "Save")
+    el("label", { class: "fld" }, "Your name, as friends see it",
+      el("span", { class: "row" },
+        el("input", { name: "name", value: state.profile?.display_name ?? "", maxlength: 60, required: true, autocomplete: "nickname" }),
+        el("button", { type: "submit", class: "btn sm ghost", disabled: state.busy }, "Save")))
   );
   return form;
 }

@@ -511,6 +511,88 @@ a.owner:hover { color: var(--flow); }
 .group-create h2 { margin: 0 0 0.5rem; font-size: 1.3rem; font-weight: 800; letter-spacing: -0.02em; }
 .group-create p { margin: 0 0 0.5rem; color: var(--ink-2); }
 
+/* ---------------------------------------------------------------- profile */
+
+.name-form { min-width: min(22rem, 100%); }
+.name-form .fld { margin: 0; }
+
+.rated { margin: 0 0 1.75rem; }
+.rated-bar { display: flex; height: 8px; border-radius: 4px; overflow: hidden; background: var(--line); }
+.rated-bar i { display: block; height: 100%; }
+.rated-bar i.solid { background: var(--held); }
+.rated-bar i.some { background: var(--partial); }
+.rated-bar i.none { background: var(--ink-3); }
+.rated-row { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; flex-wrap: wrap; }
+.tally-text { margin: 0.5rem 0 0; font: 0.85rem var(--mono); color: var(--ink-2); }
+.status { font: 0.8rem var(--mono); color: var(--ink-3); min-height: 1em; }
+.status.error { color: var(--crux); }
+
+.dom { margin: 0 0 2rem; scroll-margin-top: 1rem; }
+.dom h2 { margin: 0 0 0.5rem; font-size: 1.3rem; font-weight: 800; letter-spacing: -0.02em; }
+.skill {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 1.5rem;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  border-radius: 12px;
+}
+.skill + .skill { border-top: 1px solid var(--line); border-radius: 0; }
+.skill .nm { font-weight: 500; }
+.skill .nm .tag { margin-left: 0.4rem; vertical-align: 2px; }
+.skill code { display: block; font: 0.78rem var(--mono); color: var(--ink-3); }
+@media (max-width: 640px) {
+  .skill { grid-template-columns: minmax(0, 1fr); gap: 0.5rem; }
+}
+
+/* three-state control: radios, so the keyboard works; nothing checked
+   means unrated, which reads as a dashed control and a "not rated" tag */
+.lvl { display: inline-flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--bg-2); }
+.lvl label { position: relative; display: block; }
+.lvl label + label { border-left: 1px solid var(--line); }
+.lvl input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+.lvl span {
+  display: block;
+  padding: 0.38rem 0.85rem;
+  font-size: 0.88rem;
+  color: var(--ink-2);
+  user-select: none;
+  pointer-events: none;
+}
+.lvl label:hover span { background: var(--flow-wash); }
+.lvl input:focus-visible + span { outline: 2px solid var(--flow); outline-offset: -2px; }
+.lvl [data-l="none"] input:checked + span { background: var(--ink-3); color: var(--bg-2); }
+.lvl [data-l="some"] input:checked + span { background: var(--partial); color: var(--bg-2); }
+.lvl [data-l="solid"] input:checked + span { background: var(--held); color: var(--bg-2); }
+
+.skill:not(:has(input:checked)) .lvl { border-style: dashed; }
+.skill:not(:has(input:checked)) .nm::after {
+  content: "not rated";
+  margin-left: 0.6rem;
+  vertical-align: 2px;
+  white-space: nowrap;
+  font: 0.72rem var(--mono);
+  color: var(--partial);
+  border: 1px dashed var(--partial);
+  border-radius: 999px;
+  padding: 0.05rem 0.45rem;
+}
+
+/* "Show only unrated": the side panel's checkbox hides rated rows, then
+   the domains left with none, then shows the all-rated card */
+.all-rated { display: none; color: var(--ink-2); }
+.profile:has(#unrated-only:checked) .skill:has(input:checked) { display: none; }
+.profile:has(#unrated-only:checked) .dom:not(:has(.skill:not(:has(input:checked)))) { display: none; }
+.profile:has(#unrated-only:checked):not(:has(.skill:not(:has(input:checked)))) .all-rated { display: block; }
+.profile:has(#unrated-only:checked) .skill:not(:has(input:checked)) { border-top: 0; }
+
+.domains { list-style: none; margin: 0; padding: 0; }
+aside .domains li { display: block; padding: 0; border-top: 1px solid var(--line); }
+.domains a { display: flex; justify-content: space-between; align-items: baseline; gap: 0.75rem; padding: 0.55rem 0; font-size: 0.92rem; }
+.domains a > span:first-child { min-width: 0; overflow-wrap: anywhere; }
+.domains .c { font: 0.8rem var(--mono); color: var(--ink-3); white-space: nowrap; }
+.unrated-only { margin-top: 1rem; }
+
 /* ---------------------------------------------------------------- legacy
    The old per-view rules, on aliases of the new tokens, so every view keeps
    rendering while the redesign lands one view at a time. Each view's commit
@@ -655,91 +737,4 @@ button.secondary:hover { background: var(--line); }
 .settled-block { margin-top: 2rem; }
 .settled-block summary { cursor: pointer; font-size: 0.9rem; color: var(--muted); margin-bottom: 0.75rem; }
 
-/* nav */
-
-nav { display: flex; align-items: baseline; gap: 1rem; }
-
-.tab {
-  color: var(--muted);
-  font-size: 0.9rem;
-  text-decoration: none;
-  padding-bottom: 2px;
-  border-bottom: 2px solid transparent;
-}
-
-.tab.on { color: var(--fg); border-bottom-color: var(--accent); }
-.tab:hover { color: var(--fg); }
-
-/* profile */
-
-.tally-row {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 1rem;
-  margin: 0.75rem 0 1.5rem;
-}
-
-.tally-row .muted { margin: 0; }
-
-.status { font-size: 0.8rem; color: var(--muted); min-height: 1em; }
-.status.error { color: var(--error); }
-
-.domain + .domain { margin-top: 2rem; }
-
-.domain h2 {
-  font-size: 0.72rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--muted);
-  margin: 0 0 0.25rem;
-  padding-bottom: 0.35rem;
-  border-bottom: 1px solid var(--line);
-}
-
-.skills { list-style: none; margin: 0; padding: 0; }
-
-.skill {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 0.6rem 0;
-  border-bottom: 1px solid var(--line);
-}
-
-.skill-text { min-width: 0; }
-.skill-name { display: flex; align-items: center; gap: 0.4rem; font-size: 0.95rem; }
-.skill-id { font-size: 0.75rem; color: var(--muted); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
-
-/* three-state control */
-
-.seg-group { display: flex; flex-shrink: 0; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
-
-.seg-group .seg { display: block; }
-.seg-group .seg input { position: absolute; width: 1px; height: 1px; opacity: 0; }
-
-.seg-group .seg span {
-  display: block;
-  padding: 0.25rem 0.7rem;
-  font-size: 0.78rem;
-  color: var(--muted);
-  cursor: pointer;
-  border-left: 1px solid var(--line);
-  user-select: none;
-}
-
-.seg-group .seg:first-child span { border-left: 0; }
-.seg-group .seg span:hover { background: var(--line); }
-.seg-group .seg input:checked + span { background: var(--accent); color: var(--bg); }
-.seg-group .seg input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: -2px; }
-
-@media (max-width: 30rem) {
-  .skill { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
-}
-
-/* profile name form (replaced with the profile view) */
-.name-form { display: flex; gap: 0.5rem; align-items: flex-end; margin: 0.75rem 0 1rem; }
-.name-form label { flex: 1; max-width: 24rem; }
-.name-form input { width: 100%; }
 .share .check { margin: 0; }
