@@ -293,6 +293,10 @@ friend's self-serve sign-up sends a confirmation email through the hosted
 project's built-in mailer, which is rate-limited. Either turn autoconfirm
 on in the dashboard (Authentication → Providers → Email) or invite a few
 at a time. Decide when the first friend signs up.
+**Decided 2026-09-16: confirmation stays on.** The built-in mailer turns
+out to refuse addresses outside the project's team, so the real
+prerequisite is custom SMTP; see `docs/hosting.md`. The `db.js` comment
+is still wrong until that lands.
 
 ## Not in this step
 

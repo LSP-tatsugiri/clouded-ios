@@ -19,7 +19,13 @@ Vercel, next to the owner's other project on the same account.
   the committed source of the distance logic stays one file.
 - **`clouded.monoesport.com`**, one CNAME at GoDaddy, where the domain's
   DNS lives. The root domain and the other project are untouched.
-- **Friends sign themselves up**, email + password, no confirmation email.
+- **Friends sign themselves up**, email + password, **with** a confirmation
+  email (decided 2026-09-16 to keep it on). Until the project has custom
+  SMTP, that email never arrives: Supabase's built-in mailer refuses any
+  address outside the project's team and sends 2 an hour. So a friend
+  cannot finish signing up yet — custom SMTP (Resend's free tier, or any
+  SMTP; DNS at GoDaddy, keys in the dashboard) is the prerequisite for the
+  first real friend, and for password reset.
   Anyone can reach the sign-up form; only an email the owner listed first
   gets an account (`allowed_emails` + a trigger on `auth.users`, migration
   `20260915033902`). Adding a friend is `allow.mjs <email>`. Chosen over
