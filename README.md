@@ -2,9 +2,11 @@
 
 **An idea database that tells you how far each idea is from something you could actually build.**
 
-Status: pre-build. The extraction pipeline — the part that has to work before the
-rest is worth writing — exists as a script in this repo and runs against a real
-19-idea backlog. No app yet, on purpose.
+Status: built, Steps 1–7 done (2026-09-15). Extraction runs as a Supabase edge
+function, the web client is live at `clouded.monoesport.com` behind an email
+allowlist, and the iOS app captures with a Share Extension. What is next is in
+`docs/improvement-backlog.md`; `CLAUDE.md` is the source of truth where this
+page and it disagree.
 
 ---
 
@@ -97,8 +99,10 @@ That is the output the whole product exists to produce.
    locally and returns immediately; uploads whenever there's network.
 2. **Ingest** — voice is transcribed, images are stored, the entry lands with
    status `pending`.
-3. **Extract** — a vision-and-text pass pulls out the objective, the domain, and
-   the concrete capabilities the idea requires. Terse entries get extracted with
+3. **Extract** — a text-only pass over `raw` pulls out the objective, the domain,
+   and the concrete capabilities the idea requires. An attached image or link
+   is context for the human, stored alongside; the model never sees it (settled
+   in Step 6). Terse entries get extracted with
    a stated assumption; entries with no object and no action (a bare category
    like "3d printed") get **one clarifying question** instead of a fabricated
    answer.
@@ -117,14 +121,14 @@ That is the output the whole product exists to produce.
 Capture is the step that decides whether this app survives. Ideas arrive while
 you're walking to class, not while you're at a laptop with a browser open.
 
-- **Share Extension** — a screenshot goes from the screenshot preview straight
-  into the app with a one-line note attached. Two taps. This is the highest-value
-  capture surface, because screenshots are the majority of real inspiration.
+- **Share Extension** — a screenshot or link goes from the share sheet straight
+  into the app with a one-line note attached. Two taps. The sentence is the
+  idea; the picture or URL rides along as context and is never extracted.
 - **Voice** — Action Button or lock-screen widget, transcribed server-side.
 - **Text** — plain, with no required syntax. Any format requirement is friction,
   and friction at capture is where ideas die.
-- **Mixed** — one entry can carry text, image, and audio together. Often a
-  screenshot *is* the idea and one sentence of context is all it needs.
+- **Mixed** — one entry can carry text plus an image or a source URL. Often the
+  picture is what prompted the idea and one sentence is all the model needs.
 - **Offline-first** — writes locally and returns instantly, always. An idea lost
   because you were in a basement is the worst failure this product can have.
 - **One-line minimum** — an image with no text is a bookmark, not an idea, and
@@ -309,8 +313,8 @@ Two decisions worth calling out:
 
 ## The skill taxonomy
 
-51 entries across seven domains: fabrication, embedded, 3D animation, software,
-gamedev, art, vision.
+52 entries across eight domains: fabrication, embedded, 3D animation, software,
+gamedev, art, vision, design.
 
 Rules for adding one:
 
@@ -341,7 +345,7 @@ before anything was built around it, and it is where prompt work still happens:
 | Path | What it is |
 |---|---|
 | `extraction/data/ideas.json` | The raw backlog — 19 real ideas, verbatim, typos included. That is the true input shape. An optional `clarification` field holds the answer to a clarifying question; `raw` is never edited. |
-| `extraction/data/skills.json` | The canonical skill table, 51 hand-written entries. |
+| `extraction/data/skills.json` | The canonical skill table, 52 hand-written entries. |
 | `extraction/data/profile.json` | Your own skill levels. A wrong profile makes every distance wrong. |
 | `extraction/src/extract.js` | The system prompt and the API call. The product is in this file. |
 | `extraction/src/distance.js` | Capability + profile → gap classification. |
@@ -458,7 +462,7 @@ golf-bag mount, the Gridfinity organizer, and the Pokémon storage bin share it
 with fit-to-measured-object and material choice, and CAD also gates the screw
 dispenser, the dryer and the Gundam head. One weekend learning Fusion or OnShape
 moves the most ideas of any single skill. Caveat: the ranking is biased by how
-finely the table splits a domain — 15 embedded skills vs 7 fabrication — so a
+finely the table splits a domain — 16 embedded skills vs 8 fabrication — so a
 broad skill wins partly by construction.
 
 **The vagueness rule over-triggered.** The first prompt marked 15 of 19 entries
@@ -492,10 +496,11 @@ capabilities and zero new proposals; four table additions came out of the review
 agreed on the vague/clear verdict 19/19 and on skill sets about three-quarters of
 the time, but on the crux only 13/19. Where two capabilities are both plausible
 project-killers (airflow vs waterproofing for the dryer, mechanism vs vision for
-the Gundam head), the model picks either. Until this is settled — a ranked top-2,
-or majority-of-three — the UI should present the crux as *a* hard part, not
-*the* hard part. Stability with the resolve step in place has not yet been
-measured.
+the Gundam head), the model picks either. With the resolve step in place and
+the model on Sonnet 5 (measured 2026-09-13): crux identical 16/19, verdict
+19/19, skill overlap 0.89. Until this is settled — a ranked top-2, parked with
+`strict: true` until the next baseline run since both move the prompt hash —
+the UI should present the crux as *a* hard part, not *the* hard part.
 
 **A flat gap count is not size.** Every gap counts 1 and the model is capped at
 3–7 capabilities, so "pick PETG for heat" weighs the same as "mechanical

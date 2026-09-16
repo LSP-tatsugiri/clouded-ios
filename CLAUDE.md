@@ -99,7 +99,7 @@ while out. Capture is the only phone-first part.
   size. Consider a per-capability flag for "learnable from a tutorial" vs
   "needs real iteration".
 - **The leverage ranking is biased by how the taxonomy is split.** `skills.json`
-  has 15 embedded skills but 6 fabrication ones, and the prompt says to map
+  has 16 embedded skills but 8 fabrication ones, and the prompt says to map
   loosely, so broad skills pick up more ideas and win by construction. Before
   trusting the CAD result, split `parametric-cad` into 2–3 skills and see whether
   the ranking changes.
