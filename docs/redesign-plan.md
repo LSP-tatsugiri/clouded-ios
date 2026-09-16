@@ -139,3 +139,47 @@ One commit per step.
 - Review (curator account): promote one, reject one with a reason.
 - `#/waifu` looks and works exactly as before.
 - Narrow window: nothing overflows sideways.
+
+## 8. Built (2026-09-16, branch `redesign`)
+
+Steps 1–9 landed as one commit each; step 10 is the preview checklist and
+the merge. What the pre-build checks (section 5) and the build settled:
+
+1. **No Undo on Review.** `db.js` has only `promoteSkill` and `rejectSkill`;
+   promotion inserts the skill and repoints capabilities, and nothing
+   reverses either. A decided card moves to "Already decided".
+2. **Unrated is an absent row, not `'none'`.** The data was right; the bug
+   was `levelControl` defaulting to `"none"`. Now nothing is checked, and the
+   dashed control and "not rated" tag are CSS on `:not(:has(input:checked))`.
+3. **Answering from a card** is `setClarification` then the existing
+   `watch()`, so the card becomes the extracting card and then the full one.
+   The idea page's `answerBox` is unchanged.
+4. **Feed sort and card data** already existed; nothing new was queried.
+5. **Split-flap trigger:** a module-level `justLanded` set. `watch()` adds
+   the id after its reload (one line, the only change outside the builders
+   apart from `refreshTally`), the next paint plays it, `listView` empties
+   the set. In memory only, so a reload never replays.
+6. **Extracting card** keeps the indeterminate sweep and shows the real
+   elapsed seconds and the real stage, not the mockup's five-second fill and
+   invented steps: "no time estimates" is an invariant.
+7. **"Show only unrated"** is CSS-only (`:has()`), no state; it resets on
+   navigation. `refreshTally()` also repaints the rated bar and the side
+   panel's per-domain counts, so rating never re-renders.
+8. **Jump links** in the Profile and Review side panels scroll with
+   `preventDefault` — a plain `#d-…` href would change the route.
+9. **"Manage group"** reads its own `open` state off the page before each
+   rebuild so it stays open across rename, invite, revoke and remove.
+10. **Waifu unchanged:** every redesigned element default is scoped with
+    `:where(#app > :not(.waifu))`, the cloud icon is left off that header,
+    and the computed styles of the scene's header, input, button and cost
+    line were checked identical against `main`. `waifuView`, `cloudSvg`,
+    `previewFont`, `placementTool`, `waifu.css`, `lib/waifu.js`, `lib/db.js`,
+    `supabase/` and `ios/` are byte-identical to `main`.
+
+Band copy differs from the mockup on purpose: "No skill missing" / "One
+skill short" / "Two or more skills short", since a 0-short idea can still
+have partials and the one short skill is not always the hard part.
+
+Known, unchanged: `watch()` re-renders the list every 2 s while an idea
+extracts, which clears anything being typed in the capture box or a card's
+answer box. Not new, just easier to notice now.
