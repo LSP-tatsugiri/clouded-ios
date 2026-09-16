@@ -133,6 +133,17 @@ Both are already written down; neither has been run.
   artifact of a 15-vs-6 taxonomy split and the headline finding in the README
   is wrong. ~$0.20 for a re-baseline. This is the cheapest high-information
   experiment in the repo.
+  *Scoped 2026-09-16, not run: `extraction/.env` (the Anthropic key) exists
+  only on the PC.* The six CAD capabilities in the baseline are three things:
+  a housing around other parts (knob, dryer, gundam), a parametric family
+  (pokemon-bin, gridfinity), plain solid modeling (golf-mount). Split to test:
+  `cad-solid-modeling` "Model a solid part in CAD from a sketch and
+  dimensions"; `cad-enclosure` "Model a housing that fits the electronics,
+  connectors and mechanism inside it"; `cad-parametric-family` "Build one
+  parametric model whose dimensions drive a family of variants". Edit
+  `data/skills.json` locally only, `npm start` (a full re-run anyway — the
+  baseline is stale, see CLAUDE.md), compare the leverage top 10 against
+  `git show HEAD:extraction/out/extractions.json`. ~$0.25–0.30.
 - **Held-out ideas.** Every idea in `ideas.json` is one the table was written
   around. Run 10 ideas from outside the backlog (a friend's, once one joins)
   and watch the proposed rate. A low rate on *your* ideas proves nothing.
