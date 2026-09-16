@@ -397,8 +397,70 @@ input.txt, .fld input, .row input, :where(#app > :not(.waifu)) textarea {
 .friend-line { color: var(--flow); display: inline-flex; gap: 0.4rem; align-items: center; }
 .friend-line.dim { color: var(--ink-3); }
 
-.card.vague .question { margin: 0.75rem 0 0; }
-.card.vague .muted { margin: 0.5rem 0 0; }
+/* extracting: the sweep is indeterminate on purpose, see extractingRow() */
+.card.busy .progress {
+  margin: 1rem 0 0.2rem;
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  font: 0.85rem var(--mono);
+  color: var(--ink-2);
+}
+.bar { flex: 1; max-width: 18rem; height: 5px; border-radius: 3px; background: var(--line); overflow: hidden; }
+.bar i {
+  display: block;
+  width: 35%;
+  height: 100%;
+  border-radius: 3px;
+  background: var(--flow);
+  animation: progress-sweep 1.4s ease-in-out infinite;
+}
+@keyframes progress-sweep {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(300%); }
+}
+.steps { font: 0.8rem var(--mono); color: var(--ink-3); margin: 0.35rem 0 0; }
+
+/* vague: the question and the answer box on the card */
+.ask { margin: 0.95rem 0 0; padding: 0.9rem 1rem; border-radius: 12px; border: 1px dashed var(--partial); }
+.ask p { margin: 0 0 0.6rem; color: var(--ink); }
+.ask p b { color: var(--partial); font-weight: 700; }
+.ask .hint { margin: 0.5rem 0 0; }
+.ask .row input { flex: 1; }
+
+/* split-flap: mono tiles that settle into the plain crux text */
+.flap { display: inline-flex; flex-wrap: wrap; row-gap: 2px; }
+.flap .ch {
+  display: inline-block;
+  min-width: 0.56em;
+  text-align: center;
+  font-family: var(--mono);
+  font-weight: 500;
+  font-size: 0.95rem;
+  background: var(--bg-2);
+  border-radius: 3px;
+  margin-right: 1px;
+  box-shadow: inset 0 -1px 0 var(--line);
+  position: relative;
+}
+.flap .ch::after { content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: var(--crux-wash); }
+.flap .ch.sp { background: none; box-shadow: none; }
+.flap.done .ch {
+  background: none;
+  box-shadow: none;
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 1rem;
+  min-width: 0;
+  margin: 0;
+  transition: all 0.3s;
+}
+.flap.done .ch::after { display: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .bar i { animation: none; width: 100%; opacity: 0.5; }
+  .flap.done .ch { transition: none; }
+}
 
 /* ---------------------------------------------------------------- legacy
    The old per-view rules, on aliases of the new tokens, so every view keeps

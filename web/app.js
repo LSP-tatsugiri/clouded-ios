@@ -212,14 +212,53 @@ function tallyChips(d) {
   );
 }
 
-function cruxBlock(crux) {
+function cruxBlock(crux, flap = false) {
   const k = classify(crux, state.levels);
   return el("div", { class: `crux ${k}` },
     mark(k),
-    el("span", { class: "t" }, capLabel(crux)),
+    el("span", { class: "t" }, flap ? splitFlap(capLabel(crux)) : capLabel(crux)),
     el("span", { class: "lbl" }, "the hard part")
   );
 }
+
+// The hard part resolving letter by letter in mono tiles when an extraction
+// lands, then settling to plain text. Every character is its own text node
+// (never markup), and the interval stops when the card leaves the page.
+// Under reduced motion the text simply fades in.
+const FLAP_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+function splitFlap(text) {
+  const wrap = el("span", { class: "flap" });
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    wrap.classList.add("done", "fade-in");
+    wrap.textContent = text;
+    return wrap;
+  }
+  const rnd = () => FLAP_CHARS[Math.floor(Math.random() * FLAP_CHARS.length)];
+  const nbsp = "\u00a0";
+  const tiles = [...text].map((c) => el("span", { class: c === " " ? "ch sp" : "ch" }, c === " " ? nbsp : rnd()));
+  wrap.append(...tiles);
+  let frame = 0;
+  const tick = setInterval(() => {
+    if (!wrap.isConnected) return clearInterval(tick);
+    frame++;
+    let settled = 0;
+    tiles.forEach((n, i) => {
+      const c = text[i];
+      if (c === " " || frame > 6 + i * 0.7) { n.textContent = c === " " ? nbsp : c; settled++; }
+      else n.textContent = rnd();
+    });
+    if (settled === tiles.length) {
+      clearInterval(tick);
+      setTimeout(() => wrap.classList.add("done"), 350);
+    }
+  }, 45);
+  return wrap;
+}
+
+// Ideas whose extraction landed since the last paint: the next render of
+// their card plays the split-flap, once. In memory only, so a reload never
+// replays it. watch() adds to it; listView() empties it after each paint.
+const justLanded = new Set();
 
 function capItem(cap) {
   const k = classify(cap, state.levels);
@@ -231,15 +270,16 @@ function ideaRow({ idea, extraction }) {
   const crux = cruxOf(extraction);
   const anyProposed = extraction.capabilities.some((c) => !c.skill_id);
   const title = idea.objective || idea.raw;
+  const landed = justLanded.has(idea.id);
 
-  return el("article", { class: "card idea", "data-idea": idea.id },
+  return el("article", { class: landed ? "card idea fade-in" : "card idea", "data-idea": idea.id },
     el("div", { class: "card-head" },
       el("div", {},
         el("h3", {}, el("a", { href: `#/idea/${idea.id}` }, title)),
         title !== idea.raw && el("p", { class: "raw" }, idea.raw)),
       d && tallyChips(d)
     ),
-    crux && cruxBlock(crux),
+    crux && cruxBlock(crux, landed),
     // the rest of the capabilities, crux first already shown above
     el("ul", { class: "caps" }, extraction.capabilities.filter((c) => c !== crux).map(capItem)),
     el("div", { class: "card-foot" },
@@ -256,25 +296,55 @@ function ideaRow({ idea, extraction }) {
   );
 }
 
-// A row the list is still waiting on. The bar is indeterminate on purpose:
+// A card the list is still waiting on. The bar is indeterminate on purpose:
 // extraction is one API call of unknown length, and a bar that creeps to 90%
 // and waits would be a time estimate in disguise. The stages are real events.
 function extractingRow(idea, { stage, seconds }) {
-  const text = stage === "saving" ? "saving the result…" : `extracting… ${seconds}s`;
-  return el("article", { class: "card idea extracting" },
-    el("div", { class: "card-head" }, el("div", {}, el("h3", {}, idea.raw))),
-    el("div", { class: "progress" }, el("div", { class: "progress-bar" })),
-    el("p", { class: "muted" }, text)
+  const saving = stage === "saving";
+  const fresh = Date.now() - Date.parse(idea.created_at) < WATCH_WINDOW_MS;
+  return el("article", { class: "card idea busy" },
+    el("div", { class: "card-head" }, el("div", {},
+      el("h3", {}, idea.raw),
+      el("p", { class: "raw" }, fresh ? "Just added" : "Re-extracting after your answer"))),
+    el("div", { class: "progress" },
+      el("div", { class: "bar" }, el("i", {})),
+      el("span", {}, saving ? "Saving the result" : `Extracting, ${seconds}s`)),
+    el("p", { class: "steps" }, saving ? "Writing the capabilities and the hard part" : "Reading the idea and listing what it would take"),
+    el("div", { class: "card-foot" }, el("span", {}, "you"), el("span", {}, fmtDate(idea.created_at)))
   );
 }
 
+// Too vague to extract: the question and an answer box on the card. The
+// answer is the same write the idea page makes (setClarification, which
+// re-runs extraction), and the wait is the same watcher a new idea gets, so
+// the card turns into the extracting card and then the full one.
 function vagueRow(idea) {
-  return el("article", { class: "card idea vague" },
+  const form = el("form", {
+    class: "row",
+    onsubmit: (e) => {
+      e.preventDefault();
+      const text = form.elements.clarification.value.trim();
+      if (!text) return;
+      run(async () => {
+        const since = new Date().toISOString();
+        await setClarification(idea.id, text);
+        watch(idea.id, since);
+      });
+    }
+  },
+    el("input", { name: "clarification", "aria-label": "Your answer", placeholder: "A few words is enough", required: true, autocomplete: "off" }),
+    el("button", { type: "submit", class: "btn sm", disabled: state.busy }, "Answer")
+  );
+  return el("article", { class: justLanded.has(idea.id) ? "card idea vague fade-in" : "card idea vague" },
     el("div", { class: "card-head" }, el("div", {},
       el("h3", {}, el("a", { href: `#/idea/${idea.id}` }, idea.raw)),
       el("p", { class: "raw" }, "Too vague to extract yet"))),
-    idea.clarifying_question && el("p", { class: "question" }, idea.clarifying_question),
-    el("p", { class: "muted" }, el("a", { href: `#/idea/${idea.id}` }, "answer this →"))
+    el("div", { class: "ask" },
+      el("p", {}, el("b", {}, "One question: "), idea.clarifying_question ?? "What is it, in a sentence?"),
+      form,
+      // answering runs extraction server-side, which is a paid API call
+      el("p", { class: "hint" }, "Answering re-runs extraction, about a cent.")),
+    el("div", { class: "card-foot" }, el("span", {}, "you"), el("span", {}, fmtDate(idea.created_at)))
   );
 }
 
@@ -404,6 +474,8 @@ function listView() {
         el("div", { class: "cards" }, items.map(card)));
     });
   }
+
+  justLanded.clear();
 
   return el("div", {},
     header(),
@@ -984,6 +1056,7 @@ async function watch(ideaId, since) {
   } finally {
     state.extracting.delete(ideaId);
     if (state.route === "list") await load().catch((err) => { state.error = err.message; });
+    justLanded.add(ideaId);   // the next paint of its card plays the split-flap
     render();
   }
 }
