@@ -182,6 +182,19 @@ Learned the hard way; keep them true on every machine.
   over and verify with `supabase migration list`. `link`, `secrets list`,
   `functions list`, `migration list` and `projects api-keys` work from the
   agent; keys go only into gitignored `supabase/.env`, never printed.
+- **Agent work goes to a branch, never straight to `main`** (rule added
+  2026-09-19). A push to `main` deploys the live site, and the owner wants
+  to read the diff first. For each task: branch from a fresh `main` as
+  `agent/<topic>`, commit there, push the branch, and hand over the
+  compare link (`https://github.com/LSP-tatsugiri/clouded-ios/compare/main...agent/<topic>`);
+  `gh pr create` only if `gh auth status` says it is logged in. The owner
+  merges, and `git checkout main && git pull` starts the next task. A
+  `PreToolUse` hook, `.claude/hooks/guard-main.mjs`, refuses any
+  `git push` aimed at `main`; if the owner wants something on `main`
+  right now, they push it themselves. Migrations are the one wrinkle: the
+  "commit and push the migration in the same step as `supabase db push`"
+  rule below still holds, on the branch, and the owner merges before the
+  other machine pulls.
 - **Two machines share one repo and one database.** Both work on `main`
   since Step 6 merged (the Mac builds `ios/`; Xcode is Mac-only). Two hooks in `.claude/settings.json`
   run `.claude/hooks/sync-status.mjs`: before every prompt (`--before`)
@@ -190,8 +203,8 @@ Learned the hard way; keep them true on every machine.
   is nothing new; after every turn (`--after`) it reports what this
   machine has not shared yet. Act on the first: pull before touching
   shared state. Act on the second yourself: **when a task is done and
-  committed, push it** — the hook never pushes, because a push to `main`
-  deploys the live site. And the rule that caused the hook: **commit and
+  committed, push its branch** — the hook never pushes. And the rule that
+  caused the hook: **commit and
   push a migration file in the same step as `supabase db push`**, never
   apply first and commit later — the other machine's CLI then refuses to
   push until it has the file. Uncommitted work is invisible to the other

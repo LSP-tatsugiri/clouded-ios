@@ -7,24 +7,51 @@
   },
   "extraKnownMarketplaces": {
     "mattpocock": {
-      "source": { "source": "git", "url": "https://github.com/mattpocock/skills.git" }
+      "source": {
+        "source": "git",
+        "url": "https://github.com/mattpocock/skills.git"
+      }
     },
     "ecc": {
-      "source": { "source": "git", "url": "https://github.com/affaan-m/ECC.git" }
+      "source": {
+        "source": "git",
+        "url": "https://github.com/affaan-m/ECC.git"
+      }
     }
   },
   "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard-main.mjs\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
     "UserPromptSubmit": [
       {
         "hooks": [
-          { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/sync-status.mjs\" --before", "timeout": 30, "statusMessage": "checking what the other machine pushed" }
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/sync-status.mjs\" --before",
+            "timeout": 30,
+            "statusMessage": "checking what the other machine pushed"
+          }
         ]
       }
     ],
     "Stop": [
       {
         "hooks": [
-          { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/sync-status.mjs\" --after", "timeout": 15 }
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/sync-status.mjs\" --after",
+            "timeout": 15
+          }
         ]
       }
     ]
