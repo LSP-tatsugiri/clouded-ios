@@ -174,7 +174,10 @@ Verify (Phase A done-check):
 
 ## Phase E — migrate the backlog, document, delete the dead sync
 
-Needs its own "proceed" (mass operation: ~24 issues). Run on your machine:
+Needs its own "proceed" (mass operation: ~24 issues) — **given 2026-09-19.** The
+runnable copy is `docs/feedback-migrate.sh` (`bash docs/feedback-migrate.sh`
+from the repo root with `gh` signed in; creates the labels too, skips titles
+that already exist; delete the file afterwards). What it does:
 
 ```
 B="docs/improvement-backlog.md"
@@ -227,8 +230,10 @@ Then:
 
 - README *Views* section, one sentence: *"Every page has a report link;
   reports become GitHub issues (`docs/feedback-plan.md`)."*
-- Cowork side: delete the nightly GitHub→Trello scheduled task (it never
-  worked from the cloud). Separate "proceed".
+- Cowork side: the nightly GitHub→Trello scheduled task was deleted
+  2026-09-19 (it never could read the repo from the cloud). Its state card
+  "[auto] Board sync state — do not delete" in the board's Reference list
+  is now orphaned; archive it by hand.
 
 ## Done-check
 
