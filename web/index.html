@@ -30,6 +30,16 @@
        text a crawler or a link preview sees. Copy comes from the promo ad;
        the cards are the app's own card markup with made-up ideas. -->
   <section class="landing" id="landing" aria-label="About clouded">
+    <!-- The sign-in card opens as a dialog over the page (app.js mounts it
+         into #app and opens it when the hash is #signin or #create), so the
+         top bar and the hero both link to those two hashes. -->
+    <nav class="land-nav" aria-label="Site">
+      <a class="land-logo" href="#" aria-label="clouded, top of page"><svg viewBox="0 0 36 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3H3v18h4M29 3h4v18h-4" stroke="var(--ink)"/><path d="M13 18h10a4 4 0 0 0 .5-7.97A6 6 0 0 0 12.1 9.6 4.2 4.2 0 0 0 13 18Z" stroke="var(--flow)"/></svg>clouded</a>
+      <div class="land-nav-actions">
+        <a class="btn ghost sm" href="#signin">Sign in</a>
+        <a class="btn sm" href="#create">Create account</a>
+      </div>
+    </nav>
     <div class="land-hero">
       <div class="land-copy">
         <div class="flaps" role="img" aria-label="clouded">
@@ -45,8 +55,8 @@
         <h1 class="land-h">How far is each idea from you?</h1>
         <p class="land-sub">No scores. No fake time estimates. Just the gap.</p>
         <div class="land-cta">
-          <a class="btn" href="#signin">Sign in</a>
-          <a class="land-invite" href="#create">Have an invite? Create your account.</a>
+          <a class="btn" href="#create">Create account</a>
+          <a class="land-invite" href="#signin">Already have one? Sign in.</a>
         </div>
       </div>
 
@@ -145,9 +155,6 @@
       </article>
       <p class="land-private">Ideas are private until you share them. A group sees only what you share to it, and only people you invited are in it.</p>
     </div>
-
-    <!-- Both hero links land here; the form itself is rendered by app.js below. -->
-    <div class="land-signin" id="signin"><span id="create"></span></div>
   </section>
 
   <main id="app">

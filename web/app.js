@@ -143,12 +143,53 @@ function header() {
 
 // ---------------------------------------------------------------- sign in
 
+// While signed out, #app holds one <dialog> with the sign-in card in it, and
+// the static landing (index.html) shows behind. The dialog is open exactly
+// when the hash is #signin or #create, which is what the landing's top bar
+// and hero link to; closing it (Escape, the ×, a click on the backdrop)
+// drops the hash again without a hashchange, so nothing reloads. One element
+// for the life of the page: re-rendering the card inside it keeps it open
+// without a backdrop flicker.
+const AUTH_HASH = /^#(signin|create)$/;
+function dropAuthHash() {
+  if (AUTH_HASH.test(location.hash)) history.replaceState(null, "", location.pathname + location.search);
+}
+// Every way out drops the hash itself rather than trusting the close event
+// alone: the ×, the backdrop, and Escape (the cancel event, which precedes
+// the browser's own close). The close handler stays as the catch-all.
+function closeAuth() { dropAuthHash(); if (authDialog.open) authDialog.close(); }
+const authDialog = el("dialog", {
+  class: "auth", "aria-label": "Sign in or create an account",
+  onclose: dropAuthHash,
+  oncancel: dropAuthHash,
+  // the dialog box is exactly the card, so a click whose target is the
+  // dialog itself landed on the backdrop
+  onclick: (e) => { if (e.target === authDialog) closeAuth(); }
+});
+
+function paintAuth() {
+  if (!app.contains(authDialog)) mount(app, authDialog);
+  mount(authDialog,
+    el("button", { type: "button", class: "auth-close", "aria-label": "Close", onclick: closeAuth }, "×"),
+    signInView());
+  const wanted = AUTH_HASH.test(location.hash);
+  if (wanted && !authDialog.open) authDialog.showModal();
+  if (!wanted && authDialog.open) authDialog.close();
+  // a repaint rebuilds the form under the cursor (run() paints twice); put
+  // focus back in the first field so typing carries on
+  if (authDialog.open && !authDialog.contains(document.activeElement)) authDialog.querySelector("input")?.focus();
+}
+
 // One card, two modes. Creating an account is self-serve but gated: the
 // server refuses emails that were not invited (docs/hosting.md), and the
 // message says so rather than looking like a wrong password.
 function signInView() {
   const creating = state.authMode === "create";
-  const setMode = (mode) => { state.authMode = mode; state.error = null; render(); };
+  const setMode = (mode) => {
+    state.authMode = mode; state.error = null;
+    if (AUTH_HASH.test(location.hash)) history.replaceState(null, "", `#${mode}`);
+    render();
+  };
   const form = el("form", {
     class: "card signin",
     onsubmit: (e) => {
@@ -1593,7 +1634,6 @@ function reviewView() {
 // ---------------------------------------------------------------- plumbing
 
 function viewFor() {
-  if (!state.session) return signInView();
   if (state.route === "review") return reviewView();
   if (state.route === "idea") return ideaView();
   if (state.route === "group") return groupView();
@@ -1615,6 +1655,8 @@ let latest = null;   // a transition's callback paints whatever was built last
 function render({ animate = false } = {}) {
   // the static landing (index.html) shows only while signed out
   document.documentElement.classList.toggle("signed-in", !!state.session);
+  if (!state.session) { paintAuth(); paintedRoute = state.route; return; }
+  if (authDialog.open) authDialog.close();   // signed in from the dialog
   latest = viewFor();
   const paint = () => mount(app, latest);
   const switched = paintedRoute !== null && paintedRoute !== state.route;

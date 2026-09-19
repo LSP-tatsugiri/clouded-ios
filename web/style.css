@@ -10,6 +10,7 @@
   --flow: #3461e6; --crux: #c93a30; --held: #1a7d4a; --partial: #8f5f08;
   --crux-wash: #c93a3012; --flow-wash: #3461e610;
   --lift: 0 10px 30px -12px rgba(15, 20, 34, 0.25);
+  --scrim: rgba(15, 20, 34, 0.45);
   --display: "Bricolage Grotesque", system-ui, -apple-system, "Segoe UI", sans-serif;
   --mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
   color-scheme: light;
@@ -23,6 +24,7 @@
     --flow: #5b84ff; --crux: #ff6a5c; --held: #4fd18b; --partial: #f2b544;
     --crux-wash: #ff6a5c14; --flow-wash: #5b84ff14;
     --lift: 0 10px 30px -12px rgba(0, 0, 0, 0.6);
+    --scrim: rgba(0, 0, 0, 0.6);
     color-scheme: dark;
   }
 }
@@ -709,10 +711,54 @@ aside .domains li { display: block; padding: 0; border-top: 1px solid var(--line
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-  max-width: 24rem;
-  margin: 4rem auto 0;
+  width: 24rem;
+  max-width: 100%;
+  margin: 0;
   padding: 1.75rem;
 }
+
+/* The dialog is transparent and exactly the card's size, so the card's own
+   border and shadow are the dialog's, and a click outside the card hits the
+   dialog element itself (see authDialog in app.js). On phones it is a sheet
+   from the bottom, clear of the keyboard's way. */
+html:not(.signed-in) #app { padding: 0; }
+dialog.auth {
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  border: 0;
+  padding: 0;
+  background: none;
+  max-width: calc(100vw - 2rem);
+  max-height: calc(100dvh - 2rem);
+  overflow: visible;
+  color: inherit;
+}
+dialog.auth::backdrop { background: var(--scrim); }
+dialog.auth[open] { animation: auth-in 0.18s ease-out; }
+dialog.auth .signin { box-shadow: var(--lift); }
+dialog.auth .auth-close {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  width: 2.1rem;
+  height: 2.1rem;
+  padding: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--ink-3);
+  font-size: 1.35rem;
+  line-height: 1;
+  font-weight: 500;
+}
+dialog.auth .auth-close:hover { background: var(--flow-wash); color: var(--ink); }
+@keyframes auth-in { from { opacity: 0; transform: translateY(6px) scale(0.985); } }
+@media (max-width: 640px) {
+  dialog.auth { margin: auto 0 0; max-width: 100vw; width: 100vw; max-height: calc(100dvh - 1.5rem); overflow: auto; }
+  dialog.auth .signin { width: 100%; border-radius: 18px 18px 0 0; border-bottom: 0; }
+  @keyframes auth-in { from { opacity: 0; transform: translateY(16px); } }
+}
+@media (prefers-reduced-motion: reduce) { dialog.auth[open] { animation: none; } }
 .signin h1 { display: flex; align-items: center; gap: 0.5rem; font-size: 1.75rem; font-weight: 800; letter-spacing: -0.04em; }
 .signin h1 svg { width: 2.4rem; height: 1.6rem; }
 .signin .muted { margin: -0.4rem 0 0.5rem; color: var(--ink-2); }
@@ -810,6 +856,13 @@ html.signed-in .landing { display: none; }
   font-weight: 800;
   letter-spacing: -0.02em;
 }
+
+/* top bar: the mark, and the two doors */
+.land-nav { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1.25rem 0 0; }
+.land-logo { display: inline-flex; align-items: center; gap: 0.5rem; color: var(--ink); text-decoration: none; font-size: 1.35rem; font-weight: 800; letter-spacing: -0.04em; }
+.land-logo svg { width: 2rem; height: 1.35rem; }
+.land-nav-actions { display: flex; gap: 0.6rem; }
+@media (max-width: 480px) { .land-nav-actions .btn.ghost { display: none; } }
 
 /* hero: copy left, three stacked example cards right, both top-aligned */
 .land-hero {
@@ -1028,5 +1081,3 @@ html.signed-in .landing { display: none; }
 .land-private { margin: 1.25rem 0 0; color: var(--ink-2); max-width: 60ch; }
 @media (max-width: 640px) { .land-shared .card-head { flex-direction: column; gap: 0.6rem; } }
 
-/* anchor for the hero links; the form itself follows in #app */
-.land-signin { scroll-margin-top: 2rem; }
