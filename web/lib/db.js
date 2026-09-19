@@ -20,7 +20,14 @@ function ok({ data, error }, what) {
 
 export async function signIn(email, password) {
   const { error } = await db.auth.signInWithPassword({ email, password });
-  if (error) throw new Error(error.message);
+  if (error) {
+    // GoTrue's "Invalid login credentials" also covers "no such account",
+    // which is the common case for a friend who has not signed up yet.
+    if (/invalid login credentials/i.test(error.message)) {
+      throw new Error("Wrong email or password. If you have not made an account yet, switch to Create account.");
+    }
+    throw new Error(error.message);
+  }
 }
 
 // Self-serve, gated server-side: a trigger on auth.users refuses any email

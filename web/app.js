@@ -148,6 +148,7 @@ function header() {
 // message says so rather than looking like a wrong password.
 function signInView() {
   const creating = state.authMode === "create";
+  const setMode = (mode) => { state.authMode = mode; state.error = null; render(); };
   const form = el("form", {
     class: "card signin",
     onsubmit: (e) => {
@@ -160,26 +161,41 @@ function signInView() {
     el("h1", {}, brandMark(), "clouded"),
     el("p", { class: "muted" },
       "How far each idea is from something you could actually build."),
+    // the two modes as a switch, so which one you are in is never a guess
+    el("div", { class: "seg auth-seg", "aria-label": "Sign in or create an account" },
+      el("button", { type: "button", "aria-pressed": String(!creating), onclick: () => setMode("signin") }, "Sign in"),
+      el("button", { type: "button", "aria-pressed": String(creating), onclick: () => setMode("create") }, "Create account")),
+    el("p", { class: "how" },
+      creating
+        ? "Accounts are invite-only. Use the email address a friend invited, and choose a password of at least 8 characters. There is no confirmation email: you are signed in as soon as the account exists."
+        : "Use the email and password you chose when you created your account. First time here? Switch to Create account."),
     el("label", { class: "fld" }, "Email",
-      el("input", { name: "email", type: "email", required: true, autocomplete: "username" })),
-    el("label", { class: "fld" }, "Password",
+      el("input", { name: "email", type: "email", required: true, autocomplete: "username", placeholder: creating ? "the address you were invited with" : null })),
+    el("label", { class: "fld" }, creating ? "Choose a password" : "Password",
       el("input", {
         name: "password", type: "password", required: true, minlength: 8,
+        placeholder: creating ? "at least 8 characters" : null,
         autocomplete: creating ? "new-password" : "current-password"
       })),
     el("button", { type: "submit", class: "btn", disabled: state.busy },
       state.busy ? (creating ? "Creating…" : "Signing in…") : (creating ? "Create account" : "Sign in")),
     state.error && el("p", { class: "error" }, state.error),
     el("p", { class: "muted switch" },
-      creating ? "Already have an account? " : "Invited? ",
-      el("a", {
-        href: "#", onclick: (e) => { e.preventDefault(); state.authMode = creating ? "signin" : "create"; state.error = null; render(); }
-      }, creating ? "Sign in" : "Create an account"))
+      creating
+        ? "Not invited yet? Ask a friend who uses clouded to add your email on their Group tab."
+        : ["No account yet? ", el("a", { href: "#create", onclick: (e) => { e.preventDefault(); setMode("create"); } }, "Create one"), "."])
   );
   return form;
 }
 
 // ---------------------------------------------------------------- list
+
+// Size a textarea to its text. Borders sit outside scrollHeight, hence the
+// offset/client difference; the CSS max-height caps it and scrolls past that.
+function grow(t) {
+  t.style.height = "auto";
+  t.style.height = `${t.scrollHeight + t.offsetHeight - t.clientHeight}px`;
+}
 
 function capLabel(cap) {
   return cap.skill_id ? skillName(cap.skill_id) : `${cap.proposed_key} (proposed)`;
@@ -468,10 +484,20 @@ function listView() {
       const raw = input.value.trim();
       if (!raw) return;
       // load() sees the new row as pending and starts watching it
-      run(async () => { await addIdea(raw); input.value = ""; await load(); });
+      run(async () => { await addIdea(raw); input.value = ""; grow(input); await load(); });
     }
   },
-    el("input", { name: "raw", "aria-label": "New idea", placeholder: "An idea, in as few words as you like", autocomplete: "off" }),
+    // a textarea, not an input: a long idea wraps and the box grows with it,
+    // so the whole thing is readable before it is sent. Enter sends,
+    // Shift+Enter breaks the line.
+    el("textarea", {
+      name: "raw", "aria-label": "New idea", rows: 1, autocomplete: "off",
+      placeholder: "An idea, in as few words as you like",
+      oninput: (e) => grow(e.target),
+      onkeydown: (e) => {
+        if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); add.requestSubmit(); }
+      }
+    }),
     el("button", { type: "submit", class: "btn", disabled: state.busy }, "Add idea"),
     // adding runs extraction server-side, which is a paid API call
     el("span", { class: "cost" }, "extracts on save, about 1¢")
@@ -1273,22 +1299,19 @@ function capabilityDetail(cap) {
   );
 }
 
-// A toggle when you are in exactly one group (the normal case), the select if
-// ever in more. Private ideas get the one hint about what sharing unlocks.
+// Buttons, not a checkbox (2026-09-19): one "Share with <group>" per group
+// while the idea is private, and "Make private" once it is shared. The same
+// markup covers one group (the normal case) and several. Private ideas get
+// the one hint about what sharing unlocks.
 function shareControl(idea, groups) {
   const share = (groupId) => run(async () => { await setShare(idea.id, groupId); await load(); });
-  const control = groups.length === 1
-    ? el("label", { class: "check" },
-        el("input", {
-          type: "checkbox", checked: idea.shared_to === groups[0].id,
-          onchange: (e) => share(e.target.checked ? groups[0].id : null)
-        }),
-        el("span", {}, `Shared with ${groups[0].name}`))
-    : el("label", {}, "Shared with",
-        el("select", { onchange: (e) => share(e.target.value || null) },
-          el("option", { value: "", selected: !idea.shared_to }, "Private"),
-          groups.map((g) => el("option", { value: g.id, selected: idea.shared_to === g.id }, g.name))
-        ));
+  const current = groups.find((g) => g.id === idea.shared_to);
+  const control = el("div", { class: "share-row" },
+    current
+      ? [el("span", { class: "share-state" }, `Shared with ${current.name}`),
+         el("button", { type: "button", class: "sm secondary", disabled: state.busy, onclick: () => share(null) }, "Make private")]
+      : groups.map((g) =>
+          el("button", { type: "button", class: "btn sm", disabled: state.busy, onclick: () => share(g.id) }, `Share with ${g.name}`)));
   return el("div", { class: "share" },
     control,
     !groups.length && el("p", { class: "muted" },

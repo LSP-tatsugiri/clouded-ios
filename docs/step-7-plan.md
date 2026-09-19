@@ -52,7 +52,9 @@ the leverage ranking (decision 11), and profiles, the invite flow and the
    share control on the idea page is a **toggle** ("Shared with Brian's
    friends") when you are in exactly one group and the existing select if
    ever in more. Zero effort on multi-group affordances: no per-group
-   filters, no switcher.
+   filters, no switcher. (Changed 2026-09-19: the checkbox and the select
+   became buttons, one "Share with <group>" per group while private and
+   "Make private" once shared; same markup for one group or several.)
 2. **The group has a name**, defaulted to "<display name>'s group",
    editable by the creator.
 3. **The creator cannot leave.** They get "delete group": ideas shared to

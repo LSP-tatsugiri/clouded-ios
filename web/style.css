@@ -312,17 +312,25 @@ input.txt, .fld input, .row input, :where(#app > :not(.waifu)) textarea {
 
 /* ---------------------------------------------------------------- ideas */
 
-.capture { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; margin: 2rem 0 1.25rem; }
-.capture input {
+.capture { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: flex-start; margin: 2rem 0 1.25rem; }
+/* one line tall to start (3.25rem, the button's height), grows with the text
+   via grow() in app.js, scrolls past 40vh */
+.capture textarea {
   flex: 1 1 16rem;
   height: 3.25rem;
-  padding: 0 1.1rem;
+  min-height: 3.25rem;
+  max-height: 40vh;
+  padding: 0.8rem 1.1rem;
   border-radius: 14px;
   border: 1px solid var(--line);
   background: var(--bg-2);
   font-size: 1.1rem;
+  line-height: 1.35;
   min-width: 0;
+  resize: none;
+  overflow-y: auto;
 }
+.capture .cost { align-self: flex-start; height: 3.25rem; display: inline-flex; align-items: center; }
 
 .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem 1rem; padding-bottom: 1.25rem; }
 .controls select { max-width: 16rem; }
@@ -711,6 +719,9 @@ aside .domains li { display: block; padding: 0; border-top: 1px solid var(--line
 .signin .fld { margin: 0; }
 .signin .btn { margin-top: 0.25rem; }
 .signin .switch { margin: 0.9rem 0 0; text-align: center; }
+.signin .auth-seg { align-self: center; margin: 0.25rem 0 0; }
+.signin .auth-seg button { height: auto; }
+.signin .how { margin: 0; font-size: 0.88rem; line-height: 1.5; color: var(--ink-2); }
 
 /* ---------------------------------------------------------------- idea page
    Not redesigned yet: the tokens, the card and the coloured marks only, the
@@ -767,8 +778,9 @@ aside .domains li { display: block; padding: 0; border-top: 1px solid var(--line
 .resolution dd { margin: 0; overflow-wrap: anywhere; }
 
 .share { margin: 1.75rem 0 0; padding-top: 1rem; border-top: 1px solid var(--line); }
-.share label { color: var(--ink); }
-.share .muted { margin: 0.4rem 0 0; }
+.share-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem 0.8rem; }
+.share-state { font-weight: 600; color: var(--ink); }
+.share .muted { margin: 0.6rem 0 0; }
 .delete { margin: 1rem 0 0; }
 .delete .row { margin-top: 0.5rem; }
 
