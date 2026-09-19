@@ -1,0 +1,39 @@
+name: Bug
+description: Something in Clouded did the wrong thing.
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: >
+        This repo is public. Don't paste private idea text here; describe the
+        behaviour. A screenshot goes through the app's report form (it stays in
+        a private bucket), not into this issue.
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Where
+      options:
+        - web
+        - ios
+        - share-extension
+        - extraction
+        - other
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, what you got instead.
+    validations:
+      required: true
+  - type: input
+    id: route
+    attributes:
+      label: Route or screen
+      placeholder: "#/idea/…, capture sheet, share extension"
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      placeholder: "commit sha (web footer), or iOS version (build)"

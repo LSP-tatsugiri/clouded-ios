@@ -417,3 +417,7 @@ enabled = true
 [functions.extract]
 # Called by a database webhook that carries a shared secret header, not a user JWT.
 verify_jwt = false
+
+[functions.report]
+# Same as extract: a database webhook with a shared secret header, not a user JWT.
+verify_jwt = false

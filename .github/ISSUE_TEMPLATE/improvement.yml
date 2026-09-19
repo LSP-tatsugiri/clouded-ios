@@ -1,0 +1,41 @@
+name: Improvement
+description: Something in Clouded could be better.
+labels: ["improvement", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: >
+        This repo is public. Don't paste private idea text here.
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Where
+      options:
+        - web
+        - ios
+        - share-extension
+        - extraction
+        - other
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What would be better
+      description: The change, as concretely as you can put it.
+    validations:
+      required: true
+  - type: dropdown
+    id: serves
+    attributes:
+      label: What it serves
+      description: The backlog's ordering rule — capture is the primary blocker, the learning loop the secondary job. Anything that serves neither ranks below anything that serves either.
+      options:
+        - capture
+        - the learning loop
+        - neither, but
+  - type: input
+    id: route
+    attributes:
+      label: Route or screen
+      placeholder: "#/profile, idea page, capture sheet"
