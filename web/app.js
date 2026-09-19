@@ -12,13 +12,19 @@ import {
   classify, compareKeys, cruxOf, cruxStatus, distanceOf, friendsWhoHold, leverage, sortKey
 } from "/extraction/src/distance.js";
 import {
-  addIdea, amCurator, capabilities, capabilitiesFor, createGroup, db, deleteGroup, deleteIdea, groupMembers,
-  groupSkills, idea as fetchIdea, ideas, invite, mediaUrl, myGroups, myProfile, mySkills, pendingInvites,
-  profilesFor, promoteSkill, proposedSkills, rejectSkill, removeMember, renameGroup, revokeInvite, runsFor,
-  session, setClarification, setDisplayName, setShare, setSkillLevel, sharedIdeas, signIn, signOut,
-  signUp, skills, skillsFor
+  addFeedback, addIdea, amCurator, capabilities, capabilitiesFor, createGroup, db, deleteGroup, deleteIdea,
+  groupMembers, groupSkills, idea as fetchIdea, ideas, invite, mediaUrl, myFeedback, myGroups, myProfile,
+  mySkills, pendingInvites, profilesFor, promoteSkill, proposedSkills, rejectSkill, removeMember, renameGroup,
+  revokeInvite, runsFor, session, setClarification, setDisplayName, setShare, setSkillLevel, sharedIdeas,
+  signIn, signOut, signUp, skills, skillsFor, uploadFeedbackShot
 } from "./lib/db.js";
 import { el, mount } from "./lib/dom.js";
+// build.mjs writes COMMIT into config.js on the host; the hand-written local
+// config.js has no such export, and a named import of a missing export fails
+// at link time, so read it off the namespace
+import * as config from "./config.js";
+
+const COMMIT = config.COMMIT ?? "dev";
 import { FAILED, SAVED, SENDING, bandFor, forcedBand, opener } from "./lib/waifu.js";
 
 const LEVELS = ["none", "some", "solid"];
@@ -36,7 +42,7 @@ const fmtDate = (iso) => new Date(iso).toLocaleDateString(undefined, { month: "s
 // Declared before `state`, because state's initialiser calls currentRoute(),
 // which reads this. A const declared further down would still be in its
 // temporal dead zone at that point and throw on load.
-const ROUTES = new Set(["profile", "review", "group", "waifu"]);
+const ROUTES = new Set(["profile", "review", "group", "waifu", "report"]);
 
 const app = document.getElementById("app");
 const state = {
@@ -64,6 +70,11 @@ const state = {
   waifu: { phase: "asking", ideaId: null, line: null }, // #/waifu: asking | sending | saved | failed
   // "signin" | "create" on the sign-in card; the landing's invite link opens it on create
   authMode: location.hash === "#create" ? "create" : "signin",
+  reportFrom: "",      // the hash the footer link was clicked on; a report records it as its route
+  reportKind: "bug",   // "bug" | "improvement" on the report form
+  reports: [],         // your feedback rows, newest first
+  draft: { title: "", body: "", file: null }, // the report form, kept across re-renders (watch() repaints every 2 s)
+  sent: null,          // { id, number, error } after a report is sent, while the number is awaited
   waiting: "",         // progress text while an answer re-runs extraction
   extracting: new Map(), // idea_id -> { stage, seconds } while the list watches a new idea
   error: null,
@@ -1631,10 +1642,124 @@ function reviewView() {
   );
 }
 
+// ---------------------------------------------------------------- report
+
+// Bug and improvement reports go into the feedback table and from there,
+// through the report edge function, to a GitHub issue. The reporter sees
+// "sent, #N" and nothing more (docs/feedback-plan.md, decision 5). The
+// tracker is public, so the form says what leaves the account: the display
+// name and the text, never the email or the picture.
+function reportView() {
+  const d = state.draft;
+  const kindBtn = (kind, label) => el("button", {
+    type: "button", "aria-pressed": String(state.reportKind === kind),
+    onclick: () => { state.reportKind = kind; render(); }
+  }, label);
+  const form = el("form", {
+    class: "report-form",
+    onsubmit: (e) => {
+      e.preventDefault();
+      const title = d.title.trim();
+      const body = d.body.trim();
+      const file = d.file;
+      if (!title || !body) return;
+      const id = crypto.randomUUID();
+      run(async () => {
+        const me = state.session.user.id;
+        const screenshot_path = file ? await uploadFeedbackShot(me, id, file) : null;
+        await addFeedback({
+          id, kind: state.reportKind, surface: "web", title, body,
+          route: state.reportFrom || null, app_version: COMMIT, device: navigator.userAgent, screenshot_path
+        });
+        state.draft = { title: "", body: "", file: null };
+        state.sent = { id, number: null, error: null };
+        state.reports = await myFeedback();
+      }).then(() => state.sent?.id === id && awaitIssue(id));
+    }
+  },
+    el("div", { class: "seg", "aria-label": "Kind of report" },
+      kindBtn("bug", "Something broke"), kindBtn("improvement", "Something could be better")),
+    el("label", { class: "fld" }, "Title",
+      el("input", { name: "title", required: true, maxlength: 120, autocomplete: "off", value: d.title,
+        oninput: (e) => { d.title = e.target.value; },
+        placeholder: state.reportKind === "bug" ? "What went wrong, in a line" : "What would be better, in a line" })),
+    el("label", { class: "fld" }, state.reportKind === "bug" ? "What happened" : "What you would change",
+      el("textarea", { name: "body", required: true, maxlength: 4000, rows: 5,
+        oninput: (e) => { d.body = e.target.value; },
+        placeholder: state.reportKind === "bug" ? "What you did, what you expected, what you got instead" : "The change, and what it would fix for you" }, d.body)),
+    el("label", { class: "fld" }, "Screenshot, optional",
+      shotInput()),
+    el("p", { class: "hint" },
+      "Filed on GitHub as an issue under your display name — the tracker is public, so keep private idea text out. The screenshot stays private."),
+    el("button", { type: "submit", class: "btn sm", disabled: state.busy }, state.busy ? "Sending…" : "Send report"),
+    state.error && el("p", { class: "error" }, state.error)
+  );
+
+  const sentLine = () => {
+    const s = state.sent;
+    if (!s) return null;
+    const text = s.number ? `Sent — #${s.number}`
+      : s.error ? "Sent — filing failed, it's saved and will be retried"
+      : "Sent — filing…";
+    return el("p", { class: "sent" }, text);
+  };
+  const numberOf = (r) => r.github_issue_number ? `#${r.github_issue_number}`
+    : r.github_error ? "filing failed, will retry" : "filing…";
+
+  return el("div", { class: "report" }, header(),
+    el("h2", {}, "Report a problem"),
+    el("p", { class: "muted" }, "A bug, or something that could be better. It goes to the tracker with the page you came from and the build you are on."),
+    sentLine(),
+    form,
+    state.reports.length > 0 && el("section", { class: "reports" },
+      el("h3", { class: "sub-h" }, "Your reports"),
+      el("ul", { class: "plain" },
+        state.reports.map((r) => el("li", {},
+          el("span", { class: "r-title" }, r.title),
+          el("span", { class: "r-meta" }, `${r.kind} · ${fmtDate(r.created_at)} · ${numberOf(r)}`))))
+    )
+  );
+}
+
+// A file input cannot take a value attribute; a DataTransfer puts the kept
+// file back after a re-render so the picker still shows its name.
+function shotInput() {
+  const input = el("input", { name: "shot", type: "file", accept: "image/jpeg,image/png,image/webp",
+    onchange: (e) => { state.draft.file = e.target.files[0] || null; } });
+  if (state.draft.file) {
+    try { const dt = new DataTransfer(); dt.items.add(state.draft.file); input.files = dt.files; } catch { /* keep the File in state regardless */ }
+  }
+  return input;
+}
+
+// After a send, the issue number lands a second or two later; look for it
+// every 2 s for 10 s, then leave whatever the list says.
+async function awaitIssue(id) {
+  for (let i = 0; i < 5 && state.sent?.id === id && !state.sent.number && !state.sent.error; i++) {
+    await sleep(2000);
+    if (state.route !== "report" || state.sent?.id !== id) return;
+    try { state.reports = await myFeedback(); } catch { continue; }
+    const r = state.reports.find((x) => x.id === id);
+    if (r) state.sent = { id, number: r.github_issue_number, error: r.github_error };
+    render();
+  }
+}
+
+// On every page but the waifu scene: the way to report, and which build this
+// is, so a report can say so. Remembers the page it was clicked on.
+function footer() {
+  return el("footer", { class: "foot", style: "view-transition-name: app-footer" },
+    el("a", { href: "#/report", onclick: () => { state.reportFrom = location.hash; } }, "report a problem"),
+    el("span", { class: "sep" }, "·"),
+    el("span", { class: "commit", title: "the build you are on" }, COMMIT)
+  );
+}
+
 // ---------------------------------------------------------------- plumbing
 
 function viewFor() {
   if (state.route === "review") return reviewView();
+  if (state.route === "report") return reportView();
   if (state.route === "idea") return ideaView();
   if (state.route === "group") return groupView();
   if (state.route === "friend") return friendView();
@@ -1648,7 +1773,7 @@ function viewFor() {
 // each named after its idea, glide to their new places. Anything else, an
 // extraction tick or a save, paints plainly. Nothing animates without the
 // API, under reduced motion, or into or out of the waifu scene.
-const ROUTE_ORDER = { list: 0, idea: 0.5, group: 1, friend: 1.5, profile: 2, review: 3 };
+const ROUTE_ORDER = { list: 0, idea: 0.5, group: 1, friend: 1.5, profile: 2, review: 3, report: 4 };
 let paintedRoute = null;
 let latest = null;   // a transition's callback paints whatever was built last
 
@@ -1658,6 +1783,7 @@ function render({ animate = false } = {}) {
   if (!state.session) { paintAuth(); paintedRoute = state.route; return; }
   if (authDialog.open) authDialog.close();   // signed in from the dialog
   latest = viewFor();
+  if (state.route !== "waifu") latest.append(footer());
   const paint = () => mount(app, latest);
   const switched = paintedRoute !== null && paintedRoute !== state.route;
   const can = state.session && document.startViewTransition && !reduceMotion()
@@ -1720,6 +1846,8 @@ async function load() {
     }
   } else if (state.route === "review") {
     state.proposals = state.curator ? await proposedSkills() : [];
+  } else if (state.route === "report") {
+    state.reports = await myFeedback();
   } else if (state.route === "profile") {
     state.profile = await myProfile(state.session.user.id);
   } else if (state.route === "group") {
@@ -1764,6 +1892,7 @@ addEventListener("hashchange", () => {
   status.textContent = "";
   state.detail = null;
   state.confirmDeleteIdea = false;
+  state.sent = null;
   state.moved = "";
   state.friend = null;
   state.waiting = "";

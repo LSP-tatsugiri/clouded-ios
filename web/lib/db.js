@@ -265,6 +265,44 @@ export async function deleteIdea(id, imagePath) {
   if (imagePath) await db.storage.from("idea-media").remove([imagePath]).catch(() => {});
 }
 
+// ---------------------------------------------------------------- feedback
+
+// A report is one row in `feedback` and, optionally, one object in the
+// private feedback-media bucket (docs/feedback-plan.md). The picture goes up
+// first under a client-chosen id, then the row is inserted with its path, so
+// the row is the report as sent: no UPDATE, nothing to unsend. The report
+// edge function files it on GitHub and writes the issue number back.
+const SHOT_EXT = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" };
+const SHOT_MAX = 10 * 1024 * 1024;   // the bucket's own cap
+
+export async function uploadFeedbackShot(userId, id, file) {
+  const ext = SHOT_EXT[file.type];
+  if (!ext) throw new Error("The screenshot must be a JPEG, PNG or WebP.");
+  if (file.size > SHOT_MAX) throw new Error("The screenshot is over 10 MB. Crop or resize it first.");
+  const path = `${userId}/${id}.${ext}`;
+  const { error } = await db.storage.from("feedback-media").upload(path, file, { contentType: file.type });
+  if (error) throw new Error(`uploadFeedbackShot: ${error.message}`);
+  return path;
+}
+
+// `row` carries id, kind, surface, title, body, route, app_version, device,
+// screenshot_path. user_id defaults to auth.uid() and the policy rejects
+// anything else. A failed insert after an upload removes the object again.
+export async function addFeedback(row) {
+  const { data, error } = await db.from("feedback").insert(row).select("id").single();
+  if (error) {
+    if (row.screenshot_path) await db.storage.from("feedback-media").remove([row.screenshot_path]).catch(() => {});
+    throw new Error(`addFeedback: ${error.message}`);
+  }
+  return data;
+}
+
+export async function myFeedback() {
+  return ok(await db.from("feedback")
+    .select("id, kind, title, github_issue_number, github_error, created_at")
+    .order("created_at", { ascending: false }), "myFeedback");
+}
+
 // ---------------------------------------------------------------- curation
 
 // True when the signed-in user may review proposed skills. The policy only
