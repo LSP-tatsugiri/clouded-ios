@@ -19,6 +19,7 @@ import {
   signIn, signOut, signUp, skills, skillsFor, uploadFeedbackShot
 } from "./lib/db.js";
 import { el, mount } from "./lib/dom.js";
+import { canDictate, dictation } from "./lib/speech.js";
 // build.mjs writes COMMIT into config.js on the host; the hand-written local
 // config.js has no such export, and a named import of a missing export fails
 // at link time, so read it off the namespace
@@ -248,6 +249,26 @@ function grow(t) {
   t.style.height = "auto";
   t.style.height = `${t.scrollHeight + t.offsetHeight - t.clientHeight}px`;
 }
+
+// One element for the session, like searchBox: watch() repaints the whole list
+// every 2 s while an idea extracts, and a textarea rebuilt under a half-typed
+// or half-spoken idea would lose the text, the caret and the live recognition.
+//
+// A textarea, not an input: a long idea wraps and the box grows with it, so the
+// whole thing is readable before it is sent. Enter sends, Shift+Enter breaks
+// the line.
+const captureBox = el("textarea", {
+  name: "raw", "aria-label": "New idea", rows: 1, autocomplete: "off",
+  placeholder: "An idea, in as few words as you like",
+  oninput: (e) => grow(e.target),
+  onkeydown: (e) => {
+    if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); captureBox.form?.requestSubmit(); }
+  }
+});
+
+// Dictation, where the browser has an engine for it; null in Firefox, and then
+// nothing about the box changes. See web/lib/speech.js for why it discloses.
+const mic = canDictate() ? dictation(captureBox) : null;
 
 function capLabel(cap) {
   return cap.skill_id ? skillName(cap.skill_id) : `${cap.proposed_key} (proposed)`;
@@ -532,27 +553,19 @@ function listView() {
     class: "capture",
     onsubmit: (e) => {
       e.preventDefault();
-      const input = add.elements.raw;
-      const raw = input.value.trim();
+      mic?.stop();   // a word still being transcribed is not part of the idea
+      const raw = captureBox.value.trim();
       if (!raw) return;
       // load() sees the new row as pending and starts watching it
-      run(async () => { await addIdea(raw); input.value = ""; grow(input); await load(); });
+      run(async () => { await addIdea(raw); captureBox.value = ""; grow(captureBox); await load(); });
     }
   },
-    // a textarea, not an input: a long idea wraps and the box grows with it,
-    // so the whole thing is readable before it is sent. Enter sends,
-    // Shift+Enter breaks the line.
-    el("textarea", {
-      name: "raw", "aria-label": "New idea", rows: 1, autocomplete: "off",
-      placeholder: "An idea, in as few words as you like",
-      oninput: (e) => grow(e.target),
-      onkeydown: (e) => {
-        if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); add.requestSubmit(); }
-      }
-    }),
+    captureBox,
+    mic?.button,
     el("button", { type: "submit", class: "btn", disabled: state.busy }, "Add idea"),
     // adding runs extraction server-side, which is a paid API call
-    el("span", { class: "cost" }, "extracts on save, about 1¢")
+    el("span", { class: "cost" }, "extracts on save, about 1¢"),
+    mic?.note
   );
 
   const rated = state.levels.size;

@@ -33,7 +33,18 @@ project's stated primary blocker, so it ranks high by the backlog's own
 ordering rule. It is self-contained in `web/`: no schema change, no migration,
 no edge function, **no Anthropic credit**.
 
-### The open decision — the owner's, do not pick for them
+### Decided 2026-09-25: (1), accept it and say so
+
+The owner chose **(1)**. It shipped on `agent/speech-capture`: `web/lib/speech.js`,
+a mic beside the Add idea button, and a line under the box reading *"mic: your
+browser transcribes the audio on its own servers, not clouded's"* — always
+visible before the first press, replaced by a listening line while the mic is
+live. Nothing records until the button is pressed, and Firefox simply does not
+get the button. (3) stays open as a later upgrade: Chrome's on-device
+`processLocally` is the same `SpeechRecognition` API, so choosing (1) did not
+foreclose it. The reasoning behind all three is kept below.
+
+### The open decision as it stood — the owner's, do not pick for them
 
 The browser's built-in `SpeechRecognition` (`webkitSpeechRecognition` in
 Chrome, Edge and Safari; **Firefox does not support it**) sends the captured
@@ -102,12 +113,17 @@ Five text inputs exist in the web client. Only the first is clearly worth it:
    spending it**. Decide on purpose or not at all.
 3. **Issue #4 is open** — the test report titled "123", sent from the owner's
    localhost review. Safe to close.
-4. **The landing scrolls sideways at phone width.** At a 381 px viewport the
-   document is 430 px wide; the overflow is the "How it works" capture
-   fragment, `.land-frag.land-capture` inside `.land-steps li.card`
-   (`web/style.css`). Pre-existing, not caused by the dialog work. It matters
-   more once dictation ships, because dictation earns its keep on a phone —
-   worth folding into the same branch.
+4. ~~**The landing scrolls sideways at phone width.**~~ **Fixed on
+   `agent/speech-capture`.** The diagnosis in the first draft of this file was
+   half right: the Capture card is what forces the width, but not because the
+   fragment cannot shrink. `.land-input` already has `overflow: hidden`, which
+   makes its `min-width: auto` resolve to 0 — putting `min-width: 0` there is a
+   measured no-op. The culprit is one level up: `.land-steps li.card` is a grid
+   item, its automatic minimum size is its 414 px min-content, and the `1fr`
+   track stretched to hold it. `.land-steps li.card { min-width: 0 }` fixes it.
+   Measured after: 381 px of document in a 381 px viewport, nothing clipped, and
+   clean at 320 px too. The same bug was live in the three-column range below
+   about 1250 px, not only on phones.
 
 ## Decided, do not reopen without the owner
 

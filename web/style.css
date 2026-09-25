@@ -334,6 +334,31 @@ input.txt, .fld input, .row input, :where(#app > :not(.waifu)) textarea {
 }
 .capture .cost { align-self: flex-start; height: 3.25rem; display: inline-flex; align-items: center; }
 
+/* dictation: a mic beside Add idea, square and quiet until it is listening,
+   then crux red because that is what recording reads as. app.js leaves it out
+   entirely where the browser has no engine, so there is no disabled state. */
+.capture .mic {
+  width: 3.25rem;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  color: var(--ink-2);
+  border: 1px solid var(--line);
+}
+.capture .mic:hover { color: var(--ink); }
+.capture .mic.on { background: var(--crux); border-color: var(--crux); color: #fff; }
+.mic-glyph { width: 1.4rem; height: 1.4rem; }
+/* its own row under the box: the disclosure has to be readable before the first
+   press, and at phone width it would not share a line with anything */
+.capture .mic-note { flex: 1 1 100%; margin: -0.25rem 0 0; font: 0.8rem var(--mono); color: var(--ink-3); }
+.capture .mic-note.bad { color: var(--crux); }
+@media (prefers-reduced-motion: no-preference) {
+  .capture .mic.on { animation: mic-live 1.6s ease-in-out infinite; }
+  @keyframes mic-live { 50% { opacity: 0.62; } }
+}
+
 .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem 1rem; padding-bottom: 1.25rem; }
 .controls select { max-width: 16rem; }
 .controls .search {
@@ -1070,6 +1095,12 @@ html.signed-in .landing { display: none; }
   grid-template-columns: repeat(3, 1fr);
   gap: 1rem;
 }
+/* A grid item will not shrink below its min-content unless told to, and the
+   Capture card's fragment — the pretend input beside the Add idea button —
+   makes that 414px. Below about 1250px the track could not hold it and the
+   whole landing scrolled sideways: 430px of document in a 381px phone. The
+   fragment shrinks to fit once the card is allowed to. */
+.land-steps li.card { min-width: 0; }
 .land-steps h3 { margin: 0; font-size: 1.15rem; font-weight: 700; letter-spacing: -0.01em; }
 .land-steps p { margin: 0.4rem 0 0; color: var(--ink-2); font-size: 0.95rem; }
 .land-frag {
