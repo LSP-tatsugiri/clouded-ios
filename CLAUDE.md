@@ -97,9 +97,11 @@ while out. Capture is the only phone-first part.
 - **Distance is a flat count of gaps.** "Pick PETG for heat" and "mechanical
   singulation of small fasteners" both count 1, and the model is capped at 3–7
   capabilities, so a weekend project and a six-month one can score the same.
-  The web list sorts by crux status first (held / partial / gap), then by gap
-  count (`sortKey` in `distance.js`), which fixes the ordering but not the
-  size. Consider a per-capability flag for "learnable from a tutorial" vs
+  The web list's "Closest to me" sorts by crux status first (held / partial /
+  gap), then by gap count (`sortKey` in `distance.js`), which fixes the
+  ordering but not the size. It is no longer the default sort — both the Ideas
+  tab and the Group feed open on Newest (2026-09-27), so distance is something
+  you ask for rather than the first thing you see. Consider a per-capability flag for "learnable from a tutorial" vs
   "needs real iteration".
 - **The leverage ranking is biased by how the taxonomy is split.** `skills.json`
   has 16 embedded skills but 8 fabrication ones, and the prompt says to map

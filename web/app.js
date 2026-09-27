@@ -54,7 +54,9 @@ const state = {
   skills: [],          // 51 rows, seeded by migration, cached after first load
   levels: new Map(),   // skill_id -> none | some | solid
   filters: { domain: "", crux: "", proposed: false, friend: false, q: "" },
-  sort: "closest",     // Ideas tab: closest (the distance sort) | newest
+  // Ideas tab: newest | closest (the distance sort). Newest by default, as the
+  // Group feed already was — what you just captured is what you came to see.
+  sort: "newest",
   pool: new Map(),     // skill_id -> [user_id] of group mates holding it solid
   names: new Map(),    // user_id -> display_name, for everyone in your groups
   curator: null,       // null = not yet checked
@@ -464,7 +466,7 @@ function filterBar(domains, shownCount, total) {
   const filtering = state.filters.domain || state.filters.crux || state.filters.proposed || state.filters.friend || state.filters.q;
   return el("div", { class: "controls" },
     el("div", { class: "seg", role: "group", "aria-label": "Sort" },
-      sortButton("closest", "Closest to me"), sortButton("newest", "Newest")),
+      sortButton("newest", "Newest"), sortButton("closest", "Closest to me")),
     searchBox,
     el("select", { "aria-label": "Domain", onchange: (e) => set("domain", e.target.value) },
       el("option", { value: "", selected: state.filters.domain === "" }, "Any domain"),
