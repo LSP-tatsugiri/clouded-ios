@@ -66,7 +66,7 @@ struct ShareView: View {
     @State private var error: String?
     @State private var queuedNote: String?
 
-    private var trimmed: String { sentence.trimmingCharacters(in: .whitespacesAndNewlines) }
+    private var idea: String? { Sentence.cleaned(sentence) }
 
     var body: some View {
         NavigationStack {
@@ -91,7 +91,7 @@ struct ShareView: View {
                         Button(action: save) {
                             if busy { ProgressView() } else { Text("Save") }
                         }
-                        .disabled(busy || trimmed.isEmpty)
+                        .disabled(busy || idea == nil)
                     }
                 }
             }
@@ -130,6 +130,7 @@ struct ShareView: View {
     }
 
     private func save() {
+        guard let sentence = idea else { return }
         busy = true
         error = nil
         Task {
@@ -138,7 +139,7 @@ struct ShareView: View {
                 if case .image(let i) = attachment { image = i }
                 if case .link(let u) = attachment { link = u }
                 // the app flushes the outbox; this process is about to be gone
-                if case .queued = try await Capture.save(sentence: trimmed, image: image, link: link) {
+                if case .queued = try await Capture.save(sentence: sentence, image: image, link: link) {
                     queuedNote = "Saved — waiting for signal. It sends itself when you are back on."
                     try? await Task.sleep(for: .seconds(1.6))
                 }

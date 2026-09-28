@@ -75,6 +75,11 @@ These are load-bearing. Changing one is a product decision, not a refactor.
   `NWPathMonitor` sees signal. Nothing in it is ever aged out. `cloudedTests`
   covers the spool; it compiles `Outbox.swift`, `AppGroup.swift` and
   `Records.swift` only, so it needs no host app and no Supabase package.
+  `clouded/CaptureIntent.swift` (2026-09-28) is the App Intent behind the
+  Action Button, Siri, the Shortcuts app and a lock-screen or Control Centre
+  button — one sentence, saved without opening the app. The app target must
+  keep the `AppIntents.framework` dependency in `project.yml`: without it the
+  build still succeeds and the intent silently never appears.
 
 The iOS unit tests are `cd ios && xcodebuild test -project clouded.xcodeproj
 -scheme cloudedTests -destination 'platform=iOS Simulator,name=iPhone 17'`

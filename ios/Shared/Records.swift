@@ -37,6 +37,16 @@ struct Idea: Codable, Identifiable, Hashable {
     }
 }
 
+// One idea is one sentence, and blank is not an idea (docs/step-6-plan.md
+// decision 3). Every capture surface runs its text through here — the sheet,
+// the Share Extension and the App Intent — so the rule cannot drift apart.
+enum Sentence {
+    static func cleaned(_ text: String) -> String? {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
+    }
+}
+
 // The write shape: what an insert into `ideas` carries. Codable, not just
 // Encodable, because the outbox spools it to a file and reads it back
 // (Outbox.swift). The id is chosen client-side, which is what makes a retry

@@ -81,10 +81,11 @@ is a plain insert that fails with no network** — and the README names that
 exact failure ("an idea lost because you were in a basement") as the worst
 thing the product can do. Highest-value phone work, in order:
 
-1. **App Intent + Shortcut** (`AppIntents`, ~60 lines). Gives the Action
-   Button, Siri, the lock-screen widget and the Shortcuts app in one go,
-   without a new UI. This is the cheapest way to deliver what the README
-   already promises.
+1. ~~**App Intent + Shortcut**~~ **Shipped 2026-09-28** as
+   `ios/clouded/CaptureIntent.swift`. Sentence only, saved without opening the
+   app. `Sentence.cleaned` in `Records.swift` now holds the blank-idea rule for
+   all three capture surfaces. §3.3 below follows for free: the shortcut is
+   already offered as a Control Centre and lock-screen button.
 2. ~~**Local outbox for the row.**~~ **Shipped 2026-09-28** as
    `ios/Shared/Outbox.swift`, with `ios/cloudedTests` covering the spool
    (15 tests). Row only: the picture keeps the background `URLSession` path

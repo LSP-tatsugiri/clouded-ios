@@ -38,6 +38,10 @@ targets:
       - package: Supabase
         product: Supabase
       - target: cloudedShare
+      # without this the App Intents metadata is not extracted and the intent
+      # never reaches Shortcuts, Siri or the Action Button — a green build says
+      # nothing about it, only the appintentsmetadataprocessor warning does
+      - sdk: AppIntents.framework
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.monoesport.clouded

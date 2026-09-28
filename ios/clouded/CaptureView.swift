@@ -17,7 +17,7 @@ struct CaptureView: View {
     @State private var error: String?
     @State private var queuedNote: String?
 
-    private var trimmed: String { sentence.trimmingCharacters(in: .whitespacesAndNewlines) }
+    private var idea: String? { Sentence.cleaned(sentence) }
     private var linkURL: URL? {
         let text = link.trimmingCharacters(in: .whitespacesAndNewlines)
         guard let url = URL(string: text), ["http", "https"].contains(url.scheme?.lowercased()) else { return nil }
@@ -75,7 +75,7 @@ struct CaptureView: View {
                     Button(action: save) {
                         if busy { ProgressView() } else { Text("Save") }
                     }
-                    .disabled(busy || trimmed.isEmpty || (!link.isEmpty && linkURL == nil))
+                    .disabled(busy || idea == nil || (!link.isEmpty && linkURL == nil))
                 }
             }
             .onChange(of: picked) { _, item in
@@ -94,13 +94,14 @@ struct CaptureView: View {
     }
 
     private func save() {
+        guard let sentence = idea else { return }
         busy = true
         error = nil
         Task {
             do {
                 // queued means it went to the outbox, not that anything was lost;
                 // the line is there so it does not look like a silent success
-                if case .queued = try await Capture.save(sentence: trimmed, image: image, link: linkURL) {
+                if case .queued = try await Capture.save(sentence: sentence, image: image, link: linkURL) {
                     queuedNote = "Saved — waiting for signal. It sends itself when you are back on."
                     try? await Task.sleep(for: .seconds(1.6))
                 }

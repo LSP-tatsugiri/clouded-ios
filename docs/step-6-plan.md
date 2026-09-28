@@ -293,8 +293,14 @@ fails silently and the idea shows without its picture — re-share it.
      fine for it.
   4. Group management (create, invite, members) — admin work, least
      phone-shaped.
-- Widgets, Action Button, lock-screen capture — after the share sheet is
-  proven to get used.
+- Widgets, Action Button, lock-screen capture — **shipped 2026-09-28** as
+  `clouded/CaptureIntent.swift`, an `AppIntent` plus an `AppShortcutsProvider`.
+  The gate written here ("after the share sheet is proven to get used") was put
+  to the owner on 2026-09-28 and they chose to build it anyway, as the cheapest
+  way to deliver the capture the README already promises. It saves without
+  opening the app, and Siri asking for the sentence is also most of what
+  decision 4 (voice) deferred. Not exercised end to end: the metadata extracts
+  and names the intent, but no one has run it from Siri or an Action Button.
 
 ## Trello cards this closes
 
