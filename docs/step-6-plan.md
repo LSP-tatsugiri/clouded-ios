@@ -6,6 +6,11 @@ settled every branch below. Read `CLAUDE.md` first for the invariants;
 here is built yet. Development moves to the Mac for this step: Swift needs
 Xcode, and `supabase db push` needs the CLI login.
 
+Since built and shipped. The handoffs that carry what happened after this plan
+closed: `docs/handoff-2026-09-15-mac.md` (the build itself) and
+`docs/handoff-2026-09-28-ios-capture.md` (the offline outbox and the App
+Intent, improvement-backlog §3.2 and §3.1).
+
 ## State at handoff
 
 - Hosted Supabase project: schema through `20260914063115`, the `extract`
