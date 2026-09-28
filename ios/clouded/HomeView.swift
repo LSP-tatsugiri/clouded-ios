@@ -10,6 +10,7 @@ struct HomeView: View {
     @State private var model: IdeasModel
     @State private var answering: Idea?
     @State private var capturing = false
+    @Environment(\.scenePhase) private var scenePhase
 
     init(user: User) {
         self.user = user
@@ -21,7 +22,7 @@ struct HomeView: View {
             Group {
                 if !model.loaded {
                     ProgressView()
-                } else if model.ideas.isEmpty && model.error == nil {
+                } else if model.rows.isEmpty && model.error == nil {
                     ContentUnavailableView("No ideas yet", systemImage: "lightbulb",
                                            description: Text("Tap + or share a screenshot to capture one."))
                 } else {
@@ -37,7 +38,13 @@ struct HomeView: View {
                     Button("New idea", systemImage: "plus") { capturing = true }
                 }
             }
-            .task { await model.load() }
+            .task {
+                await model.load()
+                await model.flushOutbox()
+            }
+            .onChange(of: scenePhase) { _, phase in
+                if phase == .active { Task { await model.flushOutbox() } }
+            }
             .onDisappear { model.stopPolling() }
             .sheet(item: $answering) { idea in
                 AnswerSheet(idea: idea) { text in Task { await model.answer(idea, text) } }
@@ -54,10 +61,15 @@ struct HomeView: View {
             if let error = model.error {
                 Text(error).foregroundStyle(.red)
             }
-            ForEach(model.ideas) { idea in
-                NavigationLink(value: idea.id) {
-                    IdeaRow(idea: idea, crux: model.crux(of: idea), progress: model.progress[idea.id]) {
-                        answering = idea
+            ForEach(model.rows) { idea in
+                if idea.isQueued {
+                    // nothing extracted yet, so there is no detail to open
+                    IdeaRow(idea: idea, crux: nil, progress: nil, answer: {})
+                } else {
+                    NavigationLink(value: idea.id) {
+                        IdeaRow(idea: idea, crux: model.crux(of: idea), progress: model.progress[idea.id]) {
+                            answering = idea
+                        }
                     }
                 }
             }

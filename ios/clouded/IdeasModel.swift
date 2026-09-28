@@ -3,6 +3,7 @@
 // when none is (docs/step-6-plan.md decision 12). No Realtime.
 
 import Foundation
+import Network
 import Supabase
 
 @MainActor @Observable
@@ -12,13 +13,39 @@ final class IdeasModel {
     var skillNames: [String: String] = [:]
     var held: [String: String] = [:]           // skill_id -> none | some | solid
     var progress: [UUID: String] = [:]         // rows whose answer is re-running, with a status line
+    var queued: [Outbox.Pending] = []          // captured with no network, not in the database yet
     var error: String?
     var loaded = false
 
     private let userId: UUID
     private var poller: Task<Void, Never>?
+    private let network = NWPathMonitor()
 
-    init(userId: UUID) { self.userId = userId }
+    init(userId: UUID) {
+        self.userId = userId
+        // A queued idea should leave as soon as there is signal, without the
+        // person having to reopen the app.
+        network.pathUpdateHandler = { [weak self] path in
+            guard path.status == .satisfied else { return }
+            Task { @MainActor [weak self] in await self?.flushOutbox() }
+        }
+        network.start(queue: .global(qos: .utility))
+    }
+
+    deinit { network.cancel() }
+
+    // What the list draws: queued rows first, because they are local and newer
+    // than anything the database can return (improvement-backlog §3.2).
+    var rows: [Idea] { Outbox.merge(queued: queued, with: ideas) }
+
+    // Sends whatever the outbox holds, then reloads so those rows become real
+    // ones. Returns immediately when the queue is empty, so it is cheap to
+    // call on every launch, every foreground and every connectivity change.
+    func flushOutbox() async {
+        guard !queued.isEmpty else { return }
+        await Capture.flushOutbox()
+        await load()
+    }
 
     func name(of cap: Capability) -> String {
         cap.skillId.flatMap { skillNames[$0] } ?? "\(cap.proposedKey ?? "?") (proposed)"
@@ -45,6 +72,8 @@ final class IdeasModel {
     }
 
     func load() async {
+        // read first: a failed fetch must still show what is waiting to send
+        queued = Outbox.shared.pending()
         do {
             // RLS would also return ideas shared to a group; the filter is the
             // product's split (own on the phone), the same as web/lib/db.js ideas()

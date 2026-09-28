@@ -85,3 +85,23 @@ targets:
       path: cloudedShare/cloudedShare.entitlements
       properties:
         com.apple.security.application-groups: [group.com.monoesport.clouded]
+
+  # Unit tests for the spool logic (docs/step-6-plan.md decision 2, the outbox).
+  # Sources are listed file by file on purpose: Outbox.swift and Records.swift
+  # import Foundation only, so the bundle needs no host app, no Supabase package
+  # and no code signing — `xcodebuild test -scheme cloudedTests` is seconds.
+  cloudedTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - cloudedTests
+      - Shared/AppGroup.swift
+      - Shared/Outbox.swift
+      - Shared/Records.swift
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.monoesport.clouded.tests
+        GENERATE_INFOPLIST_FILE: YES
+    scheme:
+      testTargets:
+        - cloudedTests

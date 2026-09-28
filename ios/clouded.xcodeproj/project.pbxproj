@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		02E75704F6286BF42CEAA78D /* Outbox.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0FDB40654AAF9311A4CDA96E /* Outbox.swift */; };
+		0B216A73C7368C280E2CD509 /* AppGroup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8056555C4B5421102A8A03BF /* AppGroup.swift */; };
 		11D1528282075C2AF898616D /* CloudedApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 904C1380FD6100818C81739D /* CloudedApp.swift */; };
 		2B1B5D9ECCFD8B7C8B67D572 /* Capture.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9270F728CD8D865363FAE5B9 /* Capture.swift */; };
 		2EF062D4F06CEE5E1BC5C7E7 /* IdeaDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB512568D4E581B2070DA5B7 /* IdeaDetailView.swift */; };
@@ -14,13 +16,19 @@
 		323218D94D328DA7BB94CFE7 /* Supabase.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AE949315F95BBA68B713B94 /* Supabase.swift */; };
 		6533D79C2B133A32F8717ADD /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 4AA7FE0E15D2028AD214FD33 /* Supabase */; };
 		75B0863FD0ECCFB214F08C10 /* Records.swift in Sources */ = {isa = PBXBuildFile; fileRef = ADB211354FF5599AD92F6FE5 /* Records.swift */; };
+		79F256F04368240F1153C9F5 /* AppGroup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8056555C4B5421102A8A03BF /* AppGroup.swift */; };
 		84F9AE8BFC26EBF670CD22FC /* cloudedShare.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 9757665FF5B2CB195D882C21 /* cloudedShare.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		866706F2D65843E19541A418 /* OutboxTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E83F8EFF9432F2A335BA1A37 /* OutboxTests.swift */; };
 		88D4A359EF08EF627955FF7E /* SignInView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 240E3CDBD52FF32710027ECB /* SignInView.swift */; };
 		8A11A4EF3B9062812B17DCB5 /* IdeasModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0822AD0E91CF60EA013B279 /* IdeasModel.swift */; };
+		92372B6DCB4F6D6FE22C3BBE /* Outbox.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0FDB40654AAF9311A4CDA96E /* Outbox.swift */; };
 		97FF913EA6E5F51F593D6146 /* Records.swift in Sources */ = {isa = PBXBuildFile; fileRef = ADB211354FF5599AD92F6FE5 /* Records.swift */; };
+		A2EC5D8B11F691AF5F90531F /* AppGroup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8056555C4B5421102A8A03BF /* AppGroup.swift */; };
 		BA19E143D18E9312FBA9D30F /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D389F6B465376FC350C6E11 /* HomeView.swift */; };
 		BFAB4D22B94882E20D9F986E /* CaptureView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8CFF54DBAE1CB1AD1D5C9813 /* CaptureView.swift */; };
 		D6C4D7C506759F39A2F35C43 /* Supabase.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AE949315F95BBA68B713B94 /* Supabase.swift */; };
+		D751D2A0A6428262B7DFD7C0 /* Records.swift in Sources */ = {isa = PBXBuildFile; fileRef = ADB211354FF5599AD92F6FE5 /* Records.swift */; };
+		DD30177E918DD71ACDEBF793 /* Outbox.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0FDB40654AAF9311A4CDA96E /* Outbox.swift */; };
 		DE95C239C39AE7180CE21A02 /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 7752C8B3BDEFBB22EA9FFBA9 /* Supabase */; };
 		E51CA0AC61C41E5C99CC2B5C /* Capture.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9270F728CD8D865363FAE5B9 /* Capture.swift */; };
 /* End PBXBuildFile section */
@@ -50,11 +58,13 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		0FDB40654AAF9311A4CDA96E /* Outbox.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Outbox.swift; sourceTree = "<group>"; };
 		1AE949315F95BBA68B713B94 /* Supabase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Supabase.swift; sourceTree = "<group>"; };
 		1FB53F59A25F569A109E03D0 /* cloudedShare.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = cloudedShare.entitlements; sourceTree = "<group>"; };
 		240E3CDBD52FF32710027ECB /* SignInView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignInView.swift; sourceTree = "<group>"; };
 		4D389F6B465376FC350C6E11 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
 		7DFF547BB38FE095C9D87FD3 /* clouded.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = clouded.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		8056555C4B5421102A8A03BF /* AppGroup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppGroup.swift; sourceTree = "<group>"; };
 		833588565ACF6A8FABDBEF8F /* ShareViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; };
 		8CFF54DBAE1CB1AD1D5C9813 /* CaptureView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureView.swift; sourceTree = "<group>"; };
 		904C1380FD6100818C81739D /* CloudedApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudedApp.swift; sourceTree = "<group>"; };
@@ -65,8 +75,10 @@
 		B0822AD0E91CF60EA013B279 /* IdeasModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdeasModel.swift; sourceTree = "<group>"; };
 		BCDFA84A150EFF0CBECE08B3 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		C217001BCC566D4388CDF1D9 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		E83F8EFF9432F2A335BA1A37 /* OutboxTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OutboxTests.swift; sourceTree = "<group>"; };
 		EB512568D4E581B2070DA5B7 /* IdeaDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdeaDetailView.swift; sourceTree = "<group>"; };
-		"TEMP_A4CEC87D-D66F-4370-8B53-8CFF9D1AB84A" /* Config.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config.xcconfig; sourceTree = "<group>"; };
+		F81B13B2FB4838FABD12014E /* cloudedTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = cloudedTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		"TEMP_6451829B-52B0-44C3-B7FD-BEFFA83DF70C" /* Config.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -94,6 +106,7 @@
 			children = (
 				7DFF547BB38FE095C9D87FD3 /* clouded.app */,
 				9757665FF5B2CB195D882C21 /* cloudedShare.appex */,
+				F81B13B2FB4838FABD12014E /* cloudedTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -103,6 +116,7 @@
 			children = (
 				5C4B5370119CAEB9D334D3CC /* clouded */,
 				F29A1DF367EDBAF2DB1C2DE7 /* cloudedShare */,
+				79E6CB3F04EA093C038D420D /* cloudedTests */,
 				CA8E56EC324AA3641F47BB7F /* Shared */,
 				0B0CAA8CAE530EEF348B932B /* Products */,
 			);
@@ -123,10 +137,20 @@
 			path = clouded;
 			sourceTree = "<group>";
 		};
+		79E6CB3F04EA093C038D420D /* cloudedTests */ = {
+			isa = PBXGroup;
+			children = (
+				E83F8EFF9432F2A335BA1A37 /* OutboxTests.swift */,
+			);
+			path = cloudedTests;
+			sourceTree = "<group>";
+		};
 		CA8E56EC324AA3641F47BB7F /* Shared */ = {
 			isa = PBXGroup;
 			children = (
+				8056555C4B5421102A8A03BF /* AppGroup.swift */,
 				9270F728CD8D865363FAE5B9 /* Capture.swift */,
+				0FDB40654AAF9311A4CDA96E /* Outbox.swift */,
 				ADB211354FF5599AD92F6FE5 /* Records.swift */,
 				1AE949315F95BBA68B713B94 /* Supabase.swift */,
 			);
@@ -143,10 +167,10 @@
 			path = cloudedShare;
 			sourceTree = "<group>";
 		};
-		"TEMP_0F337922-BCAC-4F13-BAA3-22FC08FE525E" /* ios */ = {
+		"TEMP_07F90FF1-53F9-416E-BC2B-51369E8FCFD7" /* ios */ = {
 			isa = PBXGroup;
 			children = (
-				"TEMP_A4CEC87D-D66F-4370-8B53-8CFF9D1AB84A" /* Config.xcconfig */,
+				"TEMP_6451829B-52B0-44C3-B7FD-BEFFA83DF70C" /* Config.xcconfig */,
 			);
 			path = ios;
 			sourceTree = "<group>";
@@ -194,6 +218,23 @@
 			productReference = 7DFF547BB38FE095C9D87FD3 /* clouded.app */;
 			productType = "com.apple.product-type.application";
 		};
+		C0421EDD7AF4AA1A182DFC10 /* cloudedTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 2FCE750A8A829CA88C2F4419 /* Build configuration list for PBXNativeTarget "cloudedTests" */;
+			buildPhases = (
+				4589B8FD51BC337F5B20D29E /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = cloudedTests;
+			packageProductDependencies = (
+			);
+			productName = cloudedTests;
+			productReference = F81B13B2FB4838FABD12014E /* cloudedTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -208,6 +249,10 @@
 						ProvisioningStyle = Automatic;
 					};
 					B60FAEA9B5287A3193B7BE93 = {
+						DevelopmentTeam = MRQYR447Q9;
+						ProvisioningStyle = Automatic;
+					};
+					C0421EDD7AF4AA1A182DFC10 = {
 						DevelopmentTeam = MRQYR447Q9;
 						ProvisioningStyle = Automatic;
 					};
@@ -232,6 +277,7 @@
 			targets = (
 				B60FAEA9B5287A3193B7BE93 /* clouded */,
 				7486A751E5A02FB1AD879945 /* cloudedShare */,
+				C0421EDD7AF4AA1A182DFC10 /* cloudedTests */,
 			);
 		};
 /* End PBXProject section */
@@ -241,10 +287,23 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A2EC5D8B11F691AF5F90531F /* AppGroup.swift in Sources */,
 				2B1B5D9ECCFD8B7C8B67D572 /* Capture.swift in Sources */,
+				DD30177E918DD71ACDEBF793 /* Outbox.swift in Sources */,
 				75B0863FD0ECCFB214F08C10 /* Records.swift in Sources */,
 				30EF8CF747C751646E33F814 /* ShareViewController.swift in Sources */,
 				D6C4D7C506759F39A2F35C43 /* Supabase.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		4589B8FD51BC337F5B20D29E /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				0B216A73C7368C280E2CD509 /* AppGroup.swift in Sources */,
+				02E75704F6286BF42CEAA78D /* Outbox.swift in Sources */,
+				866706F2D65843E19541A418 /* OutboxTests.swift in Sources */,
+				D751D2A0A6428262B7DFD7C0 /* Records.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -252,12 +311,14 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				79F256F04368240F1153C9F5 /* AppGroup.swift in Sources */,
 				E51CA0AC61C41E5C99CC2B5C /* Capture.swift in Sources */,
 				BFAB4D22B94882E20D9F986E /* CaptureView.swift in Sources */,
 				11D1528282075C2AF898616D /* CloudedApp.swift in Sources */,
 				BA19E143D18E9312FBA9D30F /* HomeView.swift in Sources */,
 				2EF062D4F06CEE5E1BC5C7E7 /* IdeaDetailView.swift in Sources */,
 				8A11A4EF3B9062812B17DCB5 /* IdeasModel.swift in Sources */,
+				92372B6DCB4F6D6FE22C3BBE /* Outbox.swift in Sources */,
 				97FF913EA6E5F51F593D6146 /* Records.swift in Sources */,
 				88D4A359EF08EF627955FF7E /* SignInView.swift in Sources */,
 				323218D94D328DA7BB94CFE7 /* Supabase.swift in Sources */,
@@ -293,6 +354,22 @@
 			};
 			name = Release;
 		};
+		23BDC1668EC7192F76E90BA3 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.monoesport.clouded.tests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
 		2FAC2F4E969E87939585AEF7 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -313,7 +390,7 @@
 		};
 		4413E021F93A2EF5B232194D /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = "TEMP_A4CEC87D-D66F-4370-8B53-8CFF9D1AB84A" /* Config.xcconfig */;
+			baseConfigurationReference = "TEMP_6451829B-52B0-44C3-B7FD-BEFFA83DF70C" /* Config.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ANALYZER_NONNULL = YES;
@@ -410,9 +487,25 @@
 			};
 			name = Debug;
 		};
+		94C1C7A17C94E42909D14189 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.monoesport.clouded.tests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 		B9FA636125F63B1594F01FF7 /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = "TEMP_A4CEC87D-D66F-4370-8B53-8CFF9D1AB84A" /* Config.xcconfig */;
+			baseConfigurationReference = "TEMP_6451829B-52B0-44C3-B7FD-BEFFA83DF70C" /* Config.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ANALYZER_NONNULL = YES;
@@ -473,6 +566,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		2FCE750A8A829CA88C2F4419 /* Build configuration list for PBXNativeTarget "cloudedTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				23BDC1668EC7192F76E90BA3 /* Debug */,
+				94C1C7A17C94E42909D14189 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
 		3D40FE41C0DDE00485585824 /* Build configuration list for PBXNativeTarget "cloudedShare" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

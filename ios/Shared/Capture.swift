@@ -10,41 +10,85 @@
 // says "attached but could not be loaded" when the object is missing, which
 // is the honest state of a failed upload. Extraction still starts on the
 // insert and never waits for the picture.
+//
+// Amended again (improvement-backlog §3.2): the insert itself no longer throws
+// the idea away when it cannot reach the database. It goes to Outbox.shared and
+// the list shows it as "waiting to send" until a flush gets it through.
 
 import Foundation
+import Supabase
 import UIKit
-
-struct NewIdea: Encodable {
-    let id: UUID
-    let raw: String
-    let sourceUrl: String?
-    let imagePath: String?
-
-    enum CodingKeys: String, CodingKey {
-        case id, raw
-        case sourceUrl = "source_url"
-        case imagePath = "image_path"
-    }
-}
 
 enum Capture {
     static let maxSide: CGFloat = 2048     // decision 10
     static let jpegQuality: CGFloat = 0.8
 
+    enum Failure: LocalizedError {
+        case notSignedIn
+
+        var errorDescription: String? {
+            switch self {
+            case .notSignedIn: "Open clouded and sign in first."
+            }
+        }
+    }
+
+    // Whether the row reached the database or is waiting in the outbox. Either
+    // way the idea is kept; the caller only needs it to say which.
+    enum SaveResult {
+        case sent(UUID)
+        case queued(UUID)
+
+        var id: UUID {
+            switch self {
+            case .sent(let id), .queued(let id): id
+            }
+        }
+    }
+
     @discardableResult
-    static func save(sentence: String, image: UIImage?, link: URL?) async throws -> UUID {
-        let session = try await supabase.auth.session   // refreshes if expired
+    static func save(sentence: String, image: UIImage?, link: URL?) async throws -> SaveResult {
+        // `session` refreshes an expired token, which needs the network. With
+        // no network the stored session is still the right identity, and the
+        // user id is all that naming the row and the image path takes.
+        let stored = (try? await supabase.auth.session) ?? supabase.auth.currentSession
+        guard let user = stored?.user.id else { throw Failure.notSignedIn }
+
         let id = UUID()
         // Postgres writes uuids lowercase; the storage policy compares the
         // first path segment to auth.uid()::text, so the case matters.
         let path = image == nil ? nil
-            : "\(session.user.id.uuidString.lowercased())/\(id.uuidString.lowercased()).jpg"
+            : "\(user.uuidString.lowercased())/\(id.uuidString.lowercased()).jpg"
         let row = NewIdea(id: id, raw: sentence, sourceUrl: link?.absoluteString, imagePath: path)
-        try await supabase.from("ideas").insert(row).execute()
-        if let image, let path {
-            try Uploader.enqueue(image, to: path, token: session.accessToken)
+
+        var queued = false
+        if case .failed = await send(row) {
+            // Any failure spools, not only an obviously offline one. A row that
+            // sits in the queue where it can be seen is recoverable; a row
+            // thrown away with the sheet is the basement bug.
+            try Outbox.shared.add(row)
+            queued = true
         }
-        return id
+
+        if let image, let path, let token = stored?.accessToken {
+            try Uploader.enqueue(image, to: path, token: token)
+        }
+        return queued ? .queued(id) : .sent(id)
+    }
+
+    // The whole send: extraction starts from the webhook when the row lands,
+    // and the picture goes its own way through Uploader.
+    static func send(_ row: NewIdea) async -> Outbox.SendResult {
+        do {
+            try await supabase.from("ideas").insert(row).execute()
+            return .sent
+        } catch {
+            return Outbox.isDuplicateRow(error) ? .alreadySent : .failed
+        }
+    }
+
+    static func flushOutbox() async {
+        await Outbox.shared.flush(send: send)
     }
 
     static func jpeg(_ image: UIImage) -> Data? {
@@ -77,8 +121,7 @@ enum Uploader {
     }()
 
     static var spool: URL {
-        FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: Config.appGroup)!
-            .appendingPathComponent("uploads", isDirectory: true)
+        AppGroup.container.appendingPathComponent("uploads", isDirectory: true)
     }
 
     static func enqueue(_ image: UIImage, to path: String, token: String) throws {
@@ -110,3 +153,7 @@ enum Uploader {
         }
     }
 }
+
+// Outbox reads the Postgres error code through this, so the spool logic stays
+// Foundation-only and testable (Outbox.isDuplicateRow).
+extension PostgrestError: PostgresCoded {}

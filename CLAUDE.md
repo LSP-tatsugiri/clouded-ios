@@ -69,6 +69,16 @@ These are load-bearing. Changing one is a product decision, not a refactor.
   extraction produces. `Config.xcconfig` is gitignored, same rule as
   `web/config.js`. Media goes to the private `idea-media` bucket at
   `<user_id>/<idea_id>.jpg`; its read policy is the `ideas` visibility.
+  A capture that cannot reach the database goes to `Shared/Outbox.swift`
+  (2026-09-28) — one JSON file per idea in the App Group container, shown in
+  the list as "waiting to send", flushed on launch, on foreground and when
+  `NWPathMonitor` sees signal. Nothing in it is ever aged out. `cloudedTests`
+  covers the spool; it compiles `Outbox.swift`, `AppGroup.swift` and
+  `Records.swift` only, so it needs no host app and no Supabase package.
+
+The iOS unit tests are `cd ios && xcodebuild test -project clouded.xcodeproj
+-scheme cloudedTests -destination 'platform=iOS Simulator,name=iPhone 17'`
+(Mac only, seconds, no network and no API cost).
 
 Run: `cd extraction && npm start` (uses cached output) or `npm run fresh`
 (re-extracts everything after a prompt change). Needs `ANTHROPIC_API_KEY` in

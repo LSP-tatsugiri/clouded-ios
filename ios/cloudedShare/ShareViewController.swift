@@ -64,6 +64,7 @@ struct ShareView: View {
     @State private var sentence = ""
     @State private var busy = false
     @State private var error: String?
+    @State private var queuedNote: String?
 
     private var trimmed: String { sentence.trimmingCharacters(in: .whitespacesAndNewlines) }
 
@@ -122,6 +123,7 @@ struct ShareView: View {
             Section {
                 Text("Saving runs extraction. That is one API call, about a cent.")
                     .font(.footnote).foregroundStyle(.secondary)
+                if let queuedNote { Text(queuedNote).font(.footnote) }
                 if let error { Text(error).foregroundStyle(.red) }
             }
         }
@@ -135,7 +137,11 @@ struct ShareView: View {
                 var image: UIImage?, link: URL?
                 if case .image(let i) = attachment { image = i }
                 if case .link(let u) = attachment { link = u }
-                try await Capture.save(sentence: trimmed, image: image, link: link)
+                // the app flushes the outbox; this process is about to be gone
+                if case .queued = try await Capture.save(sentence: trimmed, image: image, link: link) {
+                    queuedNote = "Saved — waiting for signal. It sends itself when you are back on."
+                    try? await Task.sleep(for: .seconds(1.6))
+                }
                 finish()
             } catch {
                 self.error = error.localizedDescription

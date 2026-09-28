@@ -6,7 +6,7 @@ import Foundation
 struct Idea: Codable, Identifiable, Hashable {
     let id: UUID
     let raw: String
-    let status: String            // pending | extracted | failed
+    let status: String            // pending | extracted | failed, or queuedStatus locally
     let isClear: Bool?            // nil until the first run lands
     let clarifyingQuestion: String?
     let clarification: String?
@@ -18,7 +18,12 @@ struct Idea: Codable, Identifiable, Hashable {
 
     static let columns = "id, raw, status, is_clear, clarifying_question, clarification, objective, domain, image_path, source_url, created_at"
 
+    // Not a database value: a row still sitting in the outbox is shown with
+    // this status, and the text is what the list prints (Outbox.swift).
+    static let queuedStatus = "waiting to send"
+
     var isPending: Bool { status == "pending" }
+    var isQueued: Bool { status == Self.queuedStatus }
     // vague, with a question the owner has not answered (or answered and is waiting on)
     var asksQuestion: Bool { isClear == false && clarifyingQuestion != nil }
 
@@ -29,6 +34,23 @@ struct Idea: Codable, Identifiable, Hashable {
         case imagePath = "image_path"
         case sourceUrl = "source_url"
         case createdAt = "created_at"
+    }
+}
+
+// The write shape: what an insert into `ideas` carries. Codable, not just
+// Encodable, because the outbox spools it to a file and reads it back
+// (Outbox.swift). The id is chosen client-side, which is what makes a retry
+// after a lost response idempotent.
+struct NewIdea: Codable, Hashable {
+    let id: UUID
+    let raw: String
+    let sourceUrl: String?
+    let imagePath: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id, raw
+        case sourceUrl = "source_url"
+        case imagePath = "image_path"
     }
 }
 

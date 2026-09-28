@@ -9,7 +9,7 @@ import Foundation
 import Supabase
 
 enum Config {
-    static let appGroup = "group.com.monoesport.clouded"
+    static let appGroup = AppGroup.id       // AppGroup.swift holds the literal
     static let bucket = "idea-media"
 
     static let url = URL(string: plist("SupabaseURL"))!

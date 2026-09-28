@@ -15,6 +15,7 @@ struct CaptureView: View {
     @State private var showCamera = false
     @State private var busy = false
     @State private var error: String?
+    @State private var queuedNote: String?
 
     private var trimmed: String { sentence.trimmingCharacters(in: .whitespacesAndNewlines) }
     private var linkURL: URL? {
@@ -60,6 +61,7 @@ struct CaptureView: View {
                 Section {
                     Text("Saving runs extraction. That is one API call, about a cent.")
                         .font(.footnote).foregroundStyle(.secondary)
+                    if let queuedNote { Text(queuedNote).font(.footnote) }
                     if let error { Text(error).foregroundStyle(.red) }
                 }
             }
@@ -96,7 +98,12 @@ struct CaptureView: View {
         error = nil
         Task {
             do {
-                try await Capture.save(sentence: trimmed, image: image, link: linkURL)
+                // queued means it went to the outbox, not that anything was lost;
+                // the line is there so it does not look like a silent success
+                if case .queued = try await Capture.save(sentence: trimmed, image: image, link: linkURL) {
+                    queuedNote = "Saved — waiting for signal. It sends itself when you are back on."
+                    try? await Task.sleep(for: .seconds(1.6))
+                }
                 onSaved()
                 dismiss()
             } catch {

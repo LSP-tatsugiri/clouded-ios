@@ -270,7 +270,13 @@ fails silently and the idea shows without its picture — re-share it.
   a while and it is clear what gets reached for (owner's note, 2026-09-15).
 
 - TestFlight and the paid developer account — when a friend asks.
-- Offline queue and sync — decision 2.
+- Offline queue and sync — decision 2. **Half done 2026-09-28**: the idea
+  row now waits in `Shared/Outbox.swift` when the insert cannot reach the
+  database, and the list shows it as "waiting to send" until it lands. The
+  picture still does not: it goes to the background `URLSession` with the
+  token it had, so an upload delayed past a token lifetime (about an hour)
+  still fails and the idea shows without its picture. Deliberate — see
+  improvement-backlog §3.2.
 - Voice recording and transcription — decision 4.
 - The distance sort on the phone — decision 7.
 - Retrying a failed image upload from the app — decision 9.

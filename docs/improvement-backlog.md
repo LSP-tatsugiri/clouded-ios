@@ -85,9 +85,13 @@ thing the product can do. Highest-value phone work, in order:
    Button, Siri, the lock-screen widget and the Shortcuts app in one go,
    without a new UI. This is the cheapest way to deliver what the README
    already promises.
-2. **Local outbox for the row.** Same spool pattern `Uploader` already uses:
-   write the row to a file in the App Group, POST on launch/connectivity.
-   The `id` is already chosen client-side, so retries are idempotent.
+2. ~~**Local outbox for the row.**~~ **Shipped 2026-09-28** as
+   `ios/Shared/Outbox.swift`, with `ios/cloudedTests` covering the spool
+   (15 tests). Row only: the picture keeps the background `URLSession` path
+   and its token-lifetime limit, which was the explicit scope decision. A
+   permanent rejection (not a network failure) also spools, on the grounds
+   that a row visibly stuck in the queue beats a row thrown away — it does
+   block the ones behind it, which is the known trade-off.
 3. **Control Center / lock-screen widget** once (1) exists — a button, not a
    screen.
 4. A **share-sheet action that keeps the source URL and page title**, since
