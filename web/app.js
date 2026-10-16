@@ -12,7 +12,7 @@ import {
   classify, compareKeys, cruxOf, cruxStatus, distanceOf, friendsWhoHold, leverage, sortKey
 } from "/extraction/src/distance.js";
 import {
-  addFeedback, addIdea, amCurator, capabilities, capabilitiesFor, createGroup, db, deleteGroup, deleteIdea,
+  addFeedback, addIdea, amCurator, capabilitiesFor, createGroup, db, deleteGroup, deleteIdea,
   groupMembers, groupSkills, idea as fetchIdea, ideas, invite, mediaUrl, myFeedback, myGroups, myProfile,
   mySkills, pendingInvites, profilesFor, promoteSkill, proposedSkills, rejectSkill, removeMember, renameGroup,
   revokeInvite, runsFor, session, setClarification, setDisplayName, setShare, setSkillLevel, sharedIdeas,
@@ -68,6 +68,7 @@ const state = {
   confirmDeleteIdea: false, // the idea page's delete button is waiting for a second click
   moved: "",           // idea page: what the last rating changed, one line
   feed: [],            // shared ideas from every group, newest first (decision 12)
+  feedCaps: [],        // their capability rows; apart from caps, which is your own ideas' only
   feedSort: "newest",  // "newest" | "closest"
   friend: null,        // { profile, levels } for the friend profile page
   waifu: { phase: "asking", ideaId: null, line: null }, // #/waifu: asking | sending | saved | failed
@@ -689,7 +690,7 @@ function save(skillId, level) {
 async function ensureIdeas() {
   if (state.ideas.length) return;
   const me = state.session.user.id;
-  [state.ideas, state.caps] = await Promise.all([ideas(me), capabilities()]);
+  ({ ideas: state.ideas, caps: state.caps } = await ideas(me));
 }
 
 // The one line the product exists to produce: a level changed, and this is
@@ -864,7 +865,7 @@ function groupView() {
 // me" is the same sort the Ideas tab uses.
 function feedRows() {
   const capsById = new Map();
-  for (const c of state.caps) {
+  for (const c of state.feedCaps) {
     if (!capsById.has(c.idea_id)) capsById.set(c.idea_id, []);
     capsById.get(c.idea_id).push(c);
   }
@@ -1837,7 +1838,7 @@ async function loadNames(ids) {
 
 async function load() {
   if (!state.session) {
-    state.ideas = []; state.caps = []; state.skills = []; state.levels = new Map();
+    state.ideas = []; state.caps = []; state.feedCaps = []; state.skills = []; state.levels = new Map();
     state.curator = null; state.proposals = [];
     return;
   }
@@ -1854,7 +1855,7 @@ async function load() {
 
   if (state.route === "list") {
     const me = state.session.user.id;
-    const [ideaRows, capRows, pool] = await Promise.all([ideas(me), capabilities(), groupSkills(me)]);
+    const [{ ideas: ideaRows, caps: capRows }, pool] = await Promise.all([ideas(me), groupSkills(me)]);
     state.ideas = ideaRows;
     state.caps = capRows;
     state.pool = pool;
@@ -1875,12 +1876,12 @@ async function load() {
     state.profile = await myProfile(state.session.user.id);
   } else if (state.route === "group") {
     const me = state.session.user.id;
-    const [profile, groups, feed, capRows, pool] = await Promise.all([
-      myProfile(me), myGroups(), sharedIdeas(), capabilities(), groupSkills(me)
+    const [profile, groups, { ideas: feed, caps: feedCaps }, pool] = await Promise.all([
+      myProfile(me), myGroups(), sharedIdeas(), groupSkills(me)
     ]);
     state.profile = profile;
     state.feed = feed;
-    state.caps = capRows;
+    state.feedCaps = feedCaps;
     state.pool = pool;
     await loadNames([...new Set([...feed.map((i) => i.user_id), ...[...pool.values()].flat()])]);
     // members and names in two queries: group_members points at auth.users,
