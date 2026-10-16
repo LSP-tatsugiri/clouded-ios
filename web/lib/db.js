@@ -31,10 +31,11 @@ export async function signIn(email, password) {
 }
 
 // Self-serve, gated server-side: a trigger on auth.users refuses any email
-// not in allowed_emails (docs/hosting.md). Email confirmation is off, so a
-// successful sign-up is also a sign-in.
+// not in allowed_emails (docs/hosting.md). Email confirmation is on (decided
+// 2026-09-16), so a sign-up returns no session until the link in the email is
+// opened; the return value says which case this was.
 export async function signUp(email, password) {
-  const { error } = await db.auth.signUp({ email, password });
+  const { data, error } = await db.auth.signUp({ email, password });
   if (error) {
     // The trigger raises "this address is not invited yet", but under the auth
     // API version supabase-js sends, GoTrue hides database errors behind
@@ -45,6 +46,7 @@ export async function signUp(email, password) {
     }
     throw new Error(error.message);
   }
+  return { confirm: !data.session };
 }
 
 export const signOut = () => db.auth.signOut();

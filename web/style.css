@@ -68,6 +68,7 @@ button[disabled] { opacity: 0.55; cursor: default; }
 h1 { font-size: 1.35rem; margin: 0; letter-spacing: -0.01em; }
 .muted { color: var(--ink-3); font-size: 0.9rem; }
 .error { color: var(--crux); font-size: 0.9rem; }
+.notice { color: var(--flow); font-size: 0.9rem; }
 .cost { font-size: 0.75rem; white-space: nowrap; align-self: center; }
 
 /* everything but the waifu scene: `:where()` keeps the specificity at the

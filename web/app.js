@@ -73,6 +73,7 @@ const state = {
   waifu: { phase: "asking", ideaId: null, line: null }, // #/waifu: asking | sending | saved | failed
   // "signin" | "create" on the sign-in card; the landing's invite link opens it on create
   authMode: location.hash === "#create" ? "create" : "signin",
+  notice: null,        // the sign-in card's one non-error message: "check your email"
   reportFrom: "",      // the hash the footer link was clicked on; a report records it as its route
   reportKind: "bug",   // "bug" | "improvement" on the report form
   reports: [],         // your feedback rows, newest first
@@ -200,7 +201,7 @@ function paintAuth() {
 function signInView() {
   const creating = state.authMode === "create";
   const setMode = (mode) => {
-    state.authMode = mode; state.error = null;
+    state.authMode = mode; state.error = null; state.notice = null;
     if (AUTH_HASH.test(location.hash)) history.replaceState(null, "", `#${mode}`);
     render();
   };
@@ -210,7 +211,13 @@ function signInView() {
       e.preventDefault();
       const email = form.elements.email.value.trim();
       const password = form.elements.password.value;
-      run(() => (creating ? signUp(email, password) : signIn(email, password)));
+      state.notice = null;
+      run(async () => {
+        if (!creating) return signIn(email, password);
+        if ((await signUp(email, password)).confirm) {
+          state.notice = `Check ${email} for a confirmation link. Open it and you are signed in. Nothing there after a few minutes? Look in spam, then tell whoever invited you.`;
+        }
+      });
     }
   },
     el("h1", {}, brandMark(), "clouded"),
@@ -222,7 +229,7 @@ function signInView() {
       el("button", { type: "button", "aria-pressed": String(creating), onclick: () => setMode("create") }, "Create account")),
     el("p", { class: "how" },
       creating
-        ? "Accounts are invite-only. Use the email address a friend invited, and choose a password of at least 8 characters. There is no confirmation email: you are signed in as soon as the account exists."
+        ? "Accounts are invite-only. Use the email address a friend invited, and choose a password of at least 8 characters. We then email you a link: open it to confirm the address, and you are signed in."
         : "Use the email and password you chose when you created your account. First time here? Switch to Create account."),
     el("label", { class: "fld" }, "Email",
       el("input", { name: "email", type: "email", required: true, autocomplete: "username", placeholder: creating ? "the address you were invited with" : null })),
@@ -235,6 +242,7 @@ function signInView() {
     el("button", { type: "submit", class: "btn", disabled: state.busy },
       state.busy ? (creating ? "Creating…" : "Signing in…") : (creating ? "Create account" : "Sign in")),
     state.error && el("p", { class: "error" }, state.error),
+    state.notice && el("p", { class: "notice", role: "status" }, state.notice),
     el("p", { class: "muted switch" },
       creating
         ? "Not invited yet? Ask a friend who uses clouded to add your email on their Group tab."
