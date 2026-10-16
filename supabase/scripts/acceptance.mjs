@@ -199,6 +199,7 @@ async function rls() {
   const stamp = Date.now();
   const dEmail = `rls-d-${stamp}@clouded.test`;   // invited, then signs up
   const fEmail = `rls-f-${stamp}@clouded.test`;   // invited, then revoked
+  const capEmails = [1, 2, 3, 4, 5, 6].map((n) => `rls-cap${n}-${stamp}@clouded.test`); // B's invite cap
   try {
     B = await mkUser(`rls-b-${stamp}@clouded.test`);
     C = await mkUser(`rls-c-${stamp}@clouded.test`);
@@ -326,6 +327,15 @@ async function rls() {
     // a second group B created, which A joins, shares to, then leaves
     [{ id: gid2 }] = await rest("groups", { method: "POST", body: { name: "rls-test-2", created_by: B.id }, prefer: "return=representation" });
     await rest("group_members", { method: "POST", body: { group_id: gid2, user_id: USER } });
+
+    // ---- 20261016231832: no direct member inserts, and five new addresses per non-curator
+    check("a creator cannot add a member by user id", await rest("group_members", { method: "POST", body: { group_id: gid2, user_id: C.id }, token: bTok, apikey: ANON })
+      .then(() => false, () => true));
+    for (const e of capEmails.slice(0, 5)) await rpc(bTok, "invite", { p_group_id: gid2, p_email: e });
+    check("B's sixth new address is refused", await rpc(bTok, "invite", { p_group_id: gid2, p_email: capEmails[5] }).then(() => false, (e) => /five new people/.test(e.message)));
+    check("and was not allowlisted", (await rest(`allowed_emails?select=email&email=eq.${encodeURIComponent(capEmails[5])}`)).length === 0);
+    check("inviting an existing account still works past the cap", (await rpc(bTok, "invite", { p_group_id: gid2, p_email: C.email })) === "joined");
+    await rest(`group_members?group_id=eq.${gid2}&user_id=eq.${C.id}`, { method: "DELETE" });
     await rest(`ideas?id=eq.${ideaId}`, { method: "PATCH", body: { shared_to: gid2 } });
     check("a member can leave", (await rest(`group_members?group_id=eq.${gid2}&user_id=eq.${USER}`, { method: "DELETE", token: aTok, apikey: ANON, prefer: "return=representation" })).length === 1);
     check("leaving made their shared idea private again", (await rest(`ideas?select=shared_to&id=eq.${ideaId}`))[0].shared_to === null);
@@ -342,7 +352,7 @@ async function rls() {
     for (const g of [gid, gid2]) if (g) await rest(`groups?id=eq.${g}`, { method: "DELETE" }).catch((e) => console.error(e.message));
     if (aName) await rest(`profiles?user_id=eq.${USER}`, { method: "PATCH", body: { display_name: aName } }).catch((e) => console.error(e.message));
     for (const u of [B, C, D]) if (u?.id) await auth(`admin/users/${u.id}`, { method: "DELETE" }).catch((e) => console.error(e.message));
-    for (const email of [B?.email, C?.email, dEmail, fEmail]) if (email) await disallow(email).catch((e) => console.error(e.message));
+    for (const email of [B?.email, C?.email, dEmail, fEmail, ...capEmails]) if (email) await disallow(email).catch((e) => console.error(e.message));
   }
   const failed = results.filter((r) => !r).length;
   console.log(`\n${results.length - failed}/${results.length} checks passed`);
