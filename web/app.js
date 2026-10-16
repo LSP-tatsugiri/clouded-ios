@@ -296,7 +296,7 @@ function friendMarker({ idea, extraction }) {
   const iHoldCrux = crux ? classify(crux, state.levels) === "have" : true;
   const cruxHeld = !iHoldCrux && f.cruxHolders.length > 0;
   const parts = [];
-  if (cruxHeld) parts.push(`${nameList(f.cruxHolders)} ${f.cruxHolders.length === 1 ? "holds" : "hold"} the hard part`);
+  if (cruxHeld) parts.push(`${nameList(f.cruxHolders)} ${f.cruxHolders.length === 1 ? "holds" : "hold"} a hard part`);
   if (f.gaps) parts.push(`group covers ${f.covered} of ${f.gaps} ${f.gaps === 1 ? "gap" : "gaps"}`);
   return { cruxHeld, text: parts.length ? parts.join(" · ") : null };
 }
@@ -328,7 +328,7 @@ function cruxBlock(crux, flap = false) {
   return el("div", { class: `crux ${k}` },
     mark(k),
     el("span", { class: "t" }, flap ? splitFlap(capLabel(crux)) : capLabel(crux)),
-    el("span", { class: "lbl" }, "the hard part")
+    el("span", { class: "lbl" }, "a hard part")
   );
 }
 
@@ -423,7 +423,7 @@ function extractingRow(idea, { stage, seconds }) {
     el("div", { class: "progress" },
       el("div", { class: "bar" }, el("i", {})),
       el("span", {}, saving ? "Saving the result" : `Extracting, ${seconds}s`)),
-    el("p", { class: "steps" }, saving ? "Writing the capabilities and the hard part" : "Reading the idea and listing what it would take"),
+    el("p", { class: "steps" }, saving ? "Writing the capabilities and a hard part" : "Reading the idea and listing what it would take"),
     el("div", { class: "card-foot" }, el("span", {}, "you"), el("span", {}, fmtDate(idea.created_at)))
   );
 }
@@ -899,7 +899,7 @@ function feedRow({ idea, extraction }, me, glide = true) {
   const f = friendsWhoHold(extraction, held, state.pool);
   const holders = [...(cruxClass === "have" ? ["you"] : []), ...f.cruxHolders.map((id) => state.names.get(id) ?? "a friend")];
   const holderText = holders.length
-    ? `${holders.slice(0, 2).join(" and ")}${holders.length > 2 ? ` +${holders.length - 2}` : ""} ${holders.length === 1 && holders[0] !== "you" ? "holds" : "hold"} the hard part`
+    ? `${holders.slice(0, 2).join(" and ")}${holders.length > 2 ? ` +${holders.length - 2}` : ""} ${holders.length === 1 && holders[0] !== "you" ? "holds" : "hold"} a hard part`
     : null;
   const coverText = f.gaps ? `group covers ${f.covered} of ${f.gaps} ${f.gaps === 1 ? "gap" : "gaps"}` : "nothing missing for you";
 
@@ -1360,7 +1360,7 @@ function capabilityDetail(cap) {
     el("div", { class: "capdetail-head" },
       levelMark(cap, k),
       el("span", { class: "capdetail-name" }, capLabel(cap)),
-      isCrux && el("span", { class: "crux-tag" }, "the hard part")
+      isCrux && el("span", { class: "crux-tag" }, "a hard part")
     ),
     cap.reason && el("p", { class: "capdetail-reason" }, cap.reason),
     el("details", { class: "resolution" },
@@ -1596,7 +1596,7 @@ function proposalCard(p) {
       el("div", { class: "meta" },
         el("span", { class: "tag" }, n(p.idea_ids.length, "idea")),
         el("span", { class: "tag" }, n(p.run_count, "run")),
-        p.crux_count > 0 && el("span", { class: "tag hard" }, `the hard part ×${p.crux_count}`)
+        p.crux_count > 0 && el("span", { class: "tag hard" }, `a hard part ×${p.crux_count}`)
       )
     ),
     p.names.length > 1 && el("p", { class: "raw" }, `also seen as: ${p.names.filter((x) => x !== p.key).join(", ")}`),
