@@ -1,0 +1,22 @@
+# The two offline suites, on every push and pull request. Neither calls the
+# Anthropic API or Supabase, so this costs no credit. The Deno suite is what
+# holds the Node and edge-function prompts in lockstep (CLAUDE.md); it went
+# red on 2026-09-15 and nothing noticed for a month, which is why this exists.
+# The iOS tests stay local: they need Xcode, and macOS runners bill at 10x.
+name: test
+on: [push, pull_request]
+jobs:
+  node:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }   # 22, not 20: --test globs need 21+
+      - run: node --test "extraction/src/*.test.js"
+  deno:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with: { deno-version: v2.x }
+      - run: deno test --allow-read --allow-env supabase/functions/_shared/
