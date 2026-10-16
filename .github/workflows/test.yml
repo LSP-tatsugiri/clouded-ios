@@ -20,3 +20,5 @@ jobs:
       - uses: denoland/setup-deno@v2
         with: { deno-version: v2.x }
       - run: deno test --allow-read --allow-env supabase/functions/_shared/
+      # type-check the two entry points too: the tests import only _shared/
+      - run: deno check supabase/functions/extract/index.ts supabase/functions/report/index.ts

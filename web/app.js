@@ -51,7 +51,7 @@ const state = {
   route: currentRoute(),
   ideas: [],
   caps: [],
-  skills: [],          // 51 rows, seeded by migration, cached after first load
+  skills: [],          // 52 rows, seeded by migration, cached after first load
   levels: new Map(),   // skill_id -> none | some | solid
   filters: { domain: "", crux: "", proposed: false, friend: false, q: "" },
   // Ideas tab: newest | closest (the distance sort). Newest by default, as the

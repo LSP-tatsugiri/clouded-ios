@@ -1,6 +1,5 @@
-// The shared-secret check every webhook-driven function makes. Lifted from
-// extract/index.ts unchanged so report/ can use it; extract can switch to this
-// import whenever it is next touched.
+// The shared-secret check every webhook-driven function makes: extract/ and
+// report/ both import it.
 
 async function sha256(s: string): Promise<string> {
   const d = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));

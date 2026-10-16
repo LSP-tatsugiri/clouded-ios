@@ -192,7 +192,7 @@ Learned the hard way; keep them true on every machine.
   credit, and the balance has hit zero once (2026-09-13). Before running
   such a thing, state the per-call and total estimate in dollars and how
   many calls it makes. One extraction is about $0.01 (system prompt ~2,600
-  tokens for the 51-skill list, ~450 out; Sonnet 5 at $2/M in, $10/M out)
+  tokens for the 52-skill list, ~450 out; Sonnet 5 at $2/M in, $10/M out)
   plus ~$0.006 per semantic resolve call.
 - **Some Supabase CLI steps are the owner's to run**, in a real terminal:
   `supabase login` (needs a TTY), `supabase db push` (the real apply) and
