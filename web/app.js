@@ -68,6 +68,9 @@ const state = {
   confirmDelete: null, // group id whose delete button is waiting for a second click
   confirmDeleteIdea: false, // the idea page's delete button is waiting for a second click
   moved: "",           // idea page: what the last rating changed, one line
+  lifecycleForm: null, // idea page: null | "build" | "drop" — which lifecycle form is open
+  buildTicks: new Set(), // skill ids ticked in the "I built this" checklist; starts empty on purpose
+  dropDraft: "",       // the drop reason being typed, kept across re-renders
   feed: [],            // shared ideas from every group, newest first (decision 12)
   feedSort: "newest",  // "newest" | "closest"
   friend: null,        // { profile, levels } for the friend profile page
@@ -1440,6 +1443,78 @@ function deleteControl(idea) {
   );
 }
 
+// Owner only, live ideas only: a built or dropped idea shows the banner and
+// its "Back to live" instead. The built checklist starts unticked — a skill
+// goes to solid only when you say you used it, the same checkable-claim rule
+// as the taxonomy (spec 2026-10-22).
+function lifecycleControl(idea, caps) {
+  if (lifecycleOf(idea) !== "live") return null;
+  const open = (form) => { state.lifecycleForm = form; state.buildTicks = new Set(); state.dropDraft = ""; state.error = null; render(); };
+  const cancel = el("button", { class: "btn sm ghost", type: "button", onclick: () => open(null) }, "Cancel");
+
+  if (state.lifecycleForm === "build") {
+    const choices = buildChoices(caps, state.levels);
+    return el("div", { class: "lifecycle" },
+      el("p", { class: "hint" }, choices.length
+        ? "Which of these did you actually do? Each one you tick goes to solid."
+        : "Nothing left to rate here: every skill it needs is already solid or still proposed."),
+      choices.length > 0 && el("ul", { class: "build-list" }, choices.map((c) => el("li", {},
+        el("label", { class: "chk" },
+          el("input", {
+            type: "checkbox", checked: state.buildTicks.has(c.skill_id),
+            onchange: (e) => { if (e.target.checked) state.buildTicks.add(c.skill_id); else state.buildTicks.delete(c.skill_id); }
+          }),
+          el("span", {}, capLabel(c)))))),
+      el("div", { class: "row" },
+        el("button", { class: "btn sm", type: "button", disabled: state.busy, onclick: () => markBuilt(idea.id) }, "Mark built"),
+        cancel));
+  }
+
+  if (state.lifecycleForm === "drop") {
+    return el("form", {
+      class: "lifecycle drop-form",
+      onsubmit: (e) => {
+        e.preventDefault();
+        const reason = cleanReason(state.dropDraft);
+        if (!reason) { state.error = `Say why in a line, up to ${DROP_REASON_MAX} characters.`; render(); return; }
+        run(async () => { await setDropped(idea.id, reason); state.lifecycleForm = null; state.dropDraft = ""; await load(); });
+      }
+    },
+      el("label", { class: "fld" }, "Why are you dropping it?",
+        el("input", {
+          name: "reason", required: true, maxlength: DROP_REASON_MAX, autocomplete: "off", value: state.dropDraft,
+          placeholder: "One line is enough", oninput: (e) => { state.dropDraft = e.target.value; }
+        })),
+      el("div", { class: "row" },
+        el("button", { class: "btn sm", type: "submit", disabled: state.busy }, "Drop it"),
+        cancel));
+  }
+
+  return el("div", { class: "lifecycle row" },
+    el("button", { class: "sm secondary", type: "button", onclick: () => open("build") }, "I built this"),
+    el("button", { class: "link", type: "button", onclick: () => open("drop") }, "Drop it"));
+}
+
+// Stamp built, then raise each ticked skill to solid, then say what moved —
+// one line for the batch. state.ideas is emptied first so ensureIdeas()
+// re-reads it: the cached copy would still count this idea as live.
+function markBuilt(ideaId) {
+  const ticked = [...state.buildTicks];
+  const before = new Map(state.levels);
+  const me = state.session.user.id;
+  run(async () => {
+    await setBuilt(ideaId, true);
+    await Promise.all(ticked.map((id) => setSkillLevel(me, id, "solid")));
+    for (const id of ticked) state.levels.set(id, "solid");
+    state.ideas = [];
+    await ensureIdeas();
+    state.moved = ticked.length ? whatMoved(ticked, before, state.levels) : "";
+    state.lifecycleForm = null;
+    state.buildTicks = new Set();
+    await load();
+  });
+}
+
 function answerBox(idea) {
   const form = el("form", {
     class: "answer",
@@ -1497,11 +1572,21 @@ function ideaView() {
     dist.have ? `${dist.have} held` : null
   ].filter(Boolean).join(" · ");
 
+  const life = lifecycleOf(idea);
+
   return el("div", {},
     header(),
     el("p", { class: "back" }, el("a", { href: "#/" }, "← all ideas")),
 
     el("div", { class: "card detail" },
+    life !== "live" && el("div", { class: `life-banner ${life}` },
+      el("span", {}, life === "built" ? `Built ${fmtDate(idea.built_at)}` : `Dropped ${fmtDate(idea.dropped_at)}:`),
+      life === "dropped" && el("span", { class: "drop-reason" }, idea.drop_reason),
+      el("span", { class: "spacer" }),
+      mine && el("button", {
+        class: "link", type: "button", disabled: state.busy,
+        onclick: () => run(async () => { await setBuilt(idea.id, false); await load(); })
+      }, "Back to live")),
     el("h2", { class: "detail-title" }, idea.objective || idea.raw),
     el("p", { class: "idea-raw" }, `captured as: ${idea.raw}`),
     idea.clarification && el("p", { class: "idea-raw" }, `you clarified: ${idea.clarification}`),
@@ -1536,6 +1621,7 @@ function ideaView() {
     ),
 
     mine && shareControl(idea, groups),
+    mine && lifecycleControl(idea, caps),
     mine && deleteControl(idea),
 
     // extraction_runs are readable by the owner only, so a friend would see 0
@@ -1942,6 +2028,9 @@ addEventListener("hashchange", () => {
   state.confirmDeleteIdea = false;
   state.sent = null;
   state.moved = "";
+  state.lifecycleForm = null;
+  state.buildTicks = new Set();
+  state.dropDraft = "";
   state.friend = null;
   state.waiting = "";
   run(load);
