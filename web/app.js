@@ -15,10 +15,11 @@ import {
   addFeedback, addIdea, amCurator, capabilities, capabilitiesFor, createGroup, db, deleteGroup, deleteIdea,
   groupMembers, groupSkills, idea as fetchIdea, ideas, invite, mediaUrl, myFeedback, myGroups, myProfile,
   mySkills, pendingInvites, profilesFor, promoteSkill, proposedSkills, rejectSkill, removeMember, renameGroup,
-  revokeInvite, runsFor, session, setClarification, setDisplayName, setShare, setSkillLevel, sharedIdeas,
+  revokeInvite, runsFor, session, setBuilt, setClarification, setDisplayName, setDropped, setShare, setSkillLevel, sharedIdeas,
   signIn, signOut, signUp, skills, skillsFor, uploadFeedbackShot
 } from "./lib/db.js";
 import { el, mount } from "./lib/dom.js";
+import { DROP_REASON_MAX, buildChoices, cleanReason, isLive, lifecycleOf, movedHeadline } from "./lib/lifecycle.js";
 import { canDictate, dictation } from "./lib/speech.js";
 // build.mjs writes COMMIT into config.js on the host; the hand-written local
 // config.js has no such export, and a named import of a missing export fails
@@ -672,7 +673,7 @@ function save(skillId, level) {
   status.className = "status";
   setSkillLevel(state.session.user.id, skillId, level)
     .then(ensureIdeas)
-    .then(() => { status.textContent = whatMoved(skillId, before, state.levels); })
+    .then(() => { status.textContent = whatMoved([skillId], before, state.levels); })
     .catch((err) => { status.textContent = err.message; status.className = "status error"; });
 }
 
@@ -684,17 +685,19 @@ async function ensureIdeas() {
   [state.ideas, state.caps] = await Promise.all([ideas(me), capabilities()]);
 }
 
-// The one line the product exists to produce: a level changed, and this is
-// what it did to your ideas. Distances before and after, over your own ideas
-// (state.ideas is yours; a friend's shared ideas are not in it).
-function whatMoved(skillId, before, after) {
+// The one line the product exists to produce: levels changed, and this is
+// what it did to your ideas. Distances before and after, over your own live
+// ideas — a built or dropped idea moving closer is noise (state.ideas is
+// yours; a friend's shared ideas are not in it). Several skills arrive
+// together from "I built this".
+function whatMoved(skillIds, before, after) {
   const capsById = new Map();
   for (const c of state.caps) {
     if (!capsById.has(c.idea_id)) capsById.set(c.idea_id, []);
     capsById.get(c.idea_id).push(c);
   }
   let closer = 0, further = 0, cleared = 0;
-  for (const idea of state.ideas) {
+  for (const idea of state.ideas.filter(isLive)) {
     const ex = extractionOf(idea, capsById);
     const a = distanceOf(ex, before), b = distanceOf(ex, after);
     if (!a || !b) continue;
@@ -706,7 +709,7 @@ function whatMoved(skillId, before, after) {
   if (closer) parts.push(`${n(closer, "idea", "ideas")} moved closer`);
   if (cleared) parts.push(`${cleared} now ${cleared === 1 ? "has" : "have"} no gap left`);
   if (further) parts.push(`${n(further, "idea", "ideas")} moved further away`);
-  return `${skillId} → ${after.get(skillId)}. ${parts.length ? parts.join("; ") + "." : "Nothing moved."}`;
+  return `${movedHeadline(skillIds, after)} ${parts.length ? parts.join("; ") + "." : "Nothing moved."}`;
 }
 
 // Radios, so the keyboard works and focus stays put. An unrated skill checks
@@ -1335,7 +1338,7 @@ async function rate(skillId, level) {
   try {
     await setSkillLevel(state.session.user.id, skillId, level);
     await ensureIdeas();
-    state.moved = whatMoved(skillId, before, state.levels);
+    state.moved = whatMoved([skillId], before, state.levels);
   } catch (err) {
     state.levels = before;
     state.moved = err.message;
