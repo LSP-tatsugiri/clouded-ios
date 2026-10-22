@@ -1498,20 +1498,24 @@ function lifecycleControl(idea, caps) {
 // Stamp built, then raise each ticked skill to solid, then say what moved —
 // one line for the batch. state.ideas is emptied first so ensureIdeas()
 // re-reads it: the cached copy would still count this idea as live.
+// A failure still reloads, so the page shows what actually landed.
 function markBuilt(ideaId) {
   const ticked = [...state.buildTicks];
   const before = new Map(state.levels);
   const me = state.session.user.id;
   run(async () => {
-    await setBuilt(ideaId, true);
-    await Promise.all(ticked.map((id) => setSkillLevel(me, id, "solid")));
-    for (const id of ticked) state.levels.set(id, "solid");
-    state.ideas = [];
-    await ensureIdeas();
-    state.moved = ticked.length ? whatMoved(ticked, before, state.levels) : "";
-    state.lifecycleForm = null;
-    state.buildTicks = new Set();
-    await load();
+    try {
+      await setBuilt(ideaId, true);
+      await Promise.all(ticked.map((id) => setSkillLevel(me, id, "solid")));
+      for (const id of ticked) state.levels.set(id, "solid");
+      state.ideas = [];
+      await ensureIdeas();
+      state.moved = ticked.length ? whatMoved(ticked, before, state.levels) : "";
+    } finally {
+      state.lifecycleForm = null;
+      state.buildTicks = new Set();
+      await load();
+    }
   });
 }
 
