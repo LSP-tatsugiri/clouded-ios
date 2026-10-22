@@ -54,7 +54,7 @@ const state = {
   caps: [],
   skills: [],          // 51 rows, seeded by migration, cached after first load
   levels: new Map(),   // skill_id -> none | some | solid
-  filters: { domain: "", crux: "", proposed: false, friend: false, q: "" },
+  filters: { domain: "", crux: "", proposed: false, friend: false, q: "", lifecycle: "live" },
   // Ideas tab: newest | closest (the distance sort). Newest by default, as the
   // Group feed already was — what you just captured is what you came to see.
   sort: "newest",
@@ -369,6 +369,18 @@ function capItem(cap) {
   return el("li", { class: k }, mark(k), el("span", {}, capLabel(cap)));
 }
 
+// Built or dropped, on any card that shows one. The reason sits beside the
+// tag, not inside it: tags never wrap, and a reason is a sentence.
+function lifecycleTags(idea) {
+  const life = lifecycleOf(idea);
+  if (life === "built") return [el("span", { class: "tag level-solid" }, `built ${fmtDate(idea.built_at)}`)];
+  if (life === "dropped") return [
+    el("span", { class: "tag" }, `dropped ${fmtDate(idea.dropped_at)}`),
+    el("span", { class: "drop-reason" }, idea.drop_reason)
+  ];
+  return [];
+}
+
 function ideaRow({ idea, extraction }, glide = true) {
   const d = distanceOf(extraction, state.levels);
   const crux = cruxOf(extraction);
@@ -394,6 +406,7 @@ function ideaRow({ idea, extraction }, glide = true) {
       anyProposed && el("span", { class: "tag prop" }, "proposed skill"),
       idea.status !== "extracted" && el("span", { class: "tag warn" }, idea.status),
       idea.shared_to && el("span", { class: "tag" }, "shared"),
+      lifecycleTags(idea),
       idea.image_path && el("span", { class: "tag", title: "has a picture" }, "▣"),
       friendLine({ idea, extraction }),
       el("span", { class: "spacer" }),
@@ -454,7 +467,7 @@ function vagueRow(idea, glide = true) {
       form,
       // answering runs extraction server-side, which is a paid API call
       el("p", { class: "hint" }, "Answering re-runs extraction, about a cent.")),
-    el("div", { class: "card-foot" }, el("span", {}, "you"), el("span", {}, fmtDate(idea.created_at)))
+    el("div", { class: "card-foot" }, lifecycleTags(idea), el("span", {}, "you"), el("span", {}, fmtDate(idea.created_at)))
   );
 }
 
@@ -464,9 +477,16 @@ function filterBar(domains, shownCount, total) {
     type: "button", "aria-pressed": String(state.sort === key),
     onclick: () => { state.sort = key; render({ animate: true }); }
   }, label);
+  const lifeButton = (key, label) => el("button", {
+    type: "button", "aria-pressed": String(state.filters.lifecycle === key),
+    onclick: () => set("lifecycle", key)
+  }, label);
   const filtering = state.filters.domain || state.filters.crux || state.filters.proposed || state.filters.friend || state.filters.q;
   return el("div", { class: "controls" },
-    el("div", { class: "seg", role: "group", "aria-label": "Sort" },
+    el("div", { class: "seg", role: "group", "aria-label": "Show" },
+      lifeButton("live", "Live"), lifeButton("built", "Built"), lifeButton("dropped", "Dropped")),
+    // distance only means something for ideas you might still build
+    state.filters.lifecycle === "live" && el("div", { class: "seg", role: "group", "aria-label": "Sort" },
       sortButton("newest", "Newest"), sortButton("closest", "Closest to me")),
     searchBox,
     el("select", { "aria-label": "Domain", onchange: (e) => set("domain", e.target.value) },
@@ -494,7 +514,7 @@ function filterBar(domains, shownCount, total) {
       el("span", {}, "A friend can unblock it")
     ),
     filtering &&
-      el("button", { class: "link", onclick: () => { state.filters = { domain: "", crux: "", proposed: false, friend: false, q: "" }; searchBox.value = ""; render({ animate: true }); } }, "clear"),
+      el("button", { class: "link", onclick: () => { state.filters = { domain: "", crux: "", proposed: false, friend: false, q: "", lifecycle: state.filters.lifecycle }; searchBox.value = ""; render({ animate: true }); } }, "clear"),
     el("span", { class: "count" }, `${shownCount} of ${total} shown`)
   );
 }
@@ -523,12 +543,16 @@ function listView() {
   // ideas being watched sit above the list, outside the filters, until they land
   const extracting = rows.filter((r) => state.extracting.has(r.idea.id));
   const settled = rows.filter((r) => !state.extracting.has(r.idea.id));
-  const clear = settled.filter((r) => r.idea.is_clear === true);
-  const vague = settled.filter((r) => r.idea.is_clear !== true);
+  // the leverage panel answers "what should I learn next", so finished ideas
+  // never count, whichever set the list is showing
+  const liveClear = settled.filter((r) => isLive(r.idea) && r.idea.is_clear === true);
+  const inView = settled.filter((r) => lifecycleOf(r.idea) === state.filters.lifecycle);
+  const clear = inView.filter((r) => r.idea.is_clear === true);
+  const vague = inView.filter((r) => r.idea.is_clear !== true);
 
   // crux status first, then gaps, then partials, then title for a stable order;
   // or, on request, most recently added first (the phone's only order)
-  if (state.sort === "newest") {
+  if (state.sort === "newest" || state.filters.lifecycle !== "live") {
     clear.sort((a, b) => Date.parse(b.idea.created_at) - Date.parse(a.idea.created_at));
   } else {
     clear.sort((a, b) =>
@@ -578,8 +602,11 @@ function listView() {
   // Closest to me groups by how many skills are short (the flat gap count
   // distance.js already gives); newest is one list by date, vague included.
   let body;
-  if (state.sort === "newest") {
-    const all = [...shown, ...vagueShown].sort((a, b) => Date.parse(b.idea.created_at) - Date.parse(a.idea.created_at));
+  if (state.sort === "newest" || state.filters.lifecycle !== "live") {
+    // a built or dropped view reads newest-marked first; for live ideas both
+    // marks are null, so this is the plain created-at order
+    const when = (i) => Date.parse(i.built_at ?? i.dropped_at ?? i.created_at);
+    const all = [...shown, ...vagueShown].sort((a, b) => when(b.idea) - when(a.idea));
     body = el("div", { class: "cards" }, all.map(card));
   } else {
     const bandOf = (r) => {
@@ -610,9 +637,12 @@ function listView() {
         extracting.length > 0 && el("div", { class: "cards extracting-cards" },
           extracting.map((r) => extractingRow(r.idea, state.extracting.get(r.idea.id)))),
         body,
-        !shown.length && !vague.length && el("p", { class: "muted" }, "No idea matches those filters.")
+        !shown.length && !vagueShown.length && el("p", { class: "muted" },
+          !inView.length && state.filters.lifecycle === "built" ? "Nothing built yet. Mark an idea built from its page."
+          : !inView.length && state.filters.lifecycle === "dropped" ? "Nothing dropped."
+          : "No idea matches those filters.")
       ),
-      leveragePanel(clear.map((r) => ({ id: r.idea.id, extraction: r.extraction })))
+      leveragePanel(liveClear.map((r) => ({ id: r.idea.id, extraction: r.extraction })))
     )
   );
 }

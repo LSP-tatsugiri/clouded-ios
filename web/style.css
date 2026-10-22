@@ -225,6 +225,7 @@ aside a:hover { color: var(--flow); }
 .tag.hard { color: var(--crux); border-color: var(--crux); }
 .tag.level-solid { color: var(--held); border-color: var(--held); }
 .tag.level-some { color: var(--partial); border-color: var(--partial); }
+.drop-reason { font-size: 0.8rem; color: var(--ink-3); font-style: italic; overflow-wrap: anywhere; min-width: 0; }
 
 :where(#app > :not(.waifu)) button, .btn {
   height: 3.25rem;
