@@ -1482,7 +1482,7 @@ function lifecycleControl(idea, caps) {
         e.preventDefault();
         const reason = cleanReason(state.dropDraft);
         if (!reason) { state.error = `Say why in a line, up to ${DROP_REASON_MAX} characters.`; render(); return; }
-        run(async () => { await setDropped(idea.id, reason); state.lifecycleForm = null; state.dropDraft = ""; await load(); });
+        run(async () => { await setDropped(idea.id, reason); state.lifecycleForm = null; state.dropDraft = ""; state.ideas = []; await load(); });
       }
     },
       el("label", { class: "fld" }, "Why are you dropping it?",
@@ -1503,12 +1503,14 @@ function lifecycleControl(idea, caps) {
 // Stamp built, then raise each ticked skill to solid, then say what moved —
 // one line for the batch. state.ideas is emptied first so ensureIdeas()
 // re-reads it: the cached copy would still count this idea as live.
-// A failure still reloads, so the page shows what actually landed.
+// A failure still reloads, so the page shows what actually landed; a failed
+// reload is swallowed so the original error is the one run() reports.
 function markBuilt(ideaId) {
   const ticked = [...state.buildTicks];
   const before = new Map(state.levels);
   const me = state.session.user.id;
   run(async () => {
+    state.moved = "";
     try {
       await setBuilt(ideaId, true);
       await Promise.all(ticked.map((id) => setSkillLevel(me, id, "solid")));
@@ -1519,7 +1521,7 @@ function markBuilt(ideaId) {
     } finally {
       state.lifecycleForm = null;
       state.buildTicks = new Set();
-      await load();
+      await load().catch(() => {});
     }
   });
 }
@@ -1589,12 +1591,12 @@ function ideaView() {
 
     el("div", { class: "card detail" },
     life !== "live" && el("div", { class: `life-banner ${life}` },
-      el("span", {}, life === "built" ? `Built ${fmtDate(idea.built_at)}` : `Dropped ${fmtDate(idea.dropped_at)}:`),
+      el("span", {}, life === "built" ? `Built ${fmtDate(idea.built_at)}` : `Dropped ${fmtDate(idea.dropped_at)} —`),
       life === "dropped" && el("span", { class: "drop-reason" }, idea.drop_reason),
       el("span", { class: "spacer" }),
       mine && el("button", {
         class: "link", type: "button", disabled: state.busy,
-        onclick: () => run(async () => { await setBuilt(idea.id, false); await load(); })
+        onclick: () => run(async () => { await setBuilt(idea.id, false); state.ideas = []; await load(); })
       }, "Back to live")),
     el("h2", { class: "detail-title" }, idea.objective || idea.raw),
     el("p", { class: "idea-raw" }, `captured as: ${idea.raw}`),

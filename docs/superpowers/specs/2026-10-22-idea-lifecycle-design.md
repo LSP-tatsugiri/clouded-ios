@@ -68,6 +68,7 @@ grant update (built_at, dropped_at, drop_reason) on ideas to authenticated;
 - **Drop it** expands a one-line input (required, ≤200 chars) and a confirm.
 - Built or dropped idea: a banner at the top of the card —
   "Built 22 Oct" or "Dropped 22 Oct — <reason>" — with **Back to live**.
+- **Back to live** clears the mark only. Skills raised to `solid` by "I built this" stay solid — you did use them, and reverting a rating silently would be a second, invisible write.
 - Friends viewing a built or dropped shared idea see the banner, no actions.
 
 ### `whatMoved`

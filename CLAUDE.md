@@ -52,12 +52,14 @@ These are load-bearing. Changing one is a product decision, not a refactor.
 - `web/` — the web client: list, idea page, profile, curator review, the
   Group tab (feed, members, invites) and friend pages, plus the unlisted
   `#/waifu` capture scene (`waifu.css`, `lib/waifu.js`, `assets/` — see
-  `docs/waifu-view-plan.md`).
-  An idea can be marked built or dropped from its page (2026-10-22,
+  `docs/waifu-view-plan.md`). An idea can be marked built or dropped from
+  its page (2026-10-22,
   `docs/superpowers/specs/2026-10-22-idea-lifecycle-design.md`):
-  `ideas.built_at`, `dropped_at`, `drop_reason`, rules in `lib/lifecycle.js`
-  (tests: `node --test web/test/*.test.mjs`). The list opens on live ideas; distance,
-  leverage and "what moved" count live ideas only. The capture box can be dictated as well as
+  `ideas.built_at`, `dropped_at`, `drop_reason`, rules in
+  `lib/lifecycle.js` (tests: `node --test web/test/*.test.mjs`). The list
+  opens on live ideas; distance, leverage and "what moved" count live
+  ideas only. The Group feed hides dropped ideas and tags built ones;
+  dropping never unshares. The capture box can be dictated as well as
   typed (`lib/speech.js`, 2026-09-25); it says in a line under the mic that
   the browser's own vendor does the transcribing, which is the honest
   reading of "ideas are private by default". Plain ES
