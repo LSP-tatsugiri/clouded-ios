@@ -62,7 +62,7 @@ export async function session() {
 // ideas come through sharedIdeas() on the Group tab.
 export async function ideas(userId) {
   return ok(await db.from("ideas")
-    .select("id, user_id, raw, objective, domain, is_clear, clarifying_question, status, shared_to, image_path, created_at")
+    .select("id, user_id, raw, objective, domain, is_clear, clarifying_question, status, shared_to, image_path, created_at, built_at, dropped_at, drop_reason")
     .eq("user_id", userId)
     .order("created_at", { ascending: true }), "ideas");
 }
@@ -71,7 +71,7 @@ export async function ideas(userId) {
 // first. RLS limits "shared" to groups they belong to.
 export async function sharedIdeas() {
   return ok(await db.from("ideas")
-    .select("id, user_id, raw, objective, domain, is_clear, clarifying_question, status, shared_to, image_path, created_at")
+    .select("id, user_id, raw, objective, domain, is_clear, clarifying_question, status, shared_to, image_path, created_at, built_at, dropped_at, drop_reason")
     .not("shared_to", "is", null)
     .order("created_at", { ascending: false }), "sharedIdeas");
 }
@@ -110,7 +110,7 @@ export async function capabilities() {
 // mistyped id both come back as no row, not an error.
 export async function idea(id) {
   const row = ok(await db.from("ideas")
-    .select("id, user_id, raw, clarification, objective, domain, is_clear, clarifying_question, status, shared_to, image_path, source_url, created_at")
+    .select("id, user_id, raw, clarification, objective, domain, is_clear, clarifying_question, status, shared_to, image_path, source_url, created_at, built_at, dropped_at, drop_reason")
     .eq("id", id).maybeSingle(), "idea");
   if (!row) throw new Error("No such idea, or it is not shared with you.");
   return row;
@@ -254,6 +254,21 @@ export async function setClarification(id, clarification) {
 export async function setShare(id, groupId) {
   return ok(await db.from("ideas").update({ shared_to: groupId }).eq("id", id).select("id").single(),
     "setShare");
+}
+
+// Built and dropped exclude each other (a check constraint says so too), so
+// each write clears the other state. setBuilt(id, false) is "Back to live"
+// from either state: it leaves all three columns null.
+export async function setBuilt(id, on) {
+  return ok(await db.from("ideas")
+    .update({ built_at: on ? new Date().toISOString() : null, dropped_at: null, drop_reason: null })
+    .eq("id", id).select("id").single(), "setBuilt");
+}
+
+export async function setDropped(id, reason) {
+  return ok(await db.from("ideas")
+    .update({ built_at: null, dropped_at: new Date().toISOString(), drop_reason: reason })
+    .eq("id", id).select("id").single(), "setDropped");
 }
 
 // The row goes first; capabilities and extraction_runs cascade with it. The
