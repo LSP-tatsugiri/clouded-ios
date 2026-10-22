@@ -39,7 +39,7 @@ Three changes close it, in increasing size:
    click cycles `none → some → solid` and writes `user_skills`. The profile
    form stops being the only way in, and rating happens at the moment you are
    looking at the thing that needs it. ~30 lines in `app.js` + `db.js`.
-2. **"I built this."** Add `ideas.built_at`. Marking an idea built offers to
+2. ~~**"I built this."**~~ **Shipped 2026-10-22** as the idea-lifecycle spec. Add `ideas.built_at`. Marking an idea built offers to
    set each of its capabilities to `solid` (confirm per capability — the
    claim should be checkable, same rule as the taxonomy). This is the honest
    profile source the design review asked for (§5) *and* the idea list's
@@ -60,9 +60,9 @@ README's own volume risk is about ~35/year, and the graph view wants 80. At 80
 the list is mostly dead ideas: things done, things dropped, things that turned
 out to be the same idea twice.
 
-- `built_at` (above), plus `dropped_at` with a one-line reason. Not a score —
-  a fact.
-- Default the list to live ideas, with built/dropped behind a toggle.
+- ~~`built_at` (above), plus `dropped_at` with a one-line reason. Not a score —
+  a fact.~~ **Shipped 2026-10-22.**
+- ~~Default the list to live ideas, with built/dropped behind a toggle.~~ **Shipped 2026-10-22.**
 - **Near-duplicate detection at capture.** Frictionless capture guarantees
   double-capture of the same 1am thought. The cheap version needs no
   embeddings: `pg_trgm` similarity on `raw`/`objective`, plus "shares ≥3
@@ -227,5 +227,5 @@ Each needs one before any code.
    other number in the app mean something.
 3. §5 CAD split test — before trusting or publishing the headline finding.
 4. §3.1 App Intent — the README's promised capture, cheaply.
-5. §1.2 + §2 built/dropped/duplicates — before the list gets to 80.
+5. §1.2 + §2 built/dropped/duplicates — before the list gets to 80 — built/dropped shipped 2026-10-22; duplicates still open.
 6. §6 claims + group leverage — when the first real friends are in.

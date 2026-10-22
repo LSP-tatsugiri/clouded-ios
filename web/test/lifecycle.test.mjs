@@ -1,4 +1,4 @@
-// Run: node --test web/test/
+// Run: node --test web/test/*.test.mjs
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { DROP_REASON_MAX, buildChoices, cleanReason, isLive, lifecycleOf, movedHeadline } from "../lib/lifecycle.js";

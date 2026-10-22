@@ -896,7 +896,11 @@ function feedRows() {
     if (!capsById.has(c.idea_id)) capsById.set(c.idea_id, []);
     capsById.get(c.idea_id).push(c);
   }
-  const rows = state.feed.map((idea) => ({ idea, extraction: extractionOf(idea, capsById) }));
+  // a dropped idea leaves the feed but stays shared, so a link to it still
+  // works; a built one stays, tagged — that is news (spec 2026-10-22)
+  const rows = state.feed
+    .filter((idea) => lifecycleOf(idea) !== "dropped")
+    .map((idea) => ({ idea, extraction: extractionOf(idea, capsById) }));
   if (state.feedSort === "closest") {
     rows.sort((a, b) =>
       compareKeys(sortKey(a.extraction, state.levels), sortKey(b.extraction, state.levels)) ||
@@ -915,7 +919,7 @@ function feedRow({ idea, extraction }, me, glide = true) {
       el("div", { class: "card-head" }, el("div", {},
         el("h3", {}, el("a", { href: `#/idea/${idea.id}` }, title)),
         el("p", { class: "raw" }, idea.status === "extracted" ? "Too vague to extract yet" : idea.status))),
-      el("div", { class: "card-foot" }, owner, el("span", {}, fmtDate(idea.created_at)))
+      el("div", { class: "card-foot" }, owner, lifecycleTags(idea), el("span", {}, fmtDate(idea.created_at)))
     );
   }
   const held = state.levels;
@@ -940,6 +944,7 @@ function feedRow({ idea, extraction }, me, glide = true) {
     el("ul", { class: "caps" }, extraction.capabilities.filter((c) => c !== crux).map(capItem)),
     el("div", { class: "card-foot" },
       owner,
+      lifecycleTags(idea),
       idea.domain && el("span", { class: "tag" }, idea.domain),
       el("span", {}, fmtDate(idea.created_at)),
       el("span", { class: "spacer" }),
