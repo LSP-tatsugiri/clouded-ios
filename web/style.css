@@ -472,6 +472,8 @@ input.txt, .fld input, .row input, :where(#app > :not(.waifu)) textarea {
 
 /* split-flap: mono tiles that settle into the plain crux text */
 .flap { display: inline-flex; flex-wrap: wrap; row-gap: 2px; }
+/* one word's tiles never wrap apart; the row breaks only at the space tiles */
+.flap .w { display: inline-flex; }
 .flap .ch {
   display: inline-block;
   min-width: 0.56em;

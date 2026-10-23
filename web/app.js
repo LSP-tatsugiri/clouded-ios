@@ -65,7 +65,9 @@ const state = {
   detail: null,        // { idea, caps, runs, groups } for the idea page
   profile: null,       // { user_id, display_name } — yours
   groups: [],          // { id, name, created_by, members: [{ user_id, display_name, added_at }], invites: [{ email }] }
-  confirmDelete: null, // group id whose delete button is waiting for a second click
+  confirmDelete: null, // group id whose delete (creator) or leave (member) button is waiting for a second click
+  confirmRemove: null, // "<group id>/<user id>" whose Remove button is waiting for a second click
+  loadedRoute: null,   // the route the last finished load() was for; until it matches, empty means "not yet"
   confirmDeleteIdea: false, // the idea page's delete button is waiting for a second click
   moved: "",           // idea page: what the last rating changed, one line
   lifecycleForm: null, // idea page: null | "build" | "drop" — which lifecycle form is open
@@ -332,18 +334,30 @@ function cruxBlock(crux, flap = false) {
 // lands, then settling to plain text. Every character is its own text node
 // (never markup), and the interval stops when the card leaves the page.
 // Under reduced motion the text simply fades in.
+//
+// Letters sit inside one .w span per word, so the line can only break at a
+// space \u2014 a tile per character in one wrapping row broke "authen / tication"
+// on a phone. The tiles are hidden from assistive tech, which hears the
+// wrap's label once instead of a stream of random letters.
 const FLAP_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 function splitFlap(text) {
-  const wrap = el("span", { class: "flap" });
+  const wrap = el("span", { class: "flap", role: "img", "aria-label": text });
   if (matchMedia("(prefers-reduced-motion: reduce)").matches) {
     wrap.classList.add("done", "fade-in");
+    wrap.removeAttribute("role");
+    wrap.removeAttribute("aria-label");
     wrap.textContent = text;
     return wrap;
   }
   const rnd = () => FLAP_CHARS[Math.floor(Math.random() * FLAP_CHARS.length)];
   const nbsp = "\u00a0";
-  const tiles = [...text].map((c) => el("span", { class: c === " " ? "ch sp" : "ch" }, c === " " ? nbsp : rnd()));
-  wrap.append(...tiles);
+  const tiles = [...text].map((c) => el("span", { class: c === " " ? "ch sp" : "ch", "aria-hidden": "true" }, c === " " ? nbsp : rnd()));
+  let word = null;
+  for (const t of tiles) {
+    if (t.classList.contains("sp")) { wrap.append(t); word = null; continue; }
+    if (!word) wrap.append(word = el("span", { class: "w" }));
+    word.append(t);
+  }
   let frame = 0;
   const tick = setInterval(() => {
     if (!wrap.isConnected) return clearInterval(tick);
@@ -531,7 +545,8 @@ function leveragePanel(items) {
       el("span", { class: "k" }, String(e.ideaIds.length)),
       el("span", {}, e.skillId ? skillName(e.skillId) : `${e.proposedName} (proposed)`)
     ))),
-    !top.length && el("p", { class: "muted" }, "Nothing to learn — every capability is held.")
+    // before the first load there is nothing to rank, which is not the same as nothing to learn
+    !top.length && state.loadedRoute === "list" && el("p", { class: "muted" }, "Nothing to learn — every capability is held.")
   );
 }
 
@@ -599,6 +614,7 @@ function listView() {
   );
 
   const rated = state.levels.size;
+  const loaded = state.loadedRoute === "list";
   const glide = shown.length + vagueShown.length <= 40;
   const card = (r) => r.idea.is_clear === true ? ideaRow(r, glide) : vagueRow(r.idea, glide);
 
@@ -634,14 +650,18 @@ function listView() {
     add,
     state.error && el("p", { class: "error" }, state.error),
     filterBar(domains, shown.length, clear.length),
-    !rated && el("p", { class: "muted" }, "Rate your skills on the Profile tab to make the distances mean anything."),
+    loaded && !rated && el("p", { class: "muted" }, "Rate your skills on the Profile tab to make the distances mean anything."),
     el("div", { class: "layout" },
       el("div", { class: "list" },
         extracting.length > 0 && el("div", { class: "cards extracting-cards" },
           extracting.map((r) => extractingRow(r.idea, state.extracting.get(r.idea.id)))),
         body,
-        !shown.length && !vagueShown.length && el("p", { class: "muted" },
-          !inView.length && state.filters.lifecycle === "built" ? "Nothing built yet. Mark an idea built from its page."
+        // the first paint comes before load() answers: an empty list then
+        // means "not yet", and saying "no idea matches" would be a false alarm
+        !shown.length && !vagueShown.length && el("p", { class: "muted", role: "status" },
+          !loaded ? "Loading your ideas…"
+          : !state.ideas.length ? "No ideas yet. Write one in the box above."
+          : !inView.length && state.filters.lifecycle === "built" ? "Nothing built yet. Mark an idea built from its page."
           : !inView.length && state.filters.lifecycle === "dropped" ? "Nothing dropped."
           : "No idea matches those filters.")
       ),
@@ -860,7 +880,9 @@ function nameForm() {
 function groupView() {
   const me = state.session.user.id;
   if (!state.groups.length) {
-    return el("div", {}, header(), state.error && el("p", { class: "error" }, state.error), createGroupCard());
+    // no groups loaded yet is not "you have no group": hold the create card back until load() says so
+    return el("div", {}, header(), state.error && el("p", { class: "error" }, state.error),
+      state.loadedRoute === "group" ? createGroupCard() : el("p", { class: "muted", role: "status" }, "Loading your group…"));
   }
   const rows = feedRows();
   const sortButton = (key, label) => el("button", {
@@ -1047,13 +1069,21 @@ function groupSection(g, me) {
       creator && groupNameForm(g),
       creator && others.length > 0 && el("div", {},
         el("div", { class: "sub-h" }, "Members"),
-        el("ul", { class: "plain" }, others.map((m) => el("li", {},
-          el("span", {}, m.display_name ?? m.user_id),
-          el("button", {
-            class: "link", type: "button",
-            onclick: () => run(async () => { await removeMember(g.id, m.user_id); await load(); })
-          }, "Remove")
-        )))),
+        el("ul", { class: "plain" }, others.map((m) => {
+          const name = m.display_name ?? m.user_id;
+          const key = `${g.id}/${m.user_id}`;
+          // two clicks, like deleting the group: removal unshares their ideas
+          // here (unshare_on_leave), and only a new invite brings them back
+          return state.confirmRemove === key
+            ? el("li", { class: "confirm" },
+                el("p", { class: "hint" }, `Remove ${name}? Their ideas shared here go back to private.`),
+                el("div", { class: "row" },
+                  el("button", { class: "btn sm warn", type: "button", onclick: () => run(async () => { state.confirmRemove = null; await removeMember(g.id, m.user_id); await load(); }) }, "Yes, remove"),
+                  el("button", { class: "btn sm ghost", type: "button", onclick: () => { state.confirmRemove = null; render(); } }, "Keep them")))
+            : el("li", {},
+                el("span", {}, name),
+                el("button", { class: "link", type: "button", onclick: () => { state.confirmRemove = key; render(); } }, "Remove"));
+        }))),
       creator && inviteForm(g),
       creator && g.invites.length > 0 && el("div", {},
         el("div", { class: "sub-h" }, "Invited, not joined yet"),
@@ -1071,9 +1101,13 @@ function groupSection(g, me) {
                   el("button", { class: "btn sm warn", type: "button", onclick: () => run(async () => { state.confirmDelete = null; await deleteGroup(g.id); await load(); }) }, "Yes, delete"),
                   el("button", { class: "btn sm ghost", type: "button", onclick: () => { state.confirmDelete = null; render(); } }, "Keep it")))
             : el("button", { class: "link danger", type: "button", onclick: () => { state.confirmDelete = g.id; render(); } }, "Delete group"))
-          : el("button", {
-              class: "link danger", type: "button", onclick: () => run(async () => { await removeMember(g.id, me); await load(); })
-            }, "Leave group")
+          : (state.confirmDelete === g.id
+            ? el("div", {},
+                el("p", { class: "hint" }, `Leave ${g.name}? Your ideas shared to it go back to private, and you lose the feed.`),
+                el("div", { class: "row" },
+                  el("button", { class: "btn sm warn", type: "button", onclick: () => run(async () => { state.confirmDelete = null; await removeMember(g.id, me); await load(); }) }, "Yes, leave"),
+                  el("button", { class: "btn sm ghost", type: "button", onclick: () => { state.confirmDelete = null; render(); } }, "Stay")))
+            : el("button", { class: "link danger", type: "button", onclick: () => { state.confirmDelete = g.id; render(); } }, "Leave group"))
       )
     )
   );
@@ -1957,7 +1991,16 @@ async function loadNames(ids) {
   for (const p of await profilesFor(missing)) state.names.set(p.user_id, p.display_name);
 }
 
+// Views read state.loadedRoute to tell "nothing here" from "not loaded yet".
+// The route is captured first: a hashchange mid-load must not mark the new
+// route loaded with the old route's data. A failed load still counts — the
+// error is on screen, and "Loading…" under it would never end.
 async function load() {
+  const route = state.route;
+  try { await loadRoute(); } finally { state.loadedRoute = route; }
+}
+
+async function loadRoute() {
   if (!state.session) {
     state.ideas = []; state.caps = []; state.skills = []; state.levels = new Map();
     state.curator = null; state.proposals = [];
@@ -2037,6 +2080,9 @@ addEventListener("hashchange", () => {
   status.textContent = "";
   state.detail = null;
   state.confirmDeleteIdea = false;
+  // a pending "Leave?" or "Remove?" should not be waiting when you come back
+  state.confirmDelete = null;
+  state.confirmRemove = null;
   state.sent = null;
   state.moved = "";
   state.lifecycleForm = null;
