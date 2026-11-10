@@ -16,7 +16,7 @@ import {
   groupMembers, groupSkills, idea as fetchIdea, ideas, invite, mediaUrl, myFeedback, myGroups, myProfile,
   mySkills, pendingInvites, profilesFor, promoteSkill, proposedSkills, rejectSkill, removeMember, renameGroup,
   revokeInvite, runsFor, session, setBuilt, setClarification, setDisplayName, setDropped, setShare, setSkillLevel, sharedIdeas,
-  signIn, signOut, signUp, skills, skillsFor, uploadFeedbackShot
+  signIn, signOut, signUp, skills, skillsFor, uploadFeedbackShot, watchRuns
 } from "./lib/db.js";
 import { el, mount } from "./lib/dom.js";
 import { explain } from "./lib/errors.js";
@@ -25,6 +25,7 @@ import { DROP_REASON_MAX, buildChoices, cleanReason, isLive, lifecycleOf, movedH
 import { UNRATED, levelChoices } from "./lib/rating.js";
 import { similarIdeas } from "./lib/similar.js";
 import { canDictate, dictation } from "./lib/speech.js";
+import { TICK_MS, WINDOW_MS, costLine, filledAnswers, resultOf, startWait, step } from "./lib/wait.js";
 // build.mjs writes COMMIT into config.js on the host; the hand-written local
 // config.js has no such export, and a named import of a missing export fails
 // at link time, so read it off the namespace
@@ -103,6 +104,9 @@ const state = {
   waiting: "",         // progress text while an answer re-runs extraction
   extracting: new Map(), // idea_id -> { stage, seconds } while the list watches a new idea
   stalled: new Map(),  // idea_id -> since, for waits that ran out: what "Check again" polls for
+  rerun: new Map(),    // idea_id -> since, for answers sent this session whose re-run has not landed: resumed on return
+  checked: new Map(),  // idea_id -> { at, run }: the last read-only "Check again" on a card with no result
+  batch: { open: false, drafts: new Map(), sending: false, note: "" }, // the "answer them all" form
   error: null,
   errorDetail: null,   // { for, raw }: the raw message behind state.error, shown only while it is that error
   busy: false
@@ -510,21 +514,46 @@ function extractingRow(idea, { stage, seconds, again }) {
 // answer is the same write the idea page makes (setClarification, which
 // re-runs extraction), and the wait is the same watcher a new idea gets, so
 // the card turns into the extracting card and then the full one.
+//
+// Only an idea extraction actually asked about gets the box (lib/wait.js,
+// resultOf). One with no result yet — the webhook never came, or the key was
+// dead — gets waitingRow instead: an answer there would be a paid re-run
+// answering a question nobody asked.
+//
+// The answer fields are kept across renders, like captureBox: the list
+// repaints every 2 s while another idea extracts, and a rebuilt field would
+// drop what was typed. kept() hands back the same element and puts the caret
+// back in it if it had it.
+const answerInputs = new Map(), batchInputs = new Map();   // idea_id -> field
+function kept(map, id, make) {
+  if (!map.has(id)) map.set(id, make());
+  const f = map.get(id);
+  if (document.activeElement === f) queueMicrotask(() => { if (f.isConnected && document.activeElement !== f) f.focus({ preventScroll: true }); });
+  return f;
+}
+
 function vagueRow(idea, glide = true) {
+  const kind = resultOf(idea, state.checked.get(idea.id)?.run ?? null, Date.now(), WATCH_WINDOW_MS);
+  if (kind !== "vague") return waitingRow(idea, kind, glide);
+  const input = kept(answerInputs, idea.id, () =>
+    el("input", { name: "clarification", "aria-label": "Your answer", placeholder: "A few words is enough", required: true, autocomplete: "off" }));
   const form = el("form", {
     class: "row",
     onsubmit: (e) => {
       e.preventDefault();
-      const text = form.elements.clarification.value.trim();
-      if (!text) return;
+      const text = input.value.trim();
+      // one submit, one write: a second press while it is in flight does nothing
+      if (!text || state.busy) return;
       run(async () => {
         const since = new Date().toISOString();
         await setClarification(idea.id, text);
+        answerInputs.delete(idea.id);
+        state.rerun.set(idea.id, since);
         watch(idea.id, since);
       });
     }
   },
-    el("input", { name: "clarification", "aria-label": "Your answer", placeholder: "A few words is enough", required: true, autocomplete: "off" }),
+    input,
     el("button", { type: "submit", class: "btn sm", disabled: state.busy }, "Answer")
   );
   return el("article", cardProps(idea, justLanded.has(idea.id) ? "card idea vague fade-in" : "card idea vague", glide, false),
@@ -533,11 +562,122 @@ function vagueRow(idea, glide = true) {
       el("p", { class: "raw" }, "Too vague to extract yet"))),
     el("div", { class: "ask" },
       el("p", {}, el("b", {}, "One question: "), idea.clarifying_question ?? "What is it, in a sentence?"),
-      form,
-      // answering runs extraction server-side, which is a paid API call
-      el("p", { class: "hint" }, "Answering re-runs extraction, about a cent.")),
+      // with the batch form open, answering happens there, once
+      state.batch.open ? el("p", { class: "hint" }, "Answer it in the form above.") : [
+        form,
+        // answering runs extraction server-side, which is a paid API call
+        el("p", { class: "hint" }, "Answering re-runs extraction, about a cent.")]),
     el("div", { class: "card-foot" }, lifecycleTags(idea), el("span", {}, "you"), el("span", {}, fmtDate(idea.created_at)))
   );
+}
+
+// An idea with no extraction result: nothing to answer, and nothing on this
+// side can start the extraction again — that is the webhook's job. "Check
+// again" only reads (checkIdea), so it costs nothing.
+function waitingRow(idea, kind, glide) {
+  const seen = state.checked.get(idea.id);
+  const said = !seen ? null
+    : seen.run?.error ? "Checked: the last attempt failed."
+    : seen.run ? "Checked: a run exists but the idea has not caught up yet."
+    : "Checked: still nothing.";
+  return el("article", cardProps(idea, "card idea vague waiting", glide),
+    el("div", { class: "card-head" }, el("div", {},
+      el("h3", {}, el("a", { href: `#/idea/${idea.id}` }, idea.raw)),
+      el("p", { class: "raw" }, "Not extracted yet."))),
+    el("div", { class: "ask" },
+      el("p", {}, kind === "failed" ? "Extraction ran and failed, so there is no question to answer yet."
+        : kind === "pending" ? "The result has not arrived yet."
+        : "The extraction result never arrived."),
+      el("div", { class: "row" },
+        el("button", { type: "button", class: "sm secondary", "data-check": idea.id, disabled: state.busy, onclick: () => checkIdea(idea.id) }, "Check again"),
+        said && el("span", { class: "hint", role: "status" }, said)),
+      el("p", { class: "hint" }, "If it stays like this, tell the owner — the extraction service may be down.")),
+    el("div", { class: "card-foot" }, lifecycleTags(idea), el("span", {}, "you"), el("span", {}, fmtDate(idea.created_at)))
+  );
+}
+
+// Read-only: the idea and its runs, then the list again. Never addIdea or
+// setClarification, the two writes that start a (paid) extraction.
+function checkIdea(id) {
+  run(async () => {
+    const [one, [latest = null]] = await Promise.all([fetchIdea(id), runsFor(id)]);
+    state.checked.set(id, { at: Date.now(), run: latest });
+    await load();
+    const k = resultOf(one, latest, Date.now(), WATCH_WINDOW_MS);
+    announce(k === "clear" || k === "vague" ? "The extraction has landed." : "Still not extracted.");
+  }).then(() => document.querySelector(`[data-check="${id}"]`)?.focus());
+}
+
+// Every vague idea on one screen, when there are two or more (backlog §4):
+// the raw text, its question, a field each, and one submit that sends only
+// the filled ones, one setClarification each, in order. The first failure
+// stops it: what was sent is said, and the rest stay filled in.
+function vagueBatch(ideas) {
+  const b = state.batch;
+  const list = ideas.filter((i) => i.is_clear === false && !state.extracting.has(i.id));
+  if (list.length < 2) { b.open = false; return null; }
+  if (!b.open) return el("p", { class: "batch-open" },
+    el("button", { type: "button", class: "sm secondary", onclick: () => { b.open = true; b.note = ""; render({ focus: ".batch textarea" }); } },
+      `Answer all ${list.length} on one screen`));
+
+  const ids = list.map((i) => i.id);
+  const n = () => filledAnswers(ids, b.drafts).length;
+  const cost = el("p", { class: "hint" });
+  const submit = el("button", { type: "submit", class: "btn sm" });
+  const recount = () => {
+    const k = n();
+    cost.textContent = k ? costLine(k) : "Answering re-runs extraction, about a cent each. Fill in the ones you can; empty ones are left as they are.";
+    submit.textContent = b.sending ? "Sending…" : k ? `Send ${k} ${k === 1 ? "answer" : "answers"}` : "Send answers";
+    submit.disabled = !k || b.sending || state.busy;
+  };
+  const form = el("form", {
+    class: "batch ask",
+    onsubmit: (e) => { e.preventDefault(); sendBatch(ids); }
+  },
+    el("h2", {}, "Answer them all"),
+    el("ol", {}, list.map((i) => el("li", {},
+      el("p", { class: "raw" }, i.raw),
+      el("p", {}, el("b", {}, "Question: "), i.clarifying_question ?? "What is it, in a sentence?"),
+      // three fields called "Your answer" would be one name three times to a screen reader
+      el("label", { class: "fld" }, el("span", {}, "Your answer", el("span", { class: "sr-only" }, ` for “${i.raw}”`)),
+        kept(batchInputs, i.id, () => el("textarea", {
+          name: `answer-${i.id}`, rows: 2, placeholder: "Leave empty to skip",
+          oninput: (e) => { b.drafts.set(i.id, e.target.value); recount(); }
+        })))))),
+    b.note && el("p", { class: "error", role: "status" }, b.note),
+    cost,
+    el("div", { class: "row" }, submit,
+      el("button", { type: "button", class: "link", onclick: () => { b.open = false; render({ focus: ".batch-open button" }); } }, "close"))
+  );
+  recount();
+  return form;
+}
+
+function sendBatch(ids) {
+  const b = state.batch;
+  if (b.sending || state.busy) return;   // a double click sends nothing twice
+  const answers = filledAnswers(ids, b.drafts);
+  if (!answers.length) return;
+  b.sending = true; b.note = "";
+  let sent = 0;
+  run(async () => {
+    try {
+      for (const { id, text } of answers) {
+        const since = new Date().toISOString();
+        await setClarification(id, text);   // the paid write, once per filled answer
+        sent++;
+        b.drafts.delete(id); batchInputs.delete(id);
+        state.rerun.set(id, since);
+        watch(id, since);
+      }
+      announce(`Sent ${sent} ${sent === 1 ? "answer" : "answers"}.`);
+    } catch (err) {
+      b.note = `Sent ${sent} of ${answers.length}. The rest are still filled in.`;
+      throw err;
+    } finally {
+      b.sending = false;
+    }
+  });
 }
 
 // Always on screen: Live/Built/Dropped, the sort, search and the count. The
@@ -697,13 +837,16 @@ function listView() {
 
   // Closest to me groups by how many skills are short (the flat gap count
   // distance.js already gives); newest is one list by date, vague included.
+  // The batch answer form goes before the cards are built: whether it is open
+  // decides whether each vague card carries its own box.
+  const batch = vagueBatch(vagueShown.map((r) => r.idea));
   let body;
   if (state.sort === "newest" || state.filters.lifecycle !== "live") {
     // a built or dropped view reads newest-marked first; for live ideas both
     // marks are null, so this is the plain created-at order
     const when = (i) => Date.parse(i.built_at ?? i.dropped_at ?? i.created_at);
     const all = [...shown, ...vagueShown].sort((a, b) => when(b.idea) - when(a.idea));
-    body = el("div", { class: "cards" }, all.map(card));
+    body = [batch, el("div", { class: "cards" }, all.map(card))];
   } else {
     const bandOf = (r) => {
       const gap = distanceOf(r.extraction, state.levels).gap;
@@ -716,6 +859,7 @@ function listView() {
       const items = byBand.get(k);
       return items.length > 0 && el("section", { class: `band ${k}` },
         el("div", { class: "band-head" }, el("h2", {}, h), el("span", { class: "n" }, String(items.length)), el("p", {}, p)),
+        k === "vague" && batch,
         el("div", { class: "cards" }, items.map(card)));
     });
   }
@@ -1482,24 +1626,83 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 // failure in resolution cannot lose the raw output. Reloading the moment the
 // run appears therefore races those later writes and can show the previous
 // verdict. So: wait for the run, then wait for the idea row to agree with it.
-// How long a wait for extraction lasts before giving up: 60 polls, 2 s apart.
-const WATCH_POLLS = 60, WATCH_TICK_MS = 2000, WATCH_WINDOW_MS = WATCH_POLLS * WATCH_TICK_MS;
+// How long a wait for extraction lasts before giving up: two minutes, as when
+// it was 60 polls 2 s apart (lib/wait.js).
+const WATCH_WINDOW_MS = WINDOW_MS;
+
+// What a wait cut short by a route change returns: not a result, not a stall.
+const CANCELLED = Symbol("cancelled");
+
+// One wait per idea at most: idea_id -> stop(). A route change stops them all
+// (stopWaits, from the hashchange handler); load() then restarts the ones the
+// new page shows, which is why stopping has to be synchronous.
+const waits = new Map();
+function stopWaits() {
+  for (const stop of [...waits.values()]) stop();
+  state.extracting.clear();
+}
+
+// The race (lib/wait.js): a Realtime channel on this idea's runs and a poll
+// of runsFor, whichever sees the run first. The state machine says what to
+// do; this only owns the timers, the channel and the reads, and every exit
+// (a run, the window, a failed read, stop()) clears all three. Resolves to
+// the run, null when the window ran out, or CANCELLED.
+function raceForRun(ideaId, since, onTick) {
+  waits.get(ideaId)?.();
+  return new Promise((resolve, reject) => {
+    let s = startWait(), reading = false, ended = false, unsub = () => {}, clock = null, timer = null;
+    const end = (fn, v) => {
+      if (ended) return;
+      ended = true; s = { ...s, done: true };
+      clearInterval(clock); clearTimeout(timer); unsub();
+      if (waits.get(ideaId) === stop) waits.delete(ideaId);
+      fn(v);
+    };
+    const stop = () => end(resolve, CANCELLED);
+    const on = (ev, run) => {
+      const r = step(s, ev);
+      s = r.s;
+      for (const a of r.acts) {
+        if (a === "close") { unsub(); unsub = () => {}; }
+        else if (a === "progress") onTick(s.elapsed / 1000);
+        else if (a === "poll") poll();
+        else if (a === "finish") end(resolve, run);
+        else if (a === "give-up") end(resolve, null);
+      }
+    };
+    // one read in flight at a time: a slow network must not stack them
+    const poll = async () => {
+      if (reading) return;
+      reading = true;
+      try { const [run] = await runsFor(ideaId, since); if (run && !ended) on("row", run); }
+      catch (err) { end(reject, err); }
+      finally { reading = false; }
+    };
+    waits.set(ideaId, stop);
+    clock = setInterval(() => on("tick"), TICK_MS);
+    // a backstop: the ticks end the window themselves unless the tab throttles them
+    timer = setTimeout(() => on("timeout"), WATCH_WINDOW_MS + TICK_MS);
+    unsub = watchRuns(ideaId, since, {
+      onRow: (run) => on("row", run),
+      onStatus: (st) => on(st === "SUBSCRIBED" ? "subscribed" : "sub-error")
+    });
+  });
+}
 
 // onProgress({ stage, seconds }) is called on every tick: the idea page turns
 // it into a line of text, the list into the bar on the new idea's row.
 async function awaitRerun(ideaId, since, onProgress) {
-  let run = null;
-  for (let i = 0; i < WATCH_POLLS && !run; i++) {
-    await sleep(WATCH_TICK_MS);
-    onProgress({ stage: "extracting", seconds: (i + 1) * WATCH_TICK_MS / 1000 });
-    [run] = await runsFor(ideaId, since);
-  }
-  if (!run || run.error) return run;
+  const run = await raceForRun(ideaId, since, (seconds) => onProgress({ stage: "extracting", seconds }));
+  if (!run || run === CANCELLED || run.error) return run;
 
+  // seeing the run is not seeing the result (above): a few reads of the row,
+  // abandoned if the page moves on meanwhile
+  const route = state.route;
   onProgress({ stage: "saving", seconds: null });
   for (let i = 0; i < 10; i++) {
     if ((await fetchIdea(ideaId)).is_clear === run.clear) break;
     await sleep(1000);
+    if (state.route !== route || waits.has(ideaId)) return CANCELLED;
   }
   return run;
 }
@@ -1510,27 +1713,37 @@ async function awaitRerun(ideaId, since, onProgress) {
 //
 // Everything here reads. `again` marks a wait restarted by "Check again"
 // (checkAgain()), so the card says it is looking, not extracting.
+//
+// A route change stops the wait (stopWaits) and it ends here silently: the
+// list's load() starts it again on return, from the same `since`.
 async function watch(ideaId, since, again = false) {
   if (state.extracting.has(ideaId)) return;
   state.extracting.set(ideaId, { stage: "extracting", seconds: 0, again });
   announce(again ? "Checking whether the extraction landed." : "Extracting the idea.");
   render();
+  let got = null;
   try {
-    const got = await awaitRerun(ideaId, since, (p) => {
+    got = await awaitRerun(ideaId, since, (p) => {
+      if (!state.extracting.has(ideaId)) return;
       state.extracting.set(ideaId, { ...p, again });
       if (p.stage === "saving") announce("Saving the result.");
       render();
     });
+    if (got === CANCELLED) return;
+    state.rerun.delete(ideaId);
     if (!got) stall(ideaId, since, "Extraction has not landed yet. It may still be running.");
     else if (got.error) { state.error = `Extraction failed: ${got.error}`; announce(state.error); }
     else announce("Extraction finished.");
   } catch (err) {
     fail(err);
   } finally {
-    state.extracting.delete(ideaId);
-    if (state.route === "list") await load().catch(fail);
-    justLanded.add(ideaId);   // the next paint of its card plays the split-flap
-    render();
+    // a stopped wait leaves the map alone: a restarted one may already own it
+    if (got !== CANCELLED) {
+      state.extracting.delete(ideaId);
+      if (state.route === "list") await load().catch(fail);
+      justLanded.add(ideaId);   // the next paint of its card plays the split-flap
+      render();
+    }
   }
 }
 
@@ -1708,20 +1921,27 @@ function markBuilt(ideaId) {
 // again" when that wait ran out. It only reads — the write that starts an
 // extraction is answerBox's setClarification, never this — so asking twice
 // costs nothing. The stage is announced once; the seconds are only on screen.
+//
+// Leaving the page stops it (stopWaits) and it ends without a word; coming
+// back while state.rerun still holds the answer starts it again from load().
 async function pollRerun(ideaId, since) {
   state.waiting = "waiting for extraction…";
   announce("Waiting for extraction.");
+  let got = null;
   try {
-    const got = await awaitRerun(ideaId, since, ({ stage, seconds }) => {
+    got = await awaitRerun(ideaId, since, ({ stage, seconds }) => {
+      if (state.route !== "idea") return;
       state.waiting = stage === "saving" ? "saving the result…" : `waiting for extraction… ${seconds}s`;
       if (stage === "saving") announce("Saving the result.");
       render();
     });
+    if (got === CANCELLED) return;
+    state.rerun.delete(ideaId);
     if (!got) stall(ideaId, since, "The re-run has not landed yet. It may still be running.");
     else if (got.error) { state.error = `Extraction failed: ${got.error}`; announce(state.error); }
     else announce("Extraction finished.");
   } finally {
-    state.waiting = "";
+    if (got !== CANCELLED) state.waiting = "";
   }
   await load();
 }
@@ -1756,11 +1976,13 @@ function answerBox(idea) {
     onsubmit: (e) => {
       e.preventDefault();
       const text = form.elements.clarification.value.trim();
-      if (!text) return;
+      // one submit, one write: a second press while it is in flight does nothing
+      if (!text || state.busy) return;
       run(async () => {
         const since = new Date().toISOString();
         // the one write here, and the only thing that starts an extraction
         await setClarification(idea.id, text);
+        state.rerun.set(idea.id, since);
         await pollRerun(idea.id, since);
       });
     }
@@ -2159,7 +2381,11 @@ function render({ animate = false, focus = null } = {}) {
     document.documentElement.dataset.vt = switched ? "page" : "list";
     document.documentElement.dataset.dir =
       switched && (ROUTE_ORDER[state.route] ?? 0) < (ROUTE_ORDER[paintedRoute] ?? 0) ? "back" : "fwd";
-    document.startViewTransition(paint);
+    // a newer transition skips this one, which rejects these with an
+    // AbortError: expected on rapid route changes, so only that is ignored
+    const t = document.startViewTransition(paint);
+    const skipped = (e) => { if (e?.name !== "AbortError") console.error(e); };
+    t.ready?.catch(skipped); t.finished?.catch(skipped); t.updateCallbackDone?.catch(skipped);
   } else {
     paint();
   }
@@ -2289,10 +2515,15 @@ async function loadRoute() {
     // A pending row is watched from here, whether it was just added or the
     // page was reloaded mid-extraction; `since` is the insert, which is what
     // fired the webhook. Older than the wait window means the webhook never
-    // delivered, and re-watching it would loop: leave it as a pending row.
+    // delivered, and re-watching it would loop: it shows as a waiting card
+    // (waitingRow). An answer sent this session whose wait a route change cut
+    // short is picked up again the same way, from the moment it was sent.
     const fresh = Date.now() - WATCH_WINDOW_MS;
     for (const i of ideaRows) {
       if (i.status === "pending" && Date.parse(i.created_at) > fresh) watch(i.id, i.created_at);
+    }
+    for (const [id, since] of state.rerun) {
+      if (Date.parse(since) > fresh) watch(id, since); else state.rerun.delete(id);
     }
   } else if (state.route === "review") {
     state.proposals = state.curator ? await proposedSkills() : [];
@@ -2331,6 +2562,9 @@ async function loadRoute() {
     const imageUrl = one.image_path ? await mediaUrl(one.image_path).catch(() => null) : null;
     state.detail = { idea: one, caps, runs, groups, imageUrl };
     if (one.user_id !== state.session.user.id) await loadNames([one.user_id]);
+    // an answer's wait that a route change cut short (pollRerun); unawaited, it reads only
+    const since = state.rerun.get(id);
+    if (since && !waits.has(id) && Date.parse(since) > Date.now() - WATCH_WINDOW_MS) pollRerun(id, since).catch(fail).then(() => render());
   } else if (state.route === "friend") {
     const id = currentFriendId();
     const [profiles, levels] = await Promise.all([profilesFor([id]), skillsFor(id)]);
@@ -2341,6 +2575,7 @@ async function loadRoute() {
 }
 
 addEventListener("hashchange", () => {
+  stopWaits();   // every channel and timer goes; load() restarts what the new page shows
   state.route = currentRoute();
   filtersFromHash();
   if (/^#(signin|create)$/.test(location.hash)) state.authMode = location.hash.slice(1);   // the landing's links
