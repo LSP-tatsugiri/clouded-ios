@@ -12,6 +12,10 @@
 -- to them (that policy has no shared_to branch, same as a plain select), and
 -- the anon key hears nothing (every policy is `to authenticated`). The event
 -- carries the whole row, output included, which the owner can already read.
+-- The exception is DELETE: Realtime does not apply RLS to deletions and sends
+-- only the primary key, to every subscriber of the table. Runs are deleted
+-- only by the cascade when an idea is deleted, and the client subscribes to
+-- INSERT alone (watchRuns in web/lib/db.js), so it never asks for them.
 -- No policy is added or changed here.
 --
 -- Guarded so a re-run, or a project where the table is already a member,

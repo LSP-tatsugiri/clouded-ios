@@ -164,9 +164,11 @@ let channels = 0;
 export function watchRuns(ideaId, since, { onRow, onStatus }) {
   let ch = null;
   try {
-    ch = db.channel(`runs:${ideaId}:${++channels}`)
-      .on("postgres_changes",
-        { event: "*", schema: "public", table: "extraction_runs", filter: `idea_id=eq.${ideaId}` },
+    ch = db.channel(`runs:${ideaId}:${++channels}`);
+    ch.on("postgres_changes",
+        // INSERT only: runs are never updated, and Realtime does not apply RLS
+        // to DELETE events, so "*" would also hear other users' deletions
+        { event: "INSERT", schema: "public", table: "extraction_runs", filter: `idea_id=eq.${ideaId}` },
         ({ new: r }) => {
           if (!r?.id || (since && !(Date.parse(r.created_at) > Date.parse(since)))) return;
           onRow({ id: r.id, created_at: r.created_at, model: r.model, prompt_hash: r.prompt_hash,
@@ -348,9 +350,9 @@ export async function setBuilt(id, on) {
 export async function setDropped(id, reason, duplicateOf = null) {
   const row = { built_at: null, dropped_at: new Date().toISOString(), drop_reason: reason };
   const write = (r) => db.from("ideas").update(r).eq("id", id).select("id").single();
-  if (duplicateOf && hasDuplicateOf) {
+  if (duplicateOf && !absent.has("duplicate_of")) {
     const res = await write({ ...row, duplicate_of: duplicateOf });
-    if (!lacksDuplicateOf(res.error)) return ok(res, "setDropped");
+    if (!lacksColumn(res.error)) return ok(res, "setDropped");
   }
   return ok(await write(row), "setDropped");
 }
@@ -369,12 +371,6 @@ function lacksColumn(error) {
   const col = ["duplicate_of", "assumption", "iteration"].find((n) => !absent.has(n) && (error.message ?? "").includes(n));
   if (col) absent.add(col);
   return !!col;
-}
-let hasDuplicateOf = true;
-function lacksDuplicateOf(error) {
-  const missing = lacksColumn(error) && absent.has("duplicate_of");
-  if (missing) hasDuplicateOf = false;
-  return missing;
 }
 
 // The row goes first; capabilities and extraction_runs cascade with it. The

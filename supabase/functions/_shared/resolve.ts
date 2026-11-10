@@ -309,7 +309,9 @@ export function capabilityRows(ideaId: string, runId: string, caps: Capability[]
       proposed_key: proposedKey,
       reason: cap.reason,
       // anything but the two values becomes null, which the check constraint allows
-      iteration: cap.iteration === "tutorial" || cap.iteration === "iteration" ? cap.iteration : null,
+      // strict mode should keep the enum exact; lower-case anyway so a stray
+      // "Tutorial" is kept rather than dropped to null by the check constraint
+      iteration: ((v) => (v === "tutorial" || v === "iteration" ? v : null))(String(cap.iteration ?? "").toLowerCase()),
       crux_rank: crux ? 1 : null,
       resolved: cap.resolved ?? (cap.skill_id ? "direct" : "new"),
       resolved_from: cap.resolved_from ?? null,
