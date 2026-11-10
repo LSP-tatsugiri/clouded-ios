@@ -9,7 +9,19 @@ side for comparison:
 `after/*.png` and `manifest.json` (per shot: route, viewport, theme, both paths,
 `identical` = byte-equal, `missingBefore`/`missingAfter`, console errors).
 Flags: `--only=list,profile` for some screens, `--keep` to keep the exported
-sources in `<out-dir>/src/`, `--fonts` to let Google Fonts load.
+sources in `<out-dir>/src/`, `--fonts` to let Google Fonts load, `--webp` for
+lossy shots about a fifth of the PNG size.
+
+**The page.** `node tools/shots/page.mjs <out-dir> <page-dir>` turns the
+manifest into one HTML page with every pair side by side (filters for
+desktop/phone, light/dark, changed only; paired shots scroll together) and
+copies the shots beside it; `<page-dir>/files.json` lists them for publishing
+as an Artifact. Write `<out-dir>/notes.json` first, `{ "<screen id>": ["what
+changed", ...] }`, to put a few plain lines above each screen. The usual run
+for a change:
+
+    node tools/shots/run.mjs main agent/<topic> <out-dir> --fonts --webp
+    node tools/shots/page.mjs <out-dir> <page-dir>
 
 **Fake backend.** Neither side talks to Supabase. Each ref's `web/` and
 `extraction/src/` are exported with `git archive` (the checkout is never

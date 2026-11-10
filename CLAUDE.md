@@ -261,6 +261,14 @@ Learned the hard way; keep them true on every machine.
   "commit and push the migration in the same step as `supabase db push`"
   rule below still holds, on the branch, and the owner merges before the
   other machine pulls.
+- **Every change to `web/` comes with a before/after page** (owner's
+  request, 2026-11-10: "after each change … screenshots of before and after
+  of the changes so i can view the changes at a glance"). When a branch
+  touching `web/` is ready for review, run `tools/shots/` (`main` against the
+  branch; see its README), write a `notes.json` of what changed per screen,
+  publish the page as an Artifact and give the owner the link with the PR.
+  It uses a fake backend, so it costs nothing and shows layout, not live data;
+  say so. Add a screen to `tools/shots/screens.json` when a change adds one.
 - **Two machines share one repo and one database.** Both work on `main`
   since Step 6 merged (the Mac builds `ios/`; Xcode is Mac-only). Two hooks in `.claude/settings.json`
   run `.claude/hooks/sync-status.mjs`: before every prompt (`--before`)

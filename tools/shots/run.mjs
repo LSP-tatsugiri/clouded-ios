@@ -1,6 +1,6 @@
 // Before/after screenshots of the web client. Node 22+, no dependencies.
 //
-//   node tools/shots/run.mjs <base-ref> <head-ref> [out-dir] [--fonts] [--keep] [--only=id,id]
+//   node tools/shots/run.mjs <base-ref> <head-ref> [out-dir] [--fonts] [--keep] [--webp] [--only=id,id]
 //
 // Each ref's web/ and extraction/src/ are exported with `git archive` into
 // <out-dir>/src/, never touching the checkout. web/lib/db.js is replaced by a
@@ -21,10 +21,12 @@ import { fileURLToPath } from "node:url";
 const HERE = fileURLToPath(new URL(".", import.meta.url));
 const argv = process.argv.slice(2);
 const flags = new Set(argv.filter((a) => a.startsWith("--")).map((a) => a.split("=")[0]));
+// --webp: lossy shots a fraction of the PNG size, for a page read on a phone
+const EXT = flags.has("--webp") ? "webp" : "png";
 const only = argv.find((a) => a.startsWith("--only="))?.slice(7).split(",");
 const [BASE, HEAD, outArg] = argv.filter((a) => !a.startsWith("--"));
 if (!BASE || !HEAD) {
-  console.error("usage: node tools/shots/run.mjs <base-ref> <head-ref> [out-dir] [--fonts] [--keep] [--only=id,id]");
+  console.error("usage: node tools/shots/run.mjs <base-ref> <head-ref> [out-dir] [--fonts] [--keep] [--webp] [--only=id,id]");
   process.exit(2);
 }
 const OUT = resolve(outArg ?? join(HERE, "out"));
@@ -282,7 +284,7 @@ async function shoot(cdp, { url, vp, theme, signedOut, steps = [], needsSelector
     await sleep(100);
     const { cssContentSize: c } = await s("Page.getLayoutMetrics");
     const height = fullPage ? Math.min(CAP_HEIGHT, Math.max(vp.height, Math.ceil(c.height))) : vp.height;
-    const { data } = await s("Page.captureScreenshot", { format: "png", captureBeyondViewport: true,
+    const { data } = await s("Page.captureScreenshot", { format: EXT, ...(EXT === "webp" ? { quality: 80 } : {}), captureBeyondViewport: true,
       clip: { x: 0, y: 0, width: vp.width, height, scale: 1 } });
     return { png: Buffer.from(data, "base64"), errors, cut: fullPage && c.height > CAP_HEIGHT };
   } finally {
@@ -325,8 +327,8 @@ try {
               signedOut: sc.signedOut, steps: sc.steps, needsSelector: sc.needsSelector, fullPage: sc.fullPage !== false });
             rec.consoleErrors[side] = [...new Set(r.errors)];
             if (r.missing) { rec[miss] = true; continue; }
-            writeFileSync(join(OUT, side, `${id}.png`), r.png);
-            rec[side] = `${side}/${id}.png`;
+            writeFileSync(join(OUT, side, `${id}.${EXT}`), r.png);
+            rec[side] = `${side}/${id}.${EXT}`;
             if (r.cut) rec.cutAt = CAP_HEIGHT;
           } catch (e) {
             rec.consoleErrors[side].push(`[shots] ${e.message}`);
