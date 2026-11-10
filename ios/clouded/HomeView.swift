@@ -103,7 +103,7 @@ private struct IdeaRow: View {
                 HStack(spacing: 6) {
                     Text(crux.status.mark).monospaced()
                     Text(crux.name)
-                    Text("the hard part").font(.caption).foregroundStyle(.secondary)
+                    Text("a hard part").font(.caption).foregroundStyle(.secondary)
                 }
                 .font(.subheadline)
             }

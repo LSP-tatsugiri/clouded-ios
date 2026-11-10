@@ -28,7 +28,10 @@ Vercel, next to the owner's other project on the same account.
   first real friend, and for password reset.
   Anyone can reach the sign-up form; only an email the owner listed first
   gets an account (`allowed_emails` + a trigger on `auth.users`, migration
-  `20260915033902`). Adding a friend is `allow.mjs <email>`. Chosen over
+  `20260915033902`). Adding a friend is `allow.mjs <email>`, or an invite
+  from the Group tab: a non-curator can bring five new addresses that way,
+  a curator any number (migration `20261016231832`, so no one account can
+  mint unlimited others on the owner's key). Chosen over
   hand-made accounts (tedious), magic links (needs the mailer, and a deep
   link on iOS), and Google sign-in (an OAuth client, and an in-app browser
   flow on iOS). Password reset is the next thing to add; it needs the mailer.

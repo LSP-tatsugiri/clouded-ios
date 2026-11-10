@@ -12,7 +12,7 @@ import {
   classify, compareKeys, cruxOf, cruxStatus, distanceOf, friendsWhoHold, leverage, sortKey
 } from "/extraction/src/distance.js";
 import {
-  addFeedback, addIdea, amCurator, capabilities, capabilitiesFor, createGroup, db, deleteGroup, deleteIdea,
+  addFeedback, addIdea, amCurator, capabilitiesFor, createGroup, db, deleteGroup, deleteIdea,
   groupMembers, groupSkills, idea as fetchIdea, ideas, invite, mediaUrl, myFeedback, myGroups, myProfile,
   mySkills, pendingInvites, profilesFor, promoteSkill, proposedSkills, rejectSkill, removeMember, renameGroup,
   revokeInvite, runsFor, session, setBuilt, setClarification, setDisplayName, setDropped, setShare, setSkillLevel, sharedIdeas,
@@ -52,7 +52,7 @@ const state = {
   route: currentRoute(),
   ideas: [],
   caps: [],
-  skills: [],          // 51 rows, seeded by migration, cached after first load
+  skills: [],          // 52 rows, seeded by migration, cached after first load
   levels: new Map(),   // skill_id -> none | some | solid
   filters: { domain: "", crux: "", proposed: false, friend: false, q: "", lifecycle: "live" },
   // Ideas tab: newest | closest (the distance sort). Newest by default, as the
@@ -74,11 +74,13 @@ const state = {
   buildTicks: new Set(), // skill ids ticked in the "I built this" checklist; starts empty on purpose
   dropDraft: "",       // the drop reason being typed, kept across re-renders
   feed: [],            // shared ideas from every group, newest first (decision 12)
+  feedCaps: [],        // their capability rows; apart from caps, which is your own ideas' only
   feedSort: "newest",  // "newest" | "closest"
   friend: null,        // { profile, levels } for the friend profile page
   waifu: { phase: "asking", ideaId: null, line: null }, // #/waifu: asking | sending | saved | failed
   // "signin" | "create" on the sign-in card; the landing's invite link opens it on create
   authMode: location.hash === "#create" ? "create" : "signin",
+  notice: null,        // the sign-in card's one non-error message: "check your email"
   reportFrom: "",      // the hash the footer link was clicked on; a report records it as its route
   reportKind: "bug",   // "bug" | "improvement" on the report form
   reports: [],         // your feedback rows, newest first
@@ -206,7 +208,7 @@ function paintAuth() {
 function signInView() {
   const creating = state.authMode === "create";
   const setMode = (mode) => {
-    state.authMode = mode; state.error = null;
+    state.authMode = mode; state.error = null; state.notice = null;
     if (AUTH_HASH.test(location.hash)) history.replaceState(null, "", `#${mode}`);
     render();
   };
@@ -216,7 +218,13 @@ function signInView() {
       e.preventDefault();
       const email = form.elements.email.value.trim();
       const password = form.elements.password.value;
-      run(() => (creating ? signUp(email, password) : signIn(email, password)));
+      state.notice = null;
+      run(async () => {
+        if (!creating) return signIn(email, password);
+        if ((await signUp(email, password)).confirm) {
+          state.notice = `Check ${email} for a confirmation link. Open it and you are signed in. Nothing there after a few minutes? Look in spam, then tell whoever invited you.`;
+        }
+      });
     }
   },
     el("h1", {}, brandMark(), "clouded"),
@@ -228,7 +236,7 @@ function signInView() {
       el("button", { type: "button", "aria-pressed": String(creating), onclick: () => setMode("create") }, "Create account")),
     el("p", { class: "how" },
       creating
-        ? "Accounts are invite-only. Use the email address a friend invited, and choose a password of at least 8 characters. There is no confirmation email: you are signed in as soon as the account exists."
+        ? "Accounts are invite-only. Use the email address a friend invited, and choose a password of at least 8 characters. We then email you a link: open it to confirm the address, and you are signed in."
         : "Use the email and password you chose when you created your account. First time here? Switch to Create account."),
     el("label", { class: "fld" }, "Email",
       el("input", { name: "email", type: "email", required: true, autocomplete: "username", placeholder: creating ? "the address you were invited with" : null })),
@@ -241,6 +249,7 @@ function signInView() {
     el("button", { type: "submit", class: "btn", disabled: state.busy },
       state.busy ? (creating ? "Creating…" : "Signing in…") : (creating ? "Create account" : "Sign in")),
     state.error && el("p", { class: "error" }, state.error),
+    state.notice && el("p", { class: "notice", role: "status" }, state.notice),
     el("p", { class: "muted switch" },
       creating
         ? "Not invited yet? Ask a friend who uses clouded to add your email on their Group tab."
@@ -294,7 +303,7 @@ function friendMarker({ idea, extraction }) {
   const iHoldCrux = crux ? classify(crux, state.levels) === "have" : true;
   const cruxHeld = !iHoldCrux && f.cruxHolders.length > 0;
   const parts = [];
-  if (cruxHeld) parts.push(`${nameList(f.cruxHolders)} ${f.cruxHolders.length === 1 ? "holds" : "hold"} the hard part`);
+  if (cruxHeld) parts.push(`${nameList(f.cruxHolders)} ${f.cruxHolders.length === 1 ? "holds" : "hold"} a hard part`);
   if (f.gaps) parts.push(`group covers ${f.covered} of ${f.gaps} ${f.gaps === 1 ? "gap" : "gaps"}`);
   return { cruxHeld, text: parts.length ? parts.join(" · ") : null };
 }
@@ -326,7 +335,7 @@ function cruxBlock(crux, flap = false) {
   return el("div", { class: `crux ${k}` },
     mark(k),
     el("span", { class: "t" }, flap ? splitFlap(capLabel(crux)) : capLabel(crux)),
-    el("span", { class: "lbl" }, "the hard part")
+    el("span", { class: "lbl" }, "a hard part")
   );
 }
 
@@ -446,7 +455,7 @@ function extractingRow(idea, { stage, seconds }) {
     el("div", { class: "progress" },
       el("div", { class: "bar" }, el("i", {})),
       el("span", {}, saving ? "Saving the result" : `Extracting, ${seconds}s`)),
-    el("p", { class: "steps" }, saving ? "Writing the capabilities and the hard part" : "Reading the idea and listing what it would take"),
+    el("p", { class: "steps" }, saving ? "Writing the capabilities and a hard part" : "Reading the idea and listing what it would take"),
     el("div", { class: "card-foot" }, el("span", {}, "you"), el("span", {}, fmtDate(idea.created_at)))
   );
 }
@@ -735,7 +744,7 @@ function save(skillId, level) {
 async function ensureIdeas() {
   if (state.ideas.length) return;
   const me = state.session.user.id;
-  [state.ideas, state.caps] = await Promise.all([ideas(me), capabilities()]);
+  ({ ideas: state.ideas, caps: state.caps } = await ideas(me));
 }
 
 // The one line the product exists to produce: levels changed, and this is
@@ -914,7 +923,7 @@ function groupView() {
 // me" is the same sort the Ideas tab uses.
 function feedRows() {
   const capsById = new Map();
-  for (const c of state.caps) {
+  for (const c of state.feedCaps) {
     if (!capsById.has(c.idea_id)) capsById.set(c.idea_id, []);
     capsById.get(c.idea_id).push(c);
   }
@@ -953,7 +962,7 @@ function feedRow({ idea, extraction }, me, glide = true) {
   const f = friendsWhoHold(extraction, held, state.pool);
   const holders = [...(cruxClass === "have" ? ["you"] : []), ...f.cruxHolders.map((id) => state.names.get(id) ?? "a friend")];
   const holderText = holders.length
-    ? `${holders.slice(0, 2).join(" and ")}${holders.length > 2 ? ` +${holders.length - 2}` : ""} ${holders.length === 1 && holders[0] !== "you" ? "holds" : "hold"} the hard part`
+    ? `${holders.slice(0, 2).join(" and ")}${holders.length > 2 ? ` +${holders.length - 2}` : ""} ${holders.length === 1 && holders[0] !== "you" ? "holds" : "hold"} a hard part`
     : null;
   const coverText = f.gaps ? `group covers ${f.covered} of ${f.gaps} ${f.gaps === 1 ? "gap" : "gaps"}` : "nothing missing for you";
 
@@ -1427,7 +1436,7 @@ function capabilityDetail(cap) {
     el("div", { class: "capdetail-head" },
       levelMark(cap, k),
       el("span", { class: "capdetail-name" }, capLabel(cap)),
-      isCrux && el("span", { class: "crux-tag" }, "the hard part")
+      isCrux && el("span", { class: "crux-tag" }, "a hard part")
     ),
     cap.reason && el("p", { class: "capdetail-reason" }, cap.reason),
     el("details", { class: "resolution" },
@@ -1752,7 +1761,7 @@ function proposalCard(p) {
       el("div", { class: "meta" },
         el("span", { class: "tag" }, n(p.idea_ids.length, "idea")),
         el("span", { class: "tag" }, n(p.run_count, "run")),
-        p.crux_count > 0 && el("span", { class: "tag hard" }, `the hard part ×${p.crux_count}`)
+        p.crux_count > 0 && el("span", { class: "tag hard" }, `a hard part ×${p.crux_count}`)
       )
     ),
     p.names.length > 1 && el("p", { class: "raw" }, `also seen as: ${p.names.filter((x) => x !== p.key).join(", ")}`),
@@ -2002,7 +2011,7 @@ async function load() {
 
 async function loadRoute() {
   if (!state.session) {
-    state.ideas = []; state.caps = []; state.skills = []; state.levels = new Map();
+    state.ideas = []; state.caps = []; state.feedCaps = []; state.skills = []; state.levels = new Map();
     state.curator = null; state.proposals = [];
     return;
   }
@@ -2019,7 +2028,7 @@ async function loadRoute() {
 
   if (state.route === "list") {
     const me = state.session.user.id;
-    const [ideaRows, capRows, pool] = await Promise.all([ideas(me), capabilities(), groupSkills(me)]);
+    const [{ ideas: ideaRows, caps: capRows }, pool] = await Promise.all([ideas(me), groupSkills(me)]);
     state.ideas = ideaRows;
     state.caps = capRows;
     state.pool = pool;
@@ -2040,12 +2049,12 @@ async function loadRoute() {
     state.profile = await myProfile(state.session.user.id);
   } else if (state.route === "group") {
     const me = state.session.user.id;
-    const [profile, groups, feed, capRows, pool] = await Promise.all([
-      myProfile(me), myGroups(), sharedIdeas(), capabilities(), groupSkills(me)
+    const [profile, groups, { ideas: feed, caps: feedCaps }, pool] = await Promise.all([
+      myProfile(me), myGroups(), sharedIdeas(), groupSkills(me)
     ]);
     state.profile = profile;
     state.feed = feed;
-    state.caps = capRows;
+    state.feedCaps = feedCaps;
     state.pool = pool;
     await loadNames([...new Set([...feed.map((i) => i.user_id), ...[...pool.values()].flat()])]);
     // members and names in two queries: group_members points at auth.users,

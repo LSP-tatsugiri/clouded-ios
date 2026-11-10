@@ -31,10 +31,11 @@ export async function signIn(email, password) {
 }
 
 // Self-serve, gated server-side: a trigger on auth.users refuses any email
-// not in allowed_emails (docs/hosting.md). Email confirmation is off, so a
-// successful sign-up is also a sign-in.
+// not in allowed_emails (docs/hosting.md). Email confirmation is on (decided
+// 2026-09-16), so a sign-up returns no session until the link in the email is
+// opened; the return value says which case this was.
 export async function signUp(email, password) {
-  const { error } = await db.auth.signUp({ email, password });
+  const { data, error } = await db.auth.signUp({ email, password });
   if (error) {
     // The trigger raises "this address is not invited yet", but under the auth
     // API version supabase-js sends, GoTrue hides database errors behind
@@ -45,6 +46,7 @@ export async function signUp(email, password) {
     }
     throw new Error(error.message);
   }
+  return { confirm: !data.session };
 }
 
 export const signOut = () => db.auth.signOut();
@@ -60,20 +62,31 @@ export async function session() {
 // a group they belong to; the filter is the product's two-view split
 // (docs/step-7-plan.md, decision 12), not a security measure. Friends' shared
 // ideas come through sharedIdeas() on the Group tab.
+//
+// Both lists come back as { ideas, caps }: the capability rows are embedded in
+// the same request and limited to the ideas returned, where they used to be a
+// separate unfiltered read of every row the user could see.
 export async function ideas(userId) {
-  return ok(await db.from("ideas")
-    .select("id, user_id, raw, objective, domain, is_clear, clarifying_question, status, shared_to, image_path, created_at, built_at, dropped_at, drop_reason")
+  return withCaps(ok(await db.from("ideas")
+    .select(`${IDEA_COLS}, ${CAPS}`)
     .eq("user_id", userId)
-    .order("created_at", { ascending: true }), "ideas");
+    .order("created_at", { ascending: true }), "ideas"));
 }
 
 // The feed: every shared idea the user can see, theirs included, newest
 // first. RLS limits "shared" to groups they belong to.
 export async function sharedIdeas() {
-  return ok(await db.from("ideas")
-    .select("id, user_id, raw, objective, domain, is_clear, clarifying_question, status, shared_to, image_path, created_at, built_at, dropped_at, drop_reason")
+  return withCaps(ok(await db.from("ideas")
+    .select(`${IDEA_COLS}, ${CAPS}`)
     .not("shared_to", "is", null)
-    .order("created_at", { ascending: false }), "sharedIdeas");
+    .order("created_at", { ascending: false }), "sharedIdeas"));
+}
+
+const IDEA_COLS = "id, user_id, raw, objective, domain, is_clear, clarifying_question, status, shared_to, image_path, created_at, built_at, dropped_at, drop_reason";
+const CAPS = "caps:idea_capabilities(idea_id, skill_id, proposed_key, reason, crux_rank, resolved)";
+
+function withCaps(rows) {
+  return { ideas: rows.map(({ caps: _, ...idea }) => idea), caps: rows.flatMap((r) => r.caps) };
 }
 
 // A friend's levels, for their profile page. RLS returns rows only for a
@@ -99,11 +112,6 @@ export async function groupSkills(userId) {
     pool.get(r.skill_id).push(r.user_id);
   }
   return pool;
-}
-
-export async function capabilities() {
-  return ok(await db.from("idea_capabilities")
-    .select("idea_id, skill_id, proposed_key, reason, crux_rank, resolved"), "capabilities");
 }
 
 // RLS hides rows rather than refusing them, so a stranger's link and a

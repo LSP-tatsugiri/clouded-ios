@@ -156,4 +156,4 @@ export const promptHash = createHash("sha256")
 
 export { skills };
 // exported for the edge function's parity test (supabase/functions/_shared/prompt_test.ts)
-export { SYSTEM, TOOL };
+export { MODEL, SYSTEM, TOOL };
