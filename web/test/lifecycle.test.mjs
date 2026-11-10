@@ -1,7 +1,7 @@
 // Run: node --test web/test/*.test.mjs
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { DROP_REASON_MAX, buildChoices, cleanReason, isLive, lifecycleOf, movedHeadline } from "../lib/lifecycle.js";
+import { DROP_REASON_MAX, buildChoices, cleanReason, isLive, lifecycleOf, movedHeadline, skillsNeeded } from "../lib/lifecycle.js";
 
 test("lifecycleOf reads the two timestamps", () => {
   assert.equal(lifecycleOf({ built_at: null, dropped_at: null }), "live");
@@ -22,6 +22,28 @@ test("buildChoices offers rateable skills not already solid", () => {
   const levels = new Map([["soldering", "solid"], ["pcb-layout", "some"]]);
   assert.deepEqual(buildChoices(caps, levels).map((c) => c.skill_id), ["parametric-cad", "pcb-layout"]);
   assert.deepEqual(buildChoices([], levels), []);
+});
+
+test("skillsNeeded counts distinct skills across live ideas", () => {
+  const ideas = [
+    { id: "a" },
+    { id: "b", built_at: null, dropped_at: null },
+    { id: "built", built_at: "2026-10-22T10:00:00Z" },
+    { id: "dropped", dropped_at: "2026-10-22T10:00:00Z" }
+  ];
+  const caps = [
+    { idea_id: "a", skill_id: "soldering" },
+    { idea_id: "a", skill_id: "pcb-layout" },
+    { idea_id: "a", skill_id: null, proposed_key: "kiln-firing" },   // nothing to rate
+    { idea_id: "b", skill_id: "soldering" },                         // counted once
+    { idea_id: "b", skill_id: "parametric-cad" },
+    { idea_id: "built", skill_id: "welding" },
+    { idea_id: "dropped", skill_id: "sewing" },
+    { idea_id: "someone-elses", skill_id: "glassblowing" }
+  ];
+  assert.equal(skillsNeeded(ideas, caps), 3);
+  assert.equal(skillsNeeded(ideas, []), 0);
+  assert.equal(skillsNeeded([], caps), 0);
 });
 
 test("cleanReason trims and refuses empty or over-long reasons", () => {

@@ -19,7 +19,8 @@ import {
   signIn, signOut, signUp, skills, skillsFor, uploadFeedbackShot
 } from "./lib/db.js";
 import { el, mount } from "./lib/dom.js";
-import { DROP_REASON_MAX, buildChoices, cleanReason, isLive, lifecycleOf, movedHeadline } from "./lib/lifecycle.js";
+import { DEFAULTS, activeCount, decodeFilters, encodeFilters } from "./lib/filters.js";
+import { DROP_REASON_MAX, buildChoices, cleanReason, isLive, lifecycleOf, movedHeadline, skillsNeeded } from "./lib/lifecycle.js";
 import { canDictate, dictation } from "./lib/speech.js";
 // build.mjs writes COMMIT into config.js on the host; the hand-written local
 // config.js has no such export, and a named import of a missing export fails
@@ -54,10 +55,12 @@ const state = {
   caps: [],
   skills: [],          // 52 rows, seeded by migration, cached after first load
   levels: new Map(),   // skill_id -> none | some | solid
+  // both mirrored in the hash query, see lib/filters.js and filtersToHash()
   filters: { domain: "", crux: "", proposed: false, friend: false, q: "", lifecycle: "live" },
   // Ideas tab: newest | closest (the distance sort). Newest by default, as the
   // Group feed already was — what you just captured is what you came to see.
   sort: "newest",
+  filterOpen: false,   // the list's Filter disclosure; in state so a re-render keeps it open
   pool: new Map(),     // skill_id -> [user_id] of group mates holding it solid
   names: new Map(),    // user_id -> display_name, for everyone in your groups
   curator: null,       // null = not yet checked
@@ -113,6 +116,12 @@ function currentIdeaId() {
 function pageParams() {
   const q = location.hash.indexOf("?");
   return (q >= 0 ? location.hash.slice(q) : "") + "&" + location.search.replace(/^[?]/, "");
+}
+
+// The part of the hash after "?", without it: the list's filters live there.
+function hashQuery() {
+  const q = location.hash.indexOf("?");
+  return q >= 0 ? location.hash.slice(q + 1) : "";
 }
 
 function currentFriendId() {
@@ -407,6 +416,23 @@ function lifecycleTags(idea) {
   return [];
 }
 
+// What every idea card shares. One tab stop, the title link, which is also
+// what names the card for a screen reader; the card itself is not focusable.
+// A click anywhere on it opens the idea, unless it landed on something that
+// has its own job (a link, the answer box) or finished a text selection.
+function cardProps(idea, cls, glide) {
+  return {
+    class: cls, "data-idea": idea.id, "aria-label": idea.objective || idea.raw,
+    style: glide ? `view-transition-name: idea-${idea.id}` : null,
+    onclick: (e) => {
+      if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      if (e.target.closest("a, button, input, textarea, select, label, form")) return;
+      if (String(getSelection()) !== "") return;
+      location.hash = `#/idea/${idea.id}`;
+    }
+  };
+}
+
 function ideaRow({ idea, extraction }, glide = true) {
   const d = distanceOf(extraction, state.levels);
   const crux = cruxOf(extraction);
@@ -414,10 +440,7 @@ function ideaRow({ idea, extraction }, glide = true) {
   const title = idea.objective || idea.raw;
   const landed = justLanded.has(idea.id);
 
-  return el("article", {
-    class: landed ? "card idea fade-in" : "card idea", "data-idea": idea.id, tabindex: 0,
-    style: glide ? `view-transition-name: idea-${idea.id}` : null
-  },
+  return el("article", cardProps(idea, landed ? "card idea fade-in" : "card idea", glide),
     el("div", { class: "card-head" },
       el("div", {},
         el("h3", {}, el("a", { href: `#/idea/${idea.id}` }, title)),
@@ -481,10 +504,7 @@ function vagueRow(idea, glide = true) {
     el("input", { name: "clarification", "aria-label": "Your answer", placeholder: "A few words is enough", required: true, autocomplete: "off" }),
     el("button", { type: "submit", class: "btn sm", disabled: state.busy }, "Answer")
   );
-  return el("article", {
-    class: justLanded.has(idea.id) ? "card idea vague fade-in" : "card idea vague", tabindex: 0,
-    style: glide ? `view-transition-name: idea-${idea.id}` : null
-  },
+  return el("article", cardProps(idea, justLanded.has(idea.id) ? "card idea vague fade-in" : "card idea vague", glide),
     el("div", { class: "card-head" }, el("div", {},
       el("h3", {}, el("a", { href: `#/idea/${idea.id}` }, idea.raw)),
       el("p", { class: "raw" }, "Too vague to extract yet"))),
@@ -497,52 +517,74 @@ function vagueRow(idea, glide = true) {
   );
 }
 
+// Always on screen: Live/Built/Dropped, the sort, search and the count. The
+// rest (domain, the hard part's state, the two checkboxes) folds into one
+// Filter button that says how many are on. A button and a panel rather than
+// <details>: the open flag sits in state, so the re-render every change
+// causes cannot close it, and the panel can take a full row of its own.
 function filterBar(domains, shownCount, total) {
-  const set = (k, v) => { state.filters[k] = v; render({ animate: true }); };
+  const f = state.filters;
+  // focus goes back to the control just used: the bar is rebuilt under it
+  const set = (k, v) => { f[k] = v; render({ animate: true, focus: `.controls [name="${k}"]` }); };
   const sortButton = (key, label) => el("button", {
     type: "button", "aria-pressed": String(state.sort === key),
     onclick: () => { state.sort = key; render({ animate: true }); }
   }, label);
   const lifeButton = (key, label) => el("button", {
-    type: "button", "aria-pressed": String(state.filters.lifecycle === key),
+    type: "button", "aria-pressed": String(f.lifecycle === key),
     onclick: () => set("lifecycle", key)
   }, label);
-  const filtering = state.filters.domain || state.filters.crux || state.filters.proposed || state.filters.friend || state.filters.q;
+  const on = activeCount(f);
+  const check = (k, label) => el("label", { class: "chk" },
+    el("input", { type: "checkbox", name: k, checked: f[k], onchange: (e) => set(k, e.target.checked) }),
+    el("span", {}, label));
   return el("div", { class: "controls" },
-    el("div", { class: "seg", role: "group", "aria-label": "Show" },
-      lifeButton("live", "Live"), lifeButton("built", "Built"), lifeButton("dropped", "Dropped")),
-    // distance only means something for ideas you might still build
-    state.filters.lifecycle === "live" && el("div", { class: "seg", role: "group", "aria-label": "Sort" },
-      sortButton("newest", "Newest"), sortButton("closest", "Closest to me")),
-    searchBox,
-    el("select", { "aria-label": "Domain", onchange: (e) => set("domain", e.target.value) },
-      el("option", { value: "", selected: state.filters.domain === "" }, "Any domain"),
-      domains.map((d) => el("option", { value: d, selected: state.filters.domain === d }, d))
-    ),
-    el("select", { "aria-label": "Crux", onchange: (e) => set("crux", e.target.value) },
-      [["", "Any crux"], ["have", "Crux held"], ["partial", "Crux partial"], ["gap", "Crux is a gap"]]
-        .map(([v, label]) => el("option", { value: v, selected: state.filters.crux === v }, label))
-    ),
-    el("label", { class: "chk" },
-      el("input", {
-        type: "checkbox",
-        checked: state.filters.proposed,
-        onchange: (e) => set("proposed", e.target.checked)
-      }),
-      el("span", {}, "Has a proposed skill")
-    ),
-    el("label", { class: "chk" },
-      el("input", {
-        type: "checkbox",
-        checked: state.filters.friend,
-        onchange: (e) => set("friend", e.target.checked)
-      }),
-      el("span", {}, "A friend can unblock it")
-    ),
-    filtering &&
-      el("button", { class: "link", onclick: () => { state.filters = { domain: "", crux: "", proposed: false, friend: false, q: "", lifecycle: state.filters.lifecycle }; searchBox.value = ""; render({ animate: true }); } }, "clear"),
-    el("span", { class: "count" }, `${shownCount} of ${total} shown`)
+    el("div", { class: "views" },
+      el("div", { class: "seg", role: "group", "aria-label": "Show" },
+        lifeButton("live", "Live"), lifeButton("built", "Built"), lifeButton("dropped", "Dropped")),
+      // distance only means something for ideas you might still build
+      f.lifecycle === "live" && el("div", { class: "seg", role: "group", "aria-label": "Sort" },
+        sortButton("newest", "Newest"), sortButton("closest", ["Closest", el("span", { class: "wide" }, " to me")]))),
+    el("div", { class: "find" },
+      searchBox,
+      el("button", {
+        type: "button", class: on ? "secondary filter-toggle on" : "secondary filter-toggle",
+        "aria-expanded": String(state.filterOpen), "aria-controls": state.filterOpen ? "filter-panel" : null,
+        onclick: () => { state.filterOpen = !state.filterOpen; render({ focus: ".filter-toggle" }); }
+      }, on ? `Filter (${on})` : "Filter"),
+      (on > 0 || f.q) && el("button", {
+        type: "button", class: "link",
+        onclick: () => {
+          const { sort, ...cleared } = DEFAULTS;
+          state.filters = { ...cleared, lifecycle: f.lifecycle };
+          searchBox.value = "";
+          render({ animate: true, focus: ".filter-toggle" });
+        }
+      }, "clear"),
+      el("span", { class: "count" }, `${shownCount} of ${total} shown`)),
+    state.filterOpen && el("div", { class: "filter-panel", id: "filter-panel", role: "group", "aria-label": "Filters" },
+      el("select", { name: "domain", "aria-label": "Domain", onchange: (e) => set("domain", e.target.value) },
+        el("option", { value: "", selected: f.domain === "" }, "Any domain"),
+        // a domain from an old link that no idea has any more still shows, so it can be seen and cleared
+        [...new Set([...domains, f.domain].filter(Boolean))]
+          .map((d) => el("option", { value: d, selected: f.domain === d }, d))),
+      el("select", { name: "crux", "aria-label": "Hard part", onchange: (e) => set("crux", e.target.value) },
+        [["", "Any hard part"], ["have", "Hard part held"], ["partial", "Hard part partial"], ["gap", "Hard part missing"]]
+          .map(([v, label]) => el("option", { value: v, selected: f.crux === v }, label))),
+      check("proposed", "Has a proposed skill"),
+      check("friend", "A friend can unblock it"))
   );
+}
+
+// The prompt the list leads with until one skill is rated: without a profile
+// every idea is all gaps and "Closest to me" sorts nothing.
+function rateFirst() {
+  const n = skillsNeeded(state.ideas, state.caps);
+  return el("p", { class: "rate-first" },
+    el("span", {}, n > 0
+      ? `Your ideas need ${n} different ${n === 1 ? "skill" : "skills"}, and you have not rated any yet. Until you do, every idea looks equally far away.`
+      : "You have not rated any skills yet. Until you do, every idea looks equally far away."),
+    el("a", { href: "#/profile", class: "btn sm" }, "Rate your skills"));
 }
 
 function leveragePanel(items) {
@@ -551,7 +593,8 @@ function leveragePanel(items) {
     el("h2", {}, "Highest leverage"),
     el("p", {}, "Learn one of these and this many ideas move closer."),
     el("ol", {}, top.map((e) => el("li", {},
-      el("span", { class: "k" }, String(e.ideaIds.length)),
+      // the unit under the number, so it is not a bare figure to anyone
+      el("span", { class: "k" }, String(e.ideaIds.length), el("small", {}, e.ideaIds.length === 1 ? " idea" : " ideas")),
       el("span", {}, e.skillId ? skillName(e.skillId) : `${e.proposedName} (proposed)`)
     ))),
     // before the first load there is nothing to rank, which is not the same as nothing to learn
@@ -658,8 +701,10 @@ function listView() {
     header(),
     add,
     state.error && el("p", { class: "error" }, state.error),
-    filterBar(domains, shown.length, clear.length),
-    loaded && !rated && el("p", { class: "muted" }, "Rate your skills on the Profile tab to make the distances mean anything."),
+    loaded && !rated && rateFirst(),
+    // the count is of cards on the page: vague ideas show in both sorts (in
+    // the date order, or under "Needs a detail"), so they are counted too
+    filterBar(domains, shown.length + vagueShown.length, inView.length),
     el("div", { class: "layout" },
       el("div", { class: "list" },
         extracting.length > 0 && el("div", { class: "cards extracting-cards" },
@@ -946,7 +991,7 @@ function feedRow({ idea, extraction }, me, glide = true) {
     : el("a", { href: `#/friend/${idea.user_id}`, class: "owner" }, state.names.get(idea.user_id) ?? "a friend");
   const title = idea.objective || idea.raw;
   if (idea.is_clear !== true) {
-    return el("article", { class: "card idea vague", tabindex: 0, style: glide ? `view-transition-name: idea-${idea.id}` : null },
+    return el("article", cardProps(idea, "card idea vague", glide),
       el("div", { class: "card-head" }, el("div", {},
         el("h3", {}, el("a", { href: `#/idea/${idea.id}` }, title)),
         el("p", { class: "raw" }, idea.status === "extracted" ? "Too vague to extract yet" : idea.status))),
@@ -966,7 +1011,7 @@ function feedRow({ idea, extraction }, me, glide = true) {
     : null;
   const coverText = f.gaps ? `group covers ${f.covered} of ${f.gaps} ${f.gaps === 1 ? "gap" : "gaps"}` : "nothing missing for you";
 
-  return el("article", { class: "card idea", tabindex: 0, style: glide ? `view-transition-name: idea-${idea.id}` : null },
+  return el("article", cardProps(idea, "card idea", glide),
     el("div", { class: "card-head" },
       el("div", {}, el("h3", {}, el("a", { href: `#/idea/${idea.id}` }, title))),
       tallyChips(d)
@@ -1965,14 +2010,17 @@ const ROUTE_ORDER = { list: 0, idea: 0.5, group: 1, friend: 1.5, profile: 2, rev
 let paintedRoute = null;
 let latest = null;   // a transition's callback paints whatever was built last
 
-function render({ animate = false } = {}) {
+function render({ animate = false, focus = null } = {}) {
   // the static landing (index.html) shows only while signed out
   document.documentElement.classList.toggle("signed-in", !!state.session);
   if (!state.session) { paintAuth(); paintedRoute = state.route; return; }
   if (authDialog.open) authDialog.close();   // signed in from the dialog
   latest = viewFor();
   if (state.route !== "waifu") latest.append(footer());
-  const paint = () => mount(app, latest);
+  // `focus` is a selector for the control that caused this render: the page
+  // is rebuilt under it, and a keyboard user would otherwise start again
+  // from the top
+  const paint = () => { mount(app, latest); if (focus) app.querySelector(focus)?.focus(); };
   const switched = paintedRoute !== null && paintedRoute !== state.route;
   const can = state.session && document.startViewTransition && !reduceMotion()
     && state.route !== "waifu" && paintedRoute !== "waifu";
@@ -1985,6 +2033,30 @@ function render({ animate = false } = {}) {
     paint();
   }
   paintedRoute = state.route;
+  filtersToHash();
+}
+
+// The list's filters and sort are mirrored in the hash query, so Back from an
+// idea page (or a reload) returns to the same view. Read when the hash
+// changes, written after every render. A bare "#/" — the Ideas tab, the
+// redirect after a delete — carries no query and keeps what is in memory.
+// Both leave any other hash alone: #signin, #create, Supabase's
+// #access_token=…, and the other routes all have a non-empty path.
+function filtersFromHash() {
+  if (hashPath() !== "" || !hashQuery()) return;
+  const { sort, ...filters } = decodeFilters(hashQuery());
+  state.sort = sort;
+  state.filters = filters;
+  searchBox.value = filters.q;
+}
+
+function filtersToHash() {
+  if (!state.session || state.route !== "list" || hashPath() !== "") return;
+  const query = encodeFilters({ ...state.filters, sort: state.sort });
+  if (query === encodeFilters(decodeFilters(hashQuery()))) return;
+  // replaceState, not location.hash: no history entry per keystroke and no
+  // hashchange (so no reload). Safari throws past 100 calls in 30 s.
+  try { history.replaceState(null, "", query ? `#/?${query}` : "#/"); } catch { /* the next render tries again */ }
 }
 
 async function run(fn) {
@@ -2085,6 +2157,7 @@ async function loadRoute() {
 
 addEventListener("hashchange", () => {
   state.route = currentRoute();
+  filtersFromHash();
   if (/^#(signin|create)$/.test(location.hash)) state.authMode = location.hash.slice(1);   // the landing's links
   status.textContent = "";
   state.detail = null;
@@ -2110,5 +2183,6 @@ db.auth.onAuthStateChange((_event, s) => {
   if (changed) run(load); else render();
 });
 
+filtersFromHash();
 state.session = await session();
 await run(load);

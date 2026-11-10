@@ -21,6 +21,15 @@ export function buildChoices(caps, levels) {
   return caps.filter((c) => c.skill_id && levels.get(c.skill_id) !== "solid");
 }
 
+// How many different skills your live ideas need between them: the number the
+// list leads with while nothing is rated. `caps` are capability rows
+// ({ idea_id, skill_id }); a proposed capability has no skill to rate, and a
+// built or dropped idea is not something left to measure.
+export function skillsNeeded(ideas, caps) {
+  const live = new Set(ideas.filter(isLive).map((i) => i.id));
+  return new Set(caps.filter((c) => c.skill_id && live.has(c.idea_id)).map((c) => c.skill_id)).size;
+}
+
 // The reason as it will be stored, or null when the check constraint would
 // refuse it — so the form can refuse first, in words.
 export function cleanReason(text) {

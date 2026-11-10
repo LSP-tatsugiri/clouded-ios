@@ -186,7 +186,7 @@ aside > p { margin: 0.2rem 0 1rem; color: var(--ink-3); font-size: 0.9rem; }
 aside ol { list-style: none; margin: 0; padding: 0; }
 aside ol li {
   display: grid;
-  grid-template-columns: 2.3rem 1fr;
+  grid-template-columns: 2.6rem 1fr;
   gap: 0.5rem;
   padding: 0.55rem 0;
   border-top: 1px solid var(--line);
@@ -194,6 +194,8 @@ aside ol li {
   line-height: 1.35;
 }
 aside .k { font: 500 1.05rem var(--mono); color: var(--flow); }
+/* the unit under the count: "3 ideas" */
+aside .k small { display: block; font: 0.68rem/1.2 var(--mono); color: var(--ink-3); }
 aside ol li:first-child .k { font-size: 1.35rem; }
 aside a { color: inherit; text-decoration: none; }
 aside a:hover { color: var(--flow); }
@@ -362,13 +364,65 @@ input.txt, .fld input, .row input, :where(#app > :not(.waifu)) textarea {
 }
 
 .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem 1rem; padding-bottom: 1.25rem; }
-.controls select { max-width: 16rem; }
+/* two groups that each stay on one line: what to show and in what order,
+   then search, the Filter button and the count. Side by side when there is
+   room, one above the other on a phone; never more than that. */
+.controls .views, .controls .find { display: flex; align-items: center; gap: 0.6rem; min-width: 0; }
+.controls .find { flex: 1 1 22rem; }
+.controls select { max-width: 16rem; min-width: 0; }
 .controls .search {
-  width: 12rem; height: 2.3rem; padding: 0 0.75rem; border-radius: 10px;
+  flex: 0 1 12rem; width: 12rem; min-width: 4rem; height: 2.3rem; padding: 0 0.75rem; border-radius: 10px;
   border: 1px solid var(--line); background: var(--bg-2);
 }
-.count { margin-left: auto; font: 0.85rem var(--mono); color: var(--ink-3); }
-.controls + .muted { margin: -0.5rem 0 1.25rem; }
+button.filter-toggle { height: 2.3rem; padding: 0 0.9rem; border-radius: 10px; white-space: nowrap; flex-shrink: 0; }
+button.filter-toggle.on { color: var(--flow); border-color: var(--flow); }
+button.filter-toggle[aria-expanded="true"] { background: var(--flow-wash); }
+.controls .find .link { flex-shrink: 0; }
+.count { margin-left: auto; font: 0.85rem var(--mono); color: var(--ink-3); white-space: nowrap; flex-shrink: 0; }
+/* the folded-away filters, a row of their own under the bar when open */
+.filter-panel {
+  flex: 1 1 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem 1rem;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--bg-2);
+}
+@media (max-width: 640px) {
+  .controls { gap: 0.6rem; }
+  .controls .views, .controls .find { flex: 1 1 100%; }
+  .controls .views .seg { flex: 1 1 auto; min-width: 0; }
+  .controls .views .seg button { flex: 1 1 auto; padding: 0.35rem 0.5rem; font-size: 0.9rem; white-space: nowrap; }
+  .controls .wide { display: none; }   /* "Closest to me" reads "Closest" */
+  .controls .find { gap: 0.4rem; }
+  .controls .search { flex: 1 1 4rem; padding: 0 0.5rem; }
+  button.filter-toggle { padding: 0 0.7rem; }
+  .count { font-size: 0.78rem; }
+  .filter-panel select { flex: 1 1 100%; max-width: none; }
+}
+
+/* nothing rated yet: the list leads with this, see rateFirst() */
+.rate-first {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1.5rem;
+  margin: 0 0 1.25rem;
+  padding: 0.9rem 1.1rem;
+  border: 1px solid var(--flow);
+  border-radius: 14px;
+  background: var(--flow-wash);
+  font-weight: 500;
+}
+.rate-first span { flex: 1 1 16rem; }
+.rate-first .btn { display: inline-flex; align-items: center; text-decoration: none; white-space: nowrap; }
+
+/* a click anywhere on an idea card opens it (cardProps() in app.js) */
+.card.idea[data-idea] { cursor: pointer; }
+.card.idea[data-idea] form { cursor: auto; }
 
 .band { margin: 0 0 2.25rem; }
 .band-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0.75rem; margin: 0 0 0.9rem; }
