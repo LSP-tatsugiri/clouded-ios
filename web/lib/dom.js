@@ -7,9 +7,11 @@
 export function el(tag, props = {}, ...children) {
   const node = document.createElement(tag);
   for (const [k, v] of Object.entries(props)) {
+    // null, undefined and false mean "leave it off", for a class and a handler too
+    if (v === null || v === undefined || v === false) continue;
     if (k === "class") node.className = v;
     else if (k.startsWith("on")) node.addEventListener(k.slice(2).toLowerCase(), v);
-    else if (v !== null && v !== undefined && v !== false) node.setAttribute(k, v === true ? "" : String(v));
+    else node.setAttribute(k, v === true ? "" : String(v));
   }
   append(node, children);
   return node;

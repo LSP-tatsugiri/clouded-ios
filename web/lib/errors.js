@@ -33,6 +33,8 @@ const OFFLINE = /failed to fetch|networkerror|load failed|network request failed
 const SESSION = /jwt|not authenticated|invalid claim|refresh token/i;
 const REFUSED = /row-level security|permission denied|not authorized/i;
 // a database or PostgREST message that reached the page without a db.js name
+// a unique violation: the row is already there, so trying again cannot help
+const EXISTS = /duplicate key|\b23505\b/i;
 const TECHNICAL = /violates|constraint|duplicate key|schema cache|PGRST|JSON object requested|relation "|column "|syntax error/i;
 
 export function explain(err) {
@@ -42,10 +44,14 @@ export function explain(err) {
   if (SESSION.test(raw)) return { text: "Your session has ended. Reload the page and sign in again.", detail: raw };
 
   const named = raw.match(/^([a-z][A-Za-z]*): /);
-  if (!named && !REFUSED.test(raw) && !TECHNICAL.test(raw)) return { text: raw, detail: null };
+  const exists = EXISTS.test(raw) || String(err?.code ?? "") === "23505";
+  if (!named && !exists && !REFUSED.test(raw) && !TECHNICAL.test(raw)) return { text: raw, detail: null };
 
   const write = named && WRITES[named[1]];
   const what = write || (named ? "load this page" : "do that");
+  if (exists) {
+    return { text: `Could not ${write || "do that"}: it already exists. Reload the page to see it.`, detail: raw };
+  }
   if (REFUSED.test(raw)) {
     return { text: `Could not ${what}: this account is not allowed to. Reload the page; if it still fails, report it with the link at the bottom.`, detail: raw };
   }

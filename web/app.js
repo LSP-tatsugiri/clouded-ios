@@ -434,17 +434,20 @@ function lifecycleTags(idea) {
 // What every idea card shares. One tab stop, the title link, which is also
 // what names the card for a screen reader; the card itself is not focusable.
 // A click anywhere on it opens the idea, unless it landed on something that
-// has its own job (a link, the answer box) or finished a text selection.
-function cardProps(idea, cls, glide) {
+// has its own job (a link), finished a text selection, or is the second click
+// of a double-click, which is someone selecting a word. A vague card
+// (`anywhere` false) opens from its title only: it holds an answer box, and a
+// stray click on the question beside it would throw away what was typed.
+function cardProps(idea, cls, glide, anywhere = true) {
   return {
     class: cls, "data-idea": idea.id, "aria-label": idea.objective || idea.raw,
     style: glide ? `view-transition-name: idea-${idea.id}` : null,
-    onclick: (e) => {
-      if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    onclick: anywhere && ((e) => {
+      if (e.defaultPrevented || e.button !== 0 || e.detail > 1 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
       if (e.target.closest("a, button, input, textarea, select, label, form")) return;
       if (String(getSelection()) !== "") return;
       location.hash = `#/idea/${idea.id}`;
-    }
+    })
   };
 }
 
@@ -524,7 +527,7 @@ function vagueRow(idea, glide = true) {
     el("input", { name: "clarification", "aria-label": "Your answer", placeholder: "A few words is enough", required: true, autocomplete: "off" }),
     el("button", { type: "submit", class: "btn sm", disabled: state.busy }, "Answer")
   );
-  return el("article", cardProps(idea, justLanded.has(idea.id) ? "card idea vague fade-in" : "card idea vague", glide),
+  return el("article", cardProps(idea, justLanded.has(idea.id) ? "card idea vague fade-in" : "card idea vague", glide, false),
     el("div", { class: "card-head" }, el("div", {},
       el("h3", {}, el("a", { href: `#/idea/${idea.id}` }, idea.raw)),
       el("p", { class: "raw" }, "Too vague to extract yet"))),
@@ -544,15 +547,17 @@ function vagueRow(idea, glide = true) {
 // causes cannot close it, and the panel can take a full row of its own.
 function filterBar(domains, shownCount, total) {
   const f = state.filters;
-  // focus goes back to the control just used: the bar is rebuilt under it
-  const set = (k, v) => { f[k] = v; render({ animate: true, focus: `.controls [name="${k}"]` }); };
+  // focus goes back to the control just used: the bar is rebuilt under it.
+  // The selects and checkboxes are found by name, the buttons by data-pick.
+  const set = (k, v, focus = `.controls [name="${k}"]`) => { f[k] = v; render({ animate: true, focus }); };
+  const picked = (k, v) => `.controls [data-pick="${k}-${v}"]`;
   const sortButton = (key, label) => el("button", {
-    type: "button", "aria-pressed": String(state.sort === key),
-    onclick: () => { state.sort = key; render({ animate: true }); }
+    type: "button", "data-pick": `sort-${key}`, "aria-pressed": String(state.sort === key),
+    onclick: () => { state.sort = key; render({ animate: true, focus: picked("sort", key) }); }
   }, label);
   const lifeButton = (key, label) => el("button", {
-    type: "button", "aria-pressed": String(f.lifecycle === key),
-    onclick: () => set("lifecycle", key)
+    type: "button", "data-pick": `lifecycle-${key}`, "aria-pressed": String(f.lifecycle === key),
+    onclick: () => set("lifecycle", key, picked("lifecycle", key))
   }, label);
   const on = activeCount(f);
   const check = (k, label) => el("label", { class: "chk" },
@@ -793,21 +798,40 @@ function refreshTally() {
   }
 }
 
-function save(skillId, level) {
+// `status` is one element shared by the profile and the invite form, so every
+// write sets text, colour and tooltip together: an error's class and title
+// must not outlive it.
+function setStatus(text, detail = null, error = false) {
+  status.textContent = text;
+  status.title = detail ?? "";
+  status.className = error ? "status error" : "status";
+}
+
+// `control` is the .rating the radio sits in. A save that fails puts the page
+// back as it was, as rate() does on the idea page: the level, the tally, the
+// radios and the "not rated" tag (CSS, off the radios), so nothing claims a
+// rating the database does not have and the same level can be picked again
+// (a radio left checked fires no change).
+function save(skillId, level, control) {
   const before = new Map(state.levels);
   state.levels.set(skillId, level);
   refreshTally();
-  status.textContent = "saving…";
-  status.className = "status";
+  setStatus("saving…");
   setSkillLevel(state.session.user.id, skillId, level)
     .then(ensureIdeas)
-    .then(() => { status.title = ""; status.textContent = whatMoved([skillId], before, state.levels); })
+    .then(() => setStatus(whatMoved([skillId], before, state.levels)))
     .catch((err) => {
       console.error(err);
+      // unless something newer was picked for this skill while this was in flight
+      if (state.levels.get(skillId) === level) {
+        const was = before.get(skillId);
+        if (was) state.levels.set(skillId, was); else state.levels.delete(skillId);
+        refreshTally();
+        for (const r of control.querySelectorAll("input[type=radio]")) r.checked = r.value === was;
+        control.querySelector(".lvl").setAttribute("aria-label", was ? skillName(skillId) : `${skillName(skillId)}, ${UNRATED}`);
+      }
       const { text, detail } = explain(err);
-      status.textContent = text;
-      status.title = detail ?? "";
-      status.className = "status error";
+      setStatus(text, detail, true);
     });
 }
 
@@ -867,7 +891,7 @@ function levelControl(skillId, name, label, onPick) {
           type: "radio", name, value: level, checked,
           onchange: (e) => {
             e.target.closest(".lvl").setAttribute("aria-label", label);
-            onPick(level);
+            onPick(level, e.target.closest(".rating"));
           }
         }),
         el("span", {}, level)
@@ -885,7 +909,7 @@ function skillRow(skill) {
       ),
       el("code", {}, skill.id)
     ),
-    levelControl(skill.id, `lvl-${skill.id}`, skill.name, (level) => save(skill.id, level))
+    levelControl(skill.id, `lvl-${skill.id}`, skill.name, (level, control) => save(skill.id, level, control))
   );
 }
 
@@ -1235,9 +1259,9 @@ function inviteForm(g) {
       if (!email) return;
       run(async () => {
         const outcome = await invite(g.id, email);
-        status.textContent = outcome === "joined"
+        setStatus(outcome === "joined"
           ? `${email} already had an account and is in the group.`
-          : `${email} can now create an account; they join when they do.`;
+          : `${email} can now create an account; they join when they do.`);
         await load();
       });
     }
@@ -2300,7 +2324,7 @@ addEventListener("hashchange", () => {
   state.route = currentRoute();
   filtersFromHash();
   if (/^#(signin|create)$/.test(location.hash)) state.authMode = location.hash.slice(1);   // the landing's links
-  status.textContent = "";
+  setStatus("");
   state.detail = null;
   state.confirmDeleteIdea = false;
   // a pending "Leave?" or "Remove?" should not be waiting when you come back

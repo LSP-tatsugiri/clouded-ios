@@ -7,8 +7,9 @@ against `README.md`, not a new PRD.
 
 **Reconciled against the code 2026-11-10** (`docs/superpowers/plans/2026-11-10-backlog-sweep.md`):
 everything that shipped is struck below with its date and commit. Items
-dated 2026-10-16 or 2026-10-22 are committed but not on `main`, so not on
-the live site, until `agent/critique-p1` and `agent/backlog-sweep` merge.
+dated 2026-10-16, 2026-10-22 or 2026-11-10 are committed but not on `main`,
+so not on the live site, until `agent/critique-p1` and
+`agent/backlog-sweep` merge.
 
 Ordering rule used throughout: does it serve **capture** (the stated primary
 blocker) or the **learning loop** (the stated secondary job)? Anything that
@@ -39,7 +40,7 @@ That is the single largest structural weakness, bigger than any UI gap.
 
 Three changes close it, in increasing size:
 
-1. ~~**Rate from where the gap appears.**~~ **Shipped 2026-09-16** (`8a02b91`, `levelMark` and `rate` in `web/app.js`). On the idea page each capability line
+1. ~~**Rate from where the gap appears.**~~ **Shipped 2026-09-16** (`8a02b91`) as a mark that cycled on click; **changed 2026-11-10** (`8b3214c`) to an explicit none / some / solid choice, the same control as the profile's (`levelControl` and `rate` in `web/app.js`, `web/lib/rating.js`), so an unrated skill reads as unrated and a click writes the level picked, not the next one round. Was: On the idea page each capability line
    already renders `[ ]` + the skill name. Make the mark itself a control:
    click cycles `none → some → solid` and writes `user_skills`. The profile
    form stops being the only way in, and rating happens at the moment you are
@@ -50,7 +51,7 @@ Three changes close it, in increasing size:
    profile source the design review asked for (§5) *and* the idea list's
    missing end state. The README says the product "ends where work begins";
    it does not have to manage the work to record that it happened.
-3. ~~**Say what moved.**~~ **Shipped 2026-09-16** (`8a02b91`, `whatMoved` in `web/app.js`; counts live ideas only since 2026-10-22, `8274a68`). After any profile change, one line: *"parametric-cad
+3. ~~**Say what moved.**~~ **Shipped 2026-09-16** (`8a02b91`, `whatMoved` in `web/app.js`; counts live ideas only since 2026-10-22, `8274a68`; names the skill rather than its id since 2026-11-10, `8b3214c`). After any profile change, one line: *"parametric-cad
    → solid. 4 ideas moved closer; 2 now have no gap left."* This is the
    output the README claims the whole product exists to produce, and today it
    is never shown as an event — only as a static ranking you have to
@@ -68,7 +69,14 @@ out to be the same idea twice.
 - ~~`built_at` (above), plus `dropped_at` with a one-line reason. Not a score —
   a fact.~~ **Shipped 2026-10-22.**
 - ~~Default the list to live ideas, with built/dropped behind a toggle.~~ **Shipped 2026-10-22.**
-- **Near-duplicate detection at capture.** Frictionless capture guarantees
+- ~~**Near-duplicate detection at capture.**~~ **Shipped in part 2026-11-10**
+  (`8b3214c`, `web/lib/similar.js`, `looksLike` in `web/app.js`): your own
+  idea pages show "Looks like" links to your other ideas whose wording is
+  close (trigram similarity over `raw`/`objective`) or that share ≥3 skills.
+  Matched in the client, where every row already is: no `pg_trgm`, no
+  migration, and it runs when the page is opened, not at capture. **Not
+  built: the merge button.** Merging two ideas is a product decision about
+  `ideas.raw`, which is never overwritten. Was: Frictionless capture guarantees
   double-capture of the same 1am thought. The cheap version needs no
   embeddings: `pg_trgm` similarity on `raw`/`objective`, plus "shares ≥3
   capabilities with an existing idea", surfaced on the idea page as
@@ -117,14 +125,21 @@ thing the product can do. Highest-value phone work, in order:
   (`capabilities()` with no filter) and again on the Group tab. Fine now;
   it is an unbounded query as the group grows. Scope it to the ideas being
   shown, or let PostgREST embed it into the ideas select.
-- **Empty-profile state.** With zero ratings every idea is all-gaps and the
-  sort is meaningless. The list says so in small grey text; it should be the
+- ~~**Empty-profile state.**~~ **Shipped in part 2026-11-10** (`4ff28db`,
+  `rateFirst` in `web/app.js`): until one skill is rated the list leads
+  with a prompt that counts the distinct skills your ideas need and links to
+  the profile. **Still open: the inline flow** that offers only those skills
+  to rate; the link lands on the full 52-row profile. Was: With zero ratings
+  every idea is all-gaps and the sort is meaningless. The list says so in small grey text; it should be the
   first thing on the page until at least the skills that appear in your own
   ideas are rated. A "rate the 12 skills your ideas actually need" flow beats
   a 51-row form for cold start.
 - **Mobile web.** Only two breakpoints; the Group tab and the profile radio
   grid were not built for a phone. Since the phone app has no sharing or
   feed, mobile web *is* the phone's sharing UI today.
+  *Partly addressed 2026-11-10 (`4ff28db`, `8b3214c`): at 640px the list's
+  filter bar wraps and a profile skill row stacks its rating under the name.
+  The Group tab is untouched, and none of it has been checked on a phone.*
 - **The vague bucket costs a cent per answer and gives no batch path.** If
   three entries are vague, that is three round-trips through a form. Let the
   answer box take all of them on one screen.
@@ -238,5 +253,5 @@ Each needs one before any code.
 3. §5 CAD split test — before trusting or publishing the headline finding.
 4. ~~§3.1 App Intent — the README's promised capture, cheaply.~~ Shipped
    2026-09-28, with §3.2 the outbox.
-5. §1.2 + §2 built/dropped/duplicates — before the list gets to 80 — built/dropped shipped 2026-10-22; duplicates still open.
+5. §1.2 + §2 built/dropped/duplicates — before the list gets to 80 — built/dropped shipped 2026-10-22; "looks like" links shipped 2026-11-10, merging two ideas still open.
 6. §6 claims + group leverage — when the first real friends are in.

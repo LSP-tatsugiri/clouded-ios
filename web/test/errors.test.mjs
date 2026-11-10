@@ -38,9 +38,25 @@ test("a dropped connection says so, whatever threw it", () => {
 
 test("an expired session and a bare database message are named", () => {
   assert.match(explain(new Error("ideas: JWT expired")).text, /session has ended/);
-  const bare = explain(new Error("duplicate key value violates unique constraint \"group_invites_pkey\""));
-  assert.match(bare.text, /^Could not do that\./);
+  const bare = explain(new Error("insert or update on table \"ideas\" violates foreign key constraint \"ideas_shared_to_fkey\""));
+  assert.match(bare.text, /^Could not do that\. Try again/);
   assert.ok(bare.detail);
+});
+
+test("a row that already exists is not something to try again", () => {
+  const dup = "duplicate key value violates unique constraint \"groups_name_key\"";
+  const coded = Object.assign(new Error("createGroup: conflict"), { code: "23505" });
+  for (const [err, start] of [
+    [new Error(`createGroup: ${dup}`), "Could not create the group: it already exists."],
+    [new Error(dup), "Could not do that: it already exists."],
+    [new Error(`capabilitiesFor: ${dup}`), "Could not do that: it already exists."],
+    [coded, "Could not create the group: it already exists."]
+  ]) {
+    const { text, detail } = explain(err);
+    assert.ok(text.startsWith(start), text);
+    assert.doesNotMatch(text, /try again/i);
+    assert.equal(detail, err.message);
+  }
 });
 
 test("nothing to go on still says something", () => {

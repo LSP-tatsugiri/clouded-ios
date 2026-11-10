@@ -37,7 +37,8 @@ See \`$B\` §$3 for the reasoning." >/dev/null
 # mk "\"I built this\": ideas.built_at, offer to set its capabilities solid" "Marking an idea built is the honest profile source and the list's missing end state. Confirm per capability." "1.2"
 # built 2026-10-22 (idea lifecycle; on main once agent/critique-p1 merges)
 # mk "Idea lifecycle: dropped_at with a reason; default the list to live ideas" "Built/dropped behind a toggle before the list reaches 80." "2"
-mk "Near-duplicate detection at capture (pg_trgm + capability overlap)" "Surface \"looks like #N\" on the idea page with a merge button. No embeddings needed for the first version." "2"
+# detection shipped 2026-11-10 as "Looks like" links (web/lib/similar.js; on main once agent/backlog-sweep merges); what is left is the merge
+mk "Merge two ideas that look alike" "The idea page links near-duplicates (\"Looks like\") but cannot merge them. A product decision first: ideas.raw is never overwritten, so say what a merge keeps." "2"
 # shipped 2026-09-28 (ios/clouded/CaptureIntent.swift)
 # mk "App Intent + Shortcut for capture" "Gives Action Button, Siri, lock-screen widget and Shortcuts in one go; the README's promised capture, cheaply." "3.1"
 # shipped 2026-09-28 (ios/Shared/Outbox.swift)
@@ -47,7 +48,8 @@ mk "Share-sheet action keeps the source URL and page title" "source_url exists a
 mk "Replace the 2-second poll with Supabase Realtime on extraction_runs" "Removes ~60 round-trips per capture and WATCH_WINDOW_MS guesswork." "4"
 # fixed 2026-10-16 (e386a6b; on main once agent/backlog-sweep merges)
 # mk "Scope the capabilities query to the ideas being shown" "Unbounded query today, on every list load and again on the Group tab." "4"
-mk "Empty-profile cold start: rate the skills your own ideas need" "Beats a 51-row form; with zero ratings every idea is all-gaps and the sort is meaningless." "4"
+# the prompt shipped 2026-11-10 (rateFirst in web/app.js; on main once agent/backlog-sweep merges); what is left is the inline flow
+mk "Empty-profile cold start: rate only the skills your own ideas need, inline" "The list now says how many skills your ideas need and links to the profile. Offering just those to rate, in place, still beats a 52-row form." "4"
 mk "Mobile web layout for the Group tab and profile grid" "Mobile web is the phone's sharing UI today." "4"
 mk "Batch the vague-bucket answers on one screen" "Three vague entries are three round-trips through a form today." "4"
 mk "Assumption visibility: extraction emits assumption separately, UI renders it correctable" "Prompt + schema change, so it re-baselines; bundle with the parked strict:true change." "4"

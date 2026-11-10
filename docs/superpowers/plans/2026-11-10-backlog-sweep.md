@@ -86,6 +86,10 @@ hunts regressions. Findings go back to a fixer; repeat until it passes.
 ## Owner steps after review
 
 1. Merge `agent/critique-p1`, then `agent/backlog-sweep`, into `main`.
-2. `supabase db push` — applies `20261016231832_invite_cap_and_member_consent.sql`.
+2. `supabase db push --include-all` — applies `20261016231832_invite_cap_and_member_consent.sql`.
+   The flag is needed because that file sorts before `20261022233104_idea_lifecycle.sql`,
+   which is already on the hosted database; a plain push stops and asks for it.
 3. `supabase functions deploy extract` — the merged branch changed its secret check.
+   If renewing the Anthropic key on 2026-11-10 produced a new key string, also
+   `supabase secrets set ANTHROPIC_API_KEY=…`: the project secret was last updated 2026-09-13.
 4. Close issue #4 (the test report "123"); delete the nine merged remote branches listed in the 2026-09-28 handoff.
