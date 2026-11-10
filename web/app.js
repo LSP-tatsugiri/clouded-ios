@@ -25,7 +25,7 @@ import { explain } from "./lib/errors.js";
 import { DEFAULTS, activeCount, decodeFilters, encodeFilters, needsExtraction } from "./lib/filters.js";
 import { SHORTCUTS, keyAction, nextIndex } from "./lib/keys.js";
 import { claimState, claimsByIdea, groupHeld, memberCount, withClaim } from "./lib/group.js";
-import { DROP_REASON_MAX, buildChoices, cleanReason, isLive, lifecycleOf, movedHeadline, skillsNeeded } from "./lib/lifecycle.js";
+import { DROP_REASON_MAX, buildChoices, cleanReason, duplicateReason, isLive, lifecycleOf, movedHeadline, skillsNeeded } from "./lib/lifecycle.js";
 import { UNRATED, levelChoices } from "./lib/rating.js";
 import { similarIdeas } from "./lib/similar.js";
 import { canDictate, dictation } from "./lib/speech.js";
@@ -100,6 +100,7 @@ const state = {
   lifecycleForm: null, // idea page: null | "build" | "drop" — which lifecycle form is open
   buildTicks: new Set(), // skill ids ticked in the "I built this" checklist; starts empty on purpose
   dropDraft: "",       // the drop reason being typed, kept across re-renders
+  confirmDuplicate: null, // idea page: id of the "Looks like" match whose "Drop this one as a duplicate" waits for a second click
   feed: [],            // shared ideas from every group, newest first (decision 12)
   feedCaps: [],        // their capability rows; apart from caps, which is your own ideas' only
   feedSort: "newest",  // "newest" | "closest"
@@ -2289,16 +2290,44 @@ function looksLike(idea, caps) {
   ];
   const found = similarIdeas(idea, state.ideas, allCaps).filter((m) => others.has(m.id));
   if (!found.length) return null;
-  return el("p", { class: "looks-like" },
+  // resolving a duplicate is dropping this one, both yours and both live
+  const canDrop = (other) => isLive(idea) && isLive(other) && other.user_id === idea.user_id;
+  const asking = found.map((m) => others.get(m.id)).find((o) => o.id === state.confirmDuplicate && canDrop(o));
+  return [el("p", { class: "looks-like" },
     el("span", { class: "lbl" }, "Looks like: "),
     found.map((m, i) => {
       const other = others.get(m.id);
       return [
         i > 0 && "; ",
         el("a", { href: `#/idea/${m.id}` }, other.objective || other.raw),
-        el("span", { class: "why" }, ` (${lifecycleOf(other) === "built" ? `${m.why} · built` : m.why})`)
+        el("span", { class: "why" }, ` (${lifecycleOf(other) === "built" ? `${m.why} · built` : m.why})`),
+        canDrop(other) && !asking && [" ", el("button", {
+          class: "link", type: "button", disabled: state.busy,
+          onclick: () => { state.confirmDuplicate = other.id; clearError(); render(); }
+        }, "Drop this one as a duplicate")]
       ];
-    }));
+    })),
+    asking && duplicateConfirm(idea, asking)];
+}
+
+// The second click, like deleteControl's. It is an ordinary drop with the
+// reason written for you and a pointer to the other idea (setDropped's third
+// argument); "Back to live" undoes it. Nothing else is written.
+function duplicateConfirm(idea, other) {
+  const keep = () => { state.confirmDuplicate = null; render(); };
+  return el("div", { class: "dup-confirm" },
+    el("p", { class: "hint" }, `Drop this as a duplicate of “${other.objective || other.raw}”?`),
+    el("div", { class: "row" },
+      el("button", { class: "btn sm", type: "button", disabled: state.busy, onclick: () => {
+        if (state.busy) return;
+        run(async () => {
+          await setDropped(idea.id, duplicateReason(idea, other), other.id);
+          state.confirmDuplicate = null;
+          state.ideas = [];
+          await load();
+        });
+      } }, "Yes, drop it"),
+      el("button", { class: "btn sm ghost", type: "button", disabled: state.busy, onclick: keep }, "Keep it")));
 }
 
 function answerBox(idea) {
@@ -2354,6 +2383,9 @@ function ideaView() {
   ].filter(Boolean).join(" · ");
 
   const life = lifecycleOf(idea);
+  // dropped as a duplicate: the owner gets a link to the idea it duplicates;
+  // anyone else, or a pointer to an idea since deleted, gets the reason
+  const dupOf = life === "dropped" && mine && idea.duplicate_of && state.ideas.find((i) => i.id === idea.duplicate_of);
 
   return el("div", {},
     header(),
@@ -2361,8 +2393,10 @@ function ideaView() {
 
     el("div", { class: "card detail" },
     life !== "live" && el("div", { class: `life-banner ${life}` },
-      el("span", {}, life === "built" ? `Built ${fmtDate(idea.built_at)}` : `Dropped ${fmtDate(idea.dropped_at)} —`),
-      life === "dropped" && el("span", { class: "drop-reason" }, idea.drop_reason),
+      el("span", {}, life === "built" ? `Built ${fmtDate(idea.built_at)}`
+        : dupOf ? `Dropped ${fmtDate(idea.dropped_at)} as a duplicate of` : `Dropped ${fmtDate(idea.dropped_at)} —`),
+      dupOf && el("a", { class: "dup-of", href: `#/idea/${dupOf.id}` }, dupOf.objective || dupOf.raw),
+      life === "dropped" && !dupOf && el("span", { class: "drop-reason" }, idea.drop_reason),
       el("span", { class: "spacer" }),
       mine && el("button", {
         class: "link", type: "button", disabled: state.busy,
@@ -2957,6 +2991,7 @@ addEventListener("hashchange", () => {
   state.lifecycleForm = null;
   state.buildTicks = new Set();
   state.dropDraft = "";
+  state.confirmDuplicate = null;
   state.friend = null;
   state.waiting = "";
   run(load);

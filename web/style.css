@@ -1126,6 +1126,11 @@ dialog.auth .auth-close:hover { background: var(--flow-wash); color: var(--ink);
 /* other ideas of yours this one resembles: links and the reason, kept quiet */
 .looks-like { color: var(--ink-3); font-size: 0.9rem; margin: 0.5rem 0 0; overflow-wrap: anywhere; }
 .looks-like .why { font: 0.78rem var(--mono); }
+/* inline in the sentence, so not the 3.25rem every other button gets */
+.looks-like button.link { height: auto; padding: 0.15rem 0; margin-left: 0.15rem; vertical-align: baseline; }
+.dup-confirm { margin: 0.5rem 0 0; }
+.dup-confirm .hint { margin: 0 0 0.5rem; overflow-wrap: anywhere; }
+.life-banner .dup-of { font-weight: 400; overflow-wrap: anywhere; min-width: 0; }
 .meta { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; margin-top: 0.75rem; }
 
 /* the picture that came with an idea */

@@ -117,9 +117,11 @@ export async function groupSkills(userId) {
 // RLS hides rows rather than refusing them, so a stranger's link and a
 // mistyped id both come back as no row, not an error.
 export async function idea(id) {
-  const row = ok(await db.from("ideas")
-    .select("id, user_id, raw, clarification, objective, domain, is_clear, clarifying_question, status, shared_to, image_path, source_url, created_at, built_at, dropped_at, drop_reason")
-    .eq("id", id).maybeSingle(), "idea");
+  const cols = "id, user_id, raw, clarification, objective, domain, is_clear, clarifying_question, status, shared_to, image_path, source_url, created_at, built_at, dropped_at, drop_reason";
+  const read = (extra) => db.from("ideas").select(cols + extra).eq("id", id).maybeSingle();
+  let res = hasDuplicateOf ? await read(", duplicate_of") : null;
+  if (!res || lacksDuplicateOf(res.error)) res = await read("");
+  const row = ok(res, "idea");
   if (!row) throw new Error("No such idea, or it is not shared with you.");
   return row;
 }
@@ -332,10 +334,31 @@ export async function setBuilt(id, on) {
     .eq("id", id).select("id").single(), "setBuilt");
 }
 
-export async function setDropped(id, reason) {
-  return ok(await db.from("ideas")
-    .update({ built_at: null, dropped_at: new Date().toISOString(), drop_reason: reason })
-    .eq("id", id).select("id").single(), "setDropped");
+// `duplicateOf` is the other idea's id when this one is dropped as its
+// duplicate. The database clears the pointer itself whenever the idea stops
+// being dropped, so setBuilt never sends it. Until the column exists the drop
+// still lands, with the reason alone.
+export async function setDropped(id, reason, duplicateOf = null) {
+  const row = { built_at: null, dropped_at: new Date().toISOString(), drop_reason: reason };
+  const write = (r) => db.from("ideas").update(r).eq("id", id).select("id").single();
+  if (duplicateOf && hasDuplicateOf) {
+    const res = await write({ ...row, duplicate_of: duplicateOf });
+    if (!lacksDuplicateOf(res.error)) return ok(res, "setDropped");
+  }
+  return ok(await write(row), "setDropped");
+}
+
+// ideas.duplicate_of arrives with migration 20261110161103_idea_duplicate_of,
+// which the owner pushes by hand. Until then the hosted database refuses any
+// read or write that names it: Postgres says undefined column (42703) on a
+// select, PostgREST says not in the schema cache (PGRST204) on an update. Both
+// mean "retry without it"; nothing was written. The first refusal is
+// remembered so later calls skip straight to the plain query.
+let hasDuplicateOf = true;
+function lacksDuplicateOf(error) {
+  const missing = !!error && (error.code === "42703" || error.code === "PGRST204") && /duplicate_of/.test(error.message ?? "");
+  if (missing) hasDuplicateOf = false;
+  return missing;
 }
 
 // The row goes first; capabilities and extraction_runs cascade with it. The

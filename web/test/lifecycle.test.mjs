@@ -1,7 +1,7 @@
 // Run: node --test web/test/*.test.mjs
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { DROP_REASON_MAX, buildChoices, cleanReason, isLive, lifecycleOf, movedHeadline, skillsNeeded, skillsNeededList } from "../lib/lifecycle.js";
+import { DROP_REASON_MAX, buildChoices, cleanReason, duplicateReason, isLive, lifecycleOf, movedHeadline, skillsNeeded, skillsNeededList } from "../lib/lifecycle.js";
 
 test("lifecycleOf reads the two timestamps", () => {
   assert.equal(lifecycleOf({ built_at: null, dropped_at: null }), "live");
@@ -80,6 +80,45 @@ test("cleanReason trims and refuses empty or over-long reasons", () => {
   assert.equal(cleanReason(null), null);
   assert.equal(cleanReason("x".repeat(DROP_REASON_MAX)), "x".repeat(DROP_REASON_MAX));
   assert.equal(cleanReason("x".repeat(DROP_REASON_MAX + 1)), null);
+});
+
+test("duplicateReason names the other idea by objective, falling back to raw", () => {
+  const me = { id: "a", shared_to: null };
+  assert.equal(duplicateReason(me, { objective: "A filament dryer", raw: "dryer thing" }), "duplicate of “A filament dryer”");
+  assert.equal(duplicateReason(me, { objective: "", raw: "  dryer   thing " }), "duplicate of “dryer thing”");
+  assert.equal(duplicateReason(me, { objective: null, raw: "dryer thing" }), "duplicate of “dryer thing”");
+  assert.equal(duplicateReason(me, { objective: "   ", raw: "" }), "duplicate of another of my ideas");
+});
+
+test("duplicateReason always fits the drop reason limit", () => {
+  const me = { id: "a" };
+  const exact = "x".repeat(DROP_REASON_MAX - "duplicate of “”".length);
+  const atLimit = duplicateReason(me, { objective: exact });
+  assert.equal(atLimit.length, DROP_REASON_MAX);
+  assert.equal(atLimit, `duplicate of “${exact}”`);
+  assert.equal(cleanReason(atLimit), atLimit);
+
+  const over = duplicateReason(me, { objective: exact + "y" });
+  assert.ok(over.length <= DROP_REASON_MAX);
+  assert.ok(over.endsWith("…”"));
+  assert.equal(cleanReason(over), over);
+
+  const words = duplicateReason(me, { objective: "build a small enclosure for the dryer ".repeat(10) });
+  assert.ok(words.length <= DROP_REASON_MAX);
+  assert.match(words, /^duplicate of “build a small enclosure.*[a-z]…”$/);   // cut at a word, no trailing space
+  assert.equal(cleanReason(words), words);
+
+  const emoji = duplicateReason(me, { objective: "😀".repeat(150) });   // a surrogate pair is never split
+  assert.ok(emoji.length <= DROP_REASON_MAX);
+  assert.doesNotMatch(emoji, /[\uD800-\uDBFF](?![\uDC00-\uDFFF])/);
+});
+
+test("duplicateReason keeps a private idea's text off a shared one", () => {
+  const other = { objective: "A secret plan", shared_to: null };
+  assert.equal(duplicateReason({ shared_to: "g1" }, other), "duplicate of another of my ideas");
+  assert.equal(duplicateReason({ shared_to: "g1" }, { ...other, shared_to: "g2" }), "duplicate of another of my ideas");
+  assert.equal(duplicateReason({ shared_to: "g1" }, { ...other, shared_to: "g1" }), "duplicate of “A secret plan”");
+  assert.equal(duplicateReason({ shared_to: null }, { ...other, shared_to: "g1" }), "duplicate of “A secret plan”");
 });
 
 test("movedHeadline names one skill or counts several", () => {
