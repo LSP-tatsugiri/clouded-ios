@@ -59,4 +59,9 @@ test("movedHeadline names one skill or counts several", () => {
   const after = new Map([["parametric-cad", "solid"], ["soldering", "solid"], ["pcb-layout", "solid"]]);
   assert.equal(movedHeadline(["parametric-cad"], after), "parametric-cad → solid.");
   assert.equal(movedHeadline(["parametric-cad", "soldering", "pcb-layout"], after), "3 skills → solid.");
+  // the page passes skillName(), so the line shows the name and never the id
+  const names = { "parametric-cad": "Model a part parametrically from measured dimensions" };
+  assert.equal(movedHeadline(["parametric-cad"], after, (id) => names[id] ?? id),
+    "Model a part parametrically from measured dimensions → solid.");
+  assert.equal(movedHeadline(["soldering"], after, (id) => names[id] ?? id), "soldering → solid.");
 });

@@ -19,8 +19,11 @@ import {
   signIn, signOut, signUp, skills, skillsFor, uploadFeedbackShot
 } from "./lib/db.js";
 import { el, mount } from "./lib/dom.js";
+import { explain } from "./lib/errors.js";
 import { DEFAULTS, activeCount, decodeFilters, encodeFilters } from "./lib/filters.js";
 import { DROP_REASON_MAX, buildChoices, cleanReason, isLive, lifecycleOf, movedHeadline, skillsNeeded } from "./lib/lifecycle.js";
+import { UNRATED, levelChoices } from "./lib/rating.js";
+import { similarIdeas } from "./lib/similar.js";
 import { canDictate, dictation } from "./lib/speech.js";
 // build.mjs writes COMMIT into config.js on the host; the hand-written local
 // config.js has no such export, and a named import of a missing export fails
@@ -30,7 +33,6 @@ import * as config from "./config.js";
 const COMMIT = config.COMMIT ?? "dev";
 import { FAILED, SAVED, SENDING, bandFor, forcedBand, opener } from "./lib/waifu.js";
 
-const LEVELS = ["none", "some", "solid"];
 const MARK = { have: "[x]", partial: "[~]", gap: "[ ]", proposed: "[?]", friend: "[+]" };
 // Closest-to-me bands, by the short count: key, heading, one line under it.
 const BANDS = [
@@ -48,6 +50,15 @@ const fmtDate = (iso) => new Date(iso).toLocaleDateString(undefined, { month: "s
 const ROUTES = new Set(["profile", "review", "group", "waifu", "report"]);
 
 const app = document.getElementById("app");
+
+// One polite live region for the session (index.html, outside #app). Every
+// render rebuilds #app, and a live region rebuilt with it is read again on
+// each repaint or not at all. Callers announce a change of stage, never a
+// tick, so the 2 s extraction poll says "Extracting" once.
+const live = document.getElementById("live");
+function announce(text) {
+  if (live && live.textContent !== text) live.textContent = text;
+}
 const state = {
   session: null,
   route: currentRoute(),
@@ -91,7 +102,9 @@ const state = {
   sent: null,          // { id, number, error } after a report is sent, while the number is awaited
   waiting: "",         // progress text while an answer re-runs extraction
   extracting: new Map(), // idea_id -> { stage, seconds } while the list watches a new idea
+  stalled: new Map(),  // idea_id -> since, for waits that ran out: what "Check again" polls for
   error: null,
+  errorDetail: null,   // { for, raw }: the raw message behind state.error, shown only while it is that error
   busy: false
 };
 
@@ -159,8 +172,10 @@ function header() {
       style: site && on ? "view-transition-name: tab-on" : null
     }, label);
   };
+  // each page's own title is its h1, so the wordmark is not a heading; the
+  // waifu scene has no title of its own and keeps the h1 waifu.css styles
   return el("header", { style: site ? "view-transition-name: app-header" : null },
-    el("h1", {}, site && brandMark(), "clouded"),
+    el(site ? "p" : "h1", { class: site ? "brand" : null }, site && brandMark(), "clouded"),
     el("nav", {},
       tab("#/", "Ideas", "list"),
       tab("#/group", "Group", "group"),
@@ -217,7 +232,7 @@ function paintAuth() {
 function signInView() {
   const creating = state.authMode === "create";
   const setMode = (mode) => {
-    state.authMode = mode; state.error = null; state.notice = null;
+    state.authMode = mode; clearError(); state.notice = null;
     if (AUTH_HASH.test(location.hash)) history.replaceState(null, "", `#${mode}`);
     render();
   };
@@ -257,7 +272,7 @@ function signInView() {
       })),
     el("button", { type: "submit", class: "btn", disabled: state.busy },
       state.busy ? (creating ? "Creating…" : "Signing in…") : (creating ? "Create account" : "Sign in")),
-    state.error && el("p", { class: "error" }, state.error),
+    errorLine(),
     state.notice && el("p", { class: "notice", role: "status" }, state.notice),
     el("p", { class: "muted switch" },
       creating
@@ -456,7 +471,7 @@ function ideaRow({ idea, extraction }, glide = true) {
       idea.status !== "extracted" && el("span", { class: "tag warn" }, idea.status),
       idea.shared_to && el("span", { class: "tag" }, "shared"),
       lifecycleTags(idea),
-      idea.image_path && el("span", { class: "tag", title: "has a picture" }, "▣"),
+      idea.image_path && el("span", { class: "tag", role: "img", "aria-label": "has a picture", title: "has a picture" }, "▣"),
       friendLine({ idea, extraction }),
       el("span", { class: "spacer" }),
       el("span", {}, "you"),
@@ -468,17 +483,22 @@ function ideaRow({ idea, extraction }, glide = true) {
 // A card the list is still waiting on. The bar is indeterminate on purpose:
 // extraction is one API call of unknown length, and a bar that creeps to 90%
 // and waits would be a time estimate in disguise. The stages are real events.
-function extractingRow(idea, { stage, seconds }) {
+//
+// The bar is decoration and the seconds change on every poll, so neither is
+// in a live region: watch() announces each stage once through announce().
+function extractingRow(idea, { stage, seconds, again }) {
   const saving = stage === "saving";
   const fresh = Date.now() - Date.parse(idea.created_at) < WATCH_WINDOW_MS;
   return el("article", { class: "card idea busy" },
     el("div", { class: "card-head" }, el("div", {},
       el("h3", {}, idea.raw),
-      el("p", { class: "raw" }, fresh ? "Just added" : "Re-extracting after your answer"))),
+      el("p", { class: "raw" }, again ? "Checking again" : fresh ? "Just added" : "Re-extracting after your answer"))),
     el("div", { class: "progress" },
-      el("div", { class: "bar" }, el("i", {})),
-      el("span", {}, saving ? "Saving the result" : `Extracting, ${seconds}s`)),
-    el("p", { class: "steps" }, saving ? "Writing the capabilities and a hard part" : "Reading the idea and listing what it would take"),
+      el("div", { class: "bar", "aria-hidden": "true" }, el("i", {})),
+      el("span", {}, saving ? "Saving the result" : again ? `Checking, ${seconds}s` : `Extracting, ${seconds}s`)),
+    el("p", { class: "steps" }, saving ? "Writing the capabilities and a hard part"
+      : again ? "Looking for the result. Nothing is re-run, so this costs nothing."
+      : "Reading the idea and listing what it would take"),
     el("div", { class: "card-foot" }, el("span", {}, "you"), el("span", {}, fmtDate(idea.created_at)))
   );
 }
@@ -699,8 +719,9 @@ function listView() {
 
   return el("div", {},
     header(),
+    el("h1", { class: "sr-only" }, "Your ideas"),
     add,
-    state.error && el("p", { class: "error" }, state.error),
+    errorLine(),
     loaded && !rated && rateFirst(),
     // the count is of cards on the page: vague ideas show in both sorts (in
     // the date order, or under "Needs a detail"), so they are counted too
@@ -729,7 +750,7 @@ function listView() {
 // Updated in place rather than through a re-render: re-rendering on every
 // radio change would pull focus out of the control being used. The bar, the
 // text and the per-domain counts in the side panel are all repainted here.
-const status = el("span", { class: "status" }, "");
+const status = el("span", { class: "status", role: "status" }, "");
 
 // One element for the session, like `status`: mount() rebuilds the page on
 // every keystroke, and a rebuilt input would lose its text and the caret.
@@ -780,8 +801,14 @@ function save(skillId, level) {
   status.className = "status";
   setSkillLevel(state.session.user.id, skillId, level)
     .then(ensureIdeas)
-    .then(() => { status.textContent = whatMoved([skillId], before, state.levels); })
-    .catch((err) => { status.textContent = err.message; status.className = "status error"; });
+    .then(() => { status.title = ""; status.textContent = whatMoved([skillId], before, state.levels); })
+    .catch((err) => {
+      console.error(err);
+      const { text, detail } = explain(err);
+      status.textContent = text;
+      status.title = detail ?? "";
+      status.className = "status error";
+    });
 }
 
 // The list loads ideas and capabilities; the profile and the idea page do
@@ -816,23 +843,36 @@ function whatMoved(skillIds, before, after) {
   if (closer) parts.push(`${n(closer, "idea", "ideas")} moved closer`);
   if (cleared) parts.push(`${cleared} now ${cleared === 1 ? "has" : "have"} no gap left`);
   if (further) parts.push(`${n(further, "idea", "ideas")} moved further away`);
-  return `${movedHeadline(skillIds, after)} ${parts.length ? parts.join("; ") + "." : "Nothing moved."}`;
+  return `${movedHeadline(skillIds, after, skillName)} ${parts.length ? parts.join("; ") + "." : "Nothing moved."}`;
 }
 
-// Radios, so the keyboard works and focus stays put. An unrated skill checks
-// nothing: a row with no level is not "none" (db.js, setSkillLevel), and the
-// dashed control and the "not rated" tag hang off that in CSS.
-function levelControl(skill) {
-  const current = state.levels.get(skill.id);
-  return el("div", { class: "lvl", role: "radiogroup", "aria-label": skill.name },
-    LEVELS.map((lv) => el("label", { "data-l": lv },
-      el("input", {
-        type: "radio", name: `lvl-${skill.id}`, value: lv,
-        checked: current === lv,
-        onchange: () => save(skill.id, lv)
-      }),
-      el("span", {}, lv)
-    ))
+// The one rating control, on the profile and on every capability of the idea
+// page: none / some / solid, each a choice you make rather than a step in a
+// cycle. Radios, so the arrow keys work and focus stays put. An unrated skill
+// checks nothing — no row is not "none" (lib/rating.js) — and says so in
+// words beside the control; the dashed border hangs off the same fact in CSS.
+//
+//   name    the radio group's name; unique per control on the page
+//   label   what is being rated, for a screen reader
+//   onPick  called with the level chosen, which is the level written
+function levelControl(skillId, name, label, onPick) {
+  const { unrated, options } = levelChoices(state.levels.get(skillId));
+  return el("div", { class: "rating" },
+    // real text, not CSS content, so it is read; hidden by CSS once a radio
+    // in this control is checked, which the profile does without a re-render
+    el("span", { class: "tag unrated" }, UNRATED),
+    el("div", { class: "lvl", role: "radiogroup", "aria-label": unrated ? `${label}, ${UNRATED}` : label },
+      options.map(({ level, checked }) => el("label", { "data-l": level },
+        el("input", {
+          type: "radio", name, value: level, checked,
+          onchange: (e) => {
+            e.target.closest(".lvl").setAttribute("aria-label", label);
+            onPick(level);
+          }
+        }),
+        el("span", {}, level)
+      ))
+    )
   );
 }
 
@@ -845,7 +885,7 @@ function skillRow(skill) {
       ),
       el("code", {}, skill.id)
     ),
-    levelControl(skill)
+    levelControl(skill.id, `lvl-${skill.id}`, skill.name, (level) => save(skill.id, level))
   );
 }
 
@@ -882,7 +922,7 @@ function profileView() {
         el("p", {}, "Be honest. An inflated profile makes every distance wrong.")),
       nameForm()
     ),
-    state.error && el("p", { class: "error" }, state.error),
+    errorLine(),
     el("div", { class: "rated" }, ratedBar, el("div", { class: "rated-row" }, tally, status)),
     el("div", { class: "layout" },
       el("div", {},
@@ -935,7 +975,7 @@ function groupView() {
   const me = state.session.user.id;
   if (!state.groups.length) {
     // no groups loaded yet is not "you have no group": hold the create card back until load() says so
-    return el("div", {}, header(), state.error && el("p", { class: "error" }, state.error),
+    return el("div", {}, header(), errorLine(),
       state.loadedRoute === "group" ? createGroupCard() : el("p", { class: "muted", role: "status" }, "Loading your group…"));
   }
   const rows = feedRows();
@@ -953,7 +993,7 @@ function groupView() {
       rows.length > 1 && el("div", { class: "seg", role: "group", "aria-label": "Sort feed" },
         sortButton("newest", "Newest"), sortButton("closest", "Closest to me"))
     ),
-    state.error && el("p", { class: "error" }, state.error),
+    errorLine(),
     el("div", { class: "layout" },
       rows.length
         ? el("div", { class: "cards" }, rows.map((r) => feedRow(r, me, rows.length <= 40)))
@@ -1038,7 +1078,7 @@ function friendView() {
   const f = state.friend;
   if (!f) return el("div", {}, header(),
     state.error
-      ? el("p", { class: "error" }, state.error, " ", el("a", { href: "#/group" }, "← group"))
+      ? errorLine(el("a", { href: "#/group" }, "← group"))
       : el("p", { class: "muted" }, "Loading…"));
 
   const byDomain = new Map();
@@ -1084,7 +1124,7 @@ function createGroupCard() {
       run(async () => { await createGroup(name); await load(); });
     }
   },
-    el("h2", {}, "No group yet"),
+    el("h1", {}, "No group yet"),
     el("p", {},
       "A group is your friends. Ideas you share go to it, and it tells you which friend already holds the skill an idea needs. ",
       "Joining a group means your skill levels are readable by everyone in it."),
@@ -1423,65 +1463,71 @@ async function awaitRerun(ideaId, since, onProgress) {
 // Watch a just-added (or still pending) idea from the list until its
 // extraction lands, then reload so the row takes its sorted place. Runs
 // unawaited so the list stays usable meanwhile.
-async function watch(ideaId, since) {
+//
+// Everything here reads. `again` marks a wait restarted by "Check again"
+// (checkAgain()), so the card says it is looking, not extracting.
+async function watch(ideaId, since, again = false) {
   if (state.extracting.has(ideaId)) return;
-  state.extracting.set(ideaId, { stage: "extracting", seconds: 0 });
+  state.extracting.set(ideaId, { stage: "extracting", seconds: 0, again });
+  announce(again ? "Checking whether the extraction landed." : "Extracting the idea.");
   render();
   try {
-    const got = await awaitRerun(ideaId, since, (p) => { state.extracting.set(ideaId, p); render(); });
-    if (!got) state.error = "Extraction has not landed yet. Reload in a moment.";
-    else if (got.error) state.error = `Extraction failed: ${got.error}`;
+    const got = await awaitRerun(ideaId, since, (p) => {
+      state.extracting.set(ideaId, { ...p, again });
+      if (p.stage === "saving") announce("Saving the result.");
+      render();
+    });
+    if (!got) stall(ideaId, since, "Extraction has not landed yet. It may still be running.");
+    else if (got.error) { state.error = `Extraction failed: ${got.error}`; announce(state.error); }
+    else announce("Extraction finished.");
   } catch (err) {
-    state.error = err.message;
+    fail(err);
   } finally {
     state.extracting.delete(ideaId);
-    if (state.route === "list") await load().catch((err) => { state.error = err.message; });
+    if (state.route === "list") await load().catch(fail);
     justLanded.add(ideaId);   // the next paint of its card plays the split-flap
     render();
   }
 }
 
-// The mark on the idea page is the control: a click cycles your level for
-// that skill, so rating happens where the gap shows and not only on the
-// profile form. A proposed capability has no skill to rate and stays text.
-function levelMark(cap, k) {
-  if (!cap.skill_id) return mark(k);
-  const current = state.levels.get(cap.skill_id) ?? "none";
-  const next = LEVELS[(LEVELS.indexOf(current) + 1) % LEVELS.length];
-  return el("button", {
-    class: `mark ${k} rate`, type: "button", "data-skill": cap.skill_id,
-    title: `you: ${current} · click for ${next}`,
-    "aria-label": `${capLabel(cap)} — you: ${current}. Set ${next}`,
-    onclick: () => rate(cap.skill_id, next)
-  }, MARK[k]);
-}
-
-async function rate(skillId, level) {
+// Rating happens where the gap shows, not only on the profile: each
+// capability on the idea page carries the profile's own control for its
+// skill (levelControl). `name` is the radio group that was used, so the
+// keyboard can be put back in it after the page is rebuilt.
+async function rate(skillId, level, name) {
   const before = new Map(state.levels);
+  const refocus = () => document.querySelector(`.lvl input[name="${name}"][value="${level}"]`)?.focus();
   state.levels.set(skillId, level);
   state.moved = "saving…";
   render();
+  refocus();
   try {
     await setSkillLevel(state.session.user.id, skillId, level);
     await ensureIdeas();
     state.moved = whatMoved([skillId], before, state.levels);
   } catch (err) {
+    console.error(err);
     state.levels = before;
-    state.moved = err.message;
+    state.moved = explain(err).text;
   }
   render();
-  // mount() rebuilt the page; put the keyboard back where it was
-  document.querySelector(`button.rate[data-skill="${skillId}"]`)?.focus();
+  refocus();
 }
 
-function capabilityDetail(cap) {
+// `n` is the capability's place on the page: two capabilities can resolve to
+// the same skill, and each needs a radio group of its own.
+function capabilityDetail(cap, n) {
   const k = classify(cap, state.levels);
   const isCrux = cap.crux_rank === 1;
+  const name = `lvl-cap-${n}`;
   return el("li", { class: `capdetail ${k}${isCrux ? " is-crux" : ""}` },
     el("div", { class: "capdetail-head" },
-      levelMark(cap, k),
+      mark(k),
       el("span", { class: "capdetail-name" }, capLabel(cap)),
-      isCrux && el("span", { class: "crux-tag" }, "a hard part")
+      isCrux && el("span", { class: "crux-tag" }, "a hard part"),
+      // a proposed capability has no skill to rate and stays text
+      cap.skill_id && levelControl(cap.skill_id, name, `Your level: ${capLabel(cap)}`,
+        (level) => rate(cap.skill_id, level, name))
     ),
     cap.reason && el("p", { class: "capdetail-reason" }, cap.reason),
     el("details", { class: "resolution" },
@@ -1542,7 +1588,7 @@ function deleteControl(idea) {
 // as the taxonomy (spec 2026-10-22).
 function lifecycleControl(idea, caps) {
   if (lifecycleOf(idea) !== "live") return null;
-  const open = (form) => { state.lifecycleForm = form; state.buildTicks = new Set(); state.dropDraft = ""; state.error = null; render(); };
+  const open = (form) => { state.lifecycleForm = form; state.buildTicks = new Set(); state.dropDraft = ""; clearError(); render(); };
   const cancel = el("button", { class: "btn sm ghost", type: "button", onclick: () => open(null) }, "Cancel");
 
   if (state.lifecycleForm === "build") {
@@ -1569,7 +1615,7 @@ function lifecycleControl(idea, caps) {
       onsubmit: (e) => {
         e.preventDefault();
         const reason = cleanReason(state.dropDraft);
-        if (!reason) { state.error = `Say why in a line, up to ${DROP_REASON_MAX} characters.`; render(); return; }
+        if (!reason) { clearError(); state.error = `Say why in a line, up to ${DROP_REASON_MAX} characters.`; render(); return; }
         run(async () => { await setDropped(idea.id, reason); state.lifecycleForm = null; state.dropDraft = ""; state.ideas = []; await load(); });
       }
     },
@@ -1614,6 +1660,52 @@ function markBuilt(ideaId) {
   });
 }
 
+// The idea page's wait for a re-run: after an answer, and again from "Check
+// again" when that wait ran out. It only reads — the write that starts an
+// extraction is answerBox's setClarification, never this — so asking twice
+// costs nothing. The stage is announced once; the seconds are only on screen.
+async function pollRerun(ideaId, since) {
+  state.waiting = "waiting for extraction…";
+  announce("Waiting for extraction.");
+  try {
+    const got = await awaitRerun(ideaId, since, ({ stage, seconds }) => {
+      state.waiting = stage === "saving" ? "saving the result…" : `waiting for extraction… ${seconds}s`;
+      if (stage === "saving") announce("Saving the result.");
+      render();
+    });
+    if (!got) stall(ideaId, since, "The re-run has not landed yet. It may still be running.");
+    else if (got.error) { state.error = `Extraction failed: ${got.error}`; announce(state.error); }
+    else announce("Extraction finished.");
+  } finally {
+    state.waiting = "";
+  }
+  await load();
+}
+
+// What this idea resembles among your own (lib/similar.js): a link and the
+// reason, nothing else. The match's score orders the list and is never shown,
+// and there is no merging — `raw` is never overwritten. The idea's own
+// capabilities come from the page, which is fresher than the cached list.
+function looksLike(idea, caps) {
+  const others = new Map(state.ideas.map((i) => [i.id, i]));
+  const allCaps = [
+    ...state.caps.filter((c) => c.idea_id !== idea.id),
+    ...caps.map((c) => ({ ...c, idea_id: idea.id }))
+  ];
+  const found = similarIdeas(idea, state.ideas, allCaps).filter((m) => others.has(m.id));
+  if (!found.length) return null;
+  return el("p", { class: "looks-like" },
+    el("span", { class: "lbl" }, "Looks like: "),
+    found.map((m, i) => {
+      const other = others.get(m.id);
+      return [
+        i > 0 && "; ",
+        el("a", { href: `#/idea/${m.id}` }, other.objective || other.raw),
+        el("span", { class: "why" }, ` (${lifecycleOf(other) === "built" ? `${m.why} · built` : m.why})`)
+      ];
+    }));
+}
+
 function answerBox(idea) {
   const form = el("form", {
     class: "answer",
@@ -1623,16 +1715,9 @@ function answerBox(idea) {
       if (!text) return;
       run(async () => {
         const since = new Date().toISOString();
+        // the one write here, and the only thing that starts an extraction
         await setClarification(idea.id, text);
-        state.waiting = "waiting for extraction…";
-        const got = await awaitRerun(idea.id, since, ({ stage, seconds }) => {
-          state.waiting = stage === "saving" ? "saving the result…" : `waiting for extraction… ${seconds}s`;
-          render();
-        });
-        state.waiting = "";
-        if (!got) state.error = "The re-run has not landed yet. Reload in a moment.";
-        else if (got.error) state.error = `Extraction failed: ${got.error}`;
-        await load();
+        await pollRerun(idea.id, since);
       });
     }
   },
@@ -1653,7 +1738,7 @@ function ideaView() {
   // the error must show here or the page says "Loading…" forever
   if (!d) return el("div", {}, header(),
     state.error
-      ? el("p", { class: "error" }, state.error, " ", el("a", { href: "#/" }, "← all ideas"))
+      ? errorLine(el("a", { href: "#/" }, "← all ideas"))
       : el("p", { class: "muted" }, "Loading…"));
 
   const { idea, caps, runs, groups, imageUrl } = d;
@@ -1686,9 +1771,10 @@ function ideaView() {
         class: "link", type: "button", disabled: state.busy,
         onclick: () => run(async () => { await setBuilt(idea.id, false); state.ideas = []; await load(); })
       }, "Back to live")),
-    el("h2", { class: "detail-title" }, idea.objective || idea.raw),
+    el("h1", { class: "detail-title" }, idea.objective || idea.raw),
     el("p", { class: "idea-raw" }, `captured as: ${idea.raw}`),
     idea.clarification && el("p", { class: "idea-raw" }, `you clarified: ${idea.clarification}`),
+    mine && looksLike(idea, caps),
 
     // the inspiration that came with the idea; extraction never saw either
     imageUrl && el("a", { href: imageUrl, target: "_blank", rel: "noopener", class: "media" },
@@ -1704,7 +1790,7 @@ function ideaView() {
       idea.status !== "extracted" && el("span", { class: "tag warn" }, idea.status)
     ),
 
-    state.error && el("p", { class: "error" }, state.error),
+    errorLine(),
     state.waiting && el("p", { class: "muted" }, state.waiting),
 
     idea.is_clear === false && el("section", { class: "ask" },
@@ -1713,9 +1799,10 @@ function ideaView() {
     ),
 
     caps.length > 0 && el("section", {},
-      el("h3", {}, "What it would take"),
+      el("h2", {}, "What it would take"),
       el("ul", { class: "capdetails" }, ordered.map(capabilityDetail)),
-      el("p", { class: "rate-hint" }, "Click a mark to rate yourself on that skill."),
+      ordered.some((c) => c.skill_id) && el("p", { class: "rate-hint" },
+        "Rate yourself on each skill here. It is the same rating as on your profile."),
       state.moved && el("p", { class: "moved", role: "status" }, state.moved)
     ),
 
@@ -1800,7 +1887,7 @@ function proposalCard(p) {
   );
 
   const n = (count, word) => `${count} ${word}${count === 1 ? "" : "s"}`;
-  return el("article", { class: settled ? "card rv gone" : "card rv", id: `p-${p.key}`, tabindex: 0 },
+  return el("article", { class: settled ? "card rv gone" : "card rv", id: `p-${p.key}` },
     el("div", { class: "card-head" },
       el("h3", {}, p.key),
       el("div", { class: "meta" },
@@ -1853,7 +1940,7 @@ function reviewView() {
         el("h1", {}, "Proposed skills"),
         el("p", {}, "The model proposes a skill when nothing in the table covers a capability. Nothing is added until you promote it."))
     ),
-    state.error && el("p", { class: "error" }, state.error),
+    errorLine(),
     el("datalist", { id: "domains" },
       [...new Set(state.skills.map((s) => s.domain).filter(Boolean))].map((d) => el("option", { value: d }))),
     el("div", { class: "layout" },
@@ -1925,7 +2012,7 @@ function reportView() {
     el("p", { class: "hint" },
       "Filed on GitHub as an issue under your display name — the tracker is public, so keep private idea text out. The screenshot stays private."),
     el("button", { type: "submit", class: "btn sm", disabled: state.busy }, state.busy ? "Sending…" : "Send report"),
-    state.error && el("p", { class: "error" }, state.error)
+    errorLine()
   );
 
   const sentLine = () => {
@@ -1940,12 +2027,12 @@ function reportView() {
     : r.github_error ? "filing failed, will retry" : "filing…";
 
   return el("div", { class: "report" }, header(),
-    el("h2", {}, "Report a problem"),
+    el("h1", {}, "Report a problem"),
     el("p", { class: "muted" }, "A bug, or something that could be better. It goes to the tracker with the page you came from and the build you are on."),
     sentLine(),
     form,
     state.reports.length > 0 && el("section", { class: "reports" },
-      el("h3", { class: "sub-h" }, "Your reports"),
+      el("h2", { class: "sub-h" }, "Your reports"),
       el("ul", { class: "plain" },
         state.reports.map((r) => el("li", {},
           el("span", { class: "r-title" }, r.title),
@@ -2060,10 +2147,60 @@ function filtersToHash() {
 }
 
 async function run(fn) {
-  state.busy = true; state.error = null; render();
+  state.busy = true; clearError(); render();
   try { await fn(); }
-  catch (err) { state.error = err.message; }
+  catch (err) { fail(err); }
   finally { state.busy = false; render(); }
+}
+
+function clearError() {
+  state.error = null; state.errorDetail = null; state.stalled.clear();
+}
+
+// A thrown error becomes a sentence for the page (lib/errors.js). The raw
+// message is not thrown away: it goes to the console and sits under "Details"
+// on the error line for as long as that error is the one showing.
+function fail(err) {
+  console.error(err);
+  const { text, detail } = explain(err);
+  state.error = text;
+  state.errorDetail = detail ? { for: text, raw: detail } : null;
+  announce(text);
+  return text;
+}
+
+// A wait for extraction that ran out. The idea and the moment the wait began
+// are kept so "Check again" can look for the same run.
+function stall(ideaId, since, text) {
+  state.stalled.set(ideaId, since);
+  state.error = text;
+  announce(text);
+}
+
+// Looks again for an extraction that is already running or already done.
+// It only reads (runsFor, the idea row, then load()): it never inserts an
+// idea or writes a clarification, which are the two things that start an
+// extraction, and an extraction is a paid API call.
+function checkAgain() {
+  const waits = [...state.stalled];
+  clearError();
+  for (const [id, since] of waits) {
+    if (state.route === "idea" && id === currentIdeaId()) run(() => pollRerun(id, since));
+    else watch(id, since, true);
+  }
+  if (!waits.length) render();
+}
+
+// The page's one error: the sentence, "Check again" when it is a wait that
+// ran out, and the raw message folded under "Details" when there is one.
+function errorLine(...extra) {
+  if (!state.error) return null;
+  const raw = state.errorDetail?.for === state.error ? state.errorDetail.raw : null;
+  return el("div", { class: "error" },
+    el("span", {}, state.error),
+    state.stalled.size > 0 && el("button", { type: "button", class: "sm secondary", disabled: state.busy, onclick: checkAgain }, "Check again"),
+    extra,
+    raw && el("details", {}, el("summary", {}, "Details"), el("code", {}, raw)));
 }
 
 // Display names for whoever the current view mentions; cached for the session.
@@ -2140,7 +2277,11 @@ async function loadRoute() {
   } else if (state.route === "idea") {
     const id = currentIdeaId();
     const [one, caps, runs, groups] = await Promise.all([
-      fetchIdea(id), capabilitiesFor(id), runsFor(id), myGroups()
+      fetchIdea(id), capabilitiesFor(id), runsFor(id), myGroups(),
+      // your other ideas, for "Looks like" and "what moved": read once and
+      // kept (ensureIdeas does nothing once they are loaded), and never
+      // worth failing the page over
+      ensureIdeas().catch(() => {})
     ]);
     // a missing object (upload failed, decision 9) must not take the page down
     const imageUrl = one.image_path ? await mediaUrl(one.image_path).catch(() => null) : null;

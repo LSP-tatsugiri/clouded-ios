@@ -38,8 +38,10 @@ export function cleanReason(text) {
 }
 
 // The first half of the "what moved" line. Every skill in one batch went to
-// the same level, so the first one's level speaks for all of them.
-export function movedHeadline(skillIds, after) {
+// the same level, so the first one's level speaks for all of them. `nameOf`
+// turns a skill id into the name the page shows, so the line never prints
+// an id the reader has not seen.
+export function movedHeadline(skillIds, after, nameOf = (id) => id) {
   const level = after.get(skillIds[0]);
-  return skillIds.length === 1 ? `${skillIds[0]} → ${level}.` : `${skillIds.length} skills → ${level}.`;
+  return skillIds.length === 1 ? `${nameOf(skillIds[0])} → ${level}.` : `${skillIds.length} skills → ${level}.`;
 }
