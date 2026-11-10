@@ -124,13 +124,18 @@ you're walking to class, not while you're at a laptop with a browser open.
 - **Share Extension** — a screenshot or link goes from the share sheet straight
   into the app with a one-line note attached. Two taps. The sentence is the
   idea; the picture or URL rides along as context and is never extracted.
-- **Voice** — Action Button or lock-screen widget, transcribed server-side.
+- **Voice** — the Action Button, Siri or a lock-screen button take one
+  sentence (`ios/clouded/CaptureIntent.swift`, 2026-09-28), and the web
+  capture box can be dictated. The phone or the browser transcribes; nothing
+  is transcribed server-side.
 - **Text** — plain, with no required syntax. Any format requirement is friction,
   and friction at capture is where ideas die.
 - **Mixed** — one entry can carry text plus an image or a source URL. Often the
   picture is what prompted the idea and one sentence is all the model needs.
 - **Offline-first** — writes locally and returns instantly, always. An idea lost
   because you were in a basement is the worst failure this product can have.
+  On the phone the idea row waits in an outbox until there is signal
+  (`ios/Shared/Outbox.swift`, 2026-09-28).
 - **One-line minimum** — an image with no text is a bookmark, not an idea, and
   goes in a separate bucket so it doesn't pollute the skill analysis.
 
@@ -208,7 +213,8 @@ rather than a notes file.
 
 ### Views
 
-- **Closest to buildable** — the default, and the only one that matters at first.
+- **Closest to buildable** — the sort the product is for. Not the default
+  since 2026-09-27: the list and the Group feed open on Newest.
 - Filter by domain, by crux type, by whether a friend can unblock it.
 - **Leverage ranking** — which single skill unlocks the most ideas.
 - **Group feed** — what friends have shared, newest first or closest to
@@ -220,8 +226,9 @@ rather than a notes file.
 ### In v1
 
 - Share Extension capture: text, voice, image
-- Background upload that finishes when connectivity returns (a local queue
-  was cut in Step 6; see `docs/step-6-plan.md` decision 2)
+- Background upload that finishes when connectivity returns. The local queue
+  cut in Step 6 came back on 2026-09-28 for the idea row only
+  (`ios/Shared/Outbox.swift`); the picture still uses the background upload
 - Capability extraction with the clarifying-question path for empty entries
 - Canonical skills table with human-confirmed merges
 - Distance computation against your own profile
@@ -294,7 +301,8 @@ Adding either would be architecture as decoration.
 
 ## Data model
 
-Full DDL in [`schema.sql`](schema.sql). The shape:
+Full DDL in [`supabase/migrations/`](supabase/migrations)
+(`extraction/schema.sql` is the superseded first draft). The core of it:
 
 ```sql
 skills            -- canonical capability table, id is a slug
@@ -354,7 +362,7 @@ before anything was built around it, and it is where prompt work still happens:
 | `extraction/src/index.js` | Runs everything, prints the report. |
 | `extraction/out/extractions.json` | Output of the last run, committed so a prompt change ships with its result. |
 | `extraction/out/proposed.json` | The proposal registry: every unmatched concept, the names it was seen under, which ideas, how many runs, and its review outcome. |
-| `extraction/schema.sql` | The target Postgres schema with RLS policies. |
+| `extraction/schema.sql` | The first draft of the Postgres schema. Superseded by `supabase/migrations/`; kept for history, do not apply. |
 
 ### Running the extraction testbed
 

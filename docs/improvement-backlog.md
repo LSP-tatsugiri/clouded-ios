@@ -5,6 +5,11 @@ Written 2026-09-15 from a full read of `LSP-tatsugiri/clouded-ios` @ `fb5ad88`
 Nothing here is signed off; each item that gets picked becomes a PRD delta
 against `README.md`, not a new PRD.
 
+**Reconciled against the code 2026-11-10** (`docs/superpowers/plans/2026-11-10-backlog-sweep.md`):
+everything that shipped is struck below with its date and commit. Items
+dated 2026-10-16 or 2026-10-22 are committed but not on `main`, so not on
+the live site, until `agent/critique-p1` and `agent/backlog-sweep` merge.
+
 Ordering rule used throughout: does it serve **capture** (the stated primary
 blocker) or the **learning loop** (the stated secondary job)? Anything that
 serves neither is ranked below anything that serves either, however clever.
@@ -15,12 +20,12 @@ serves neither is ranked below anything that serves either, however clever.
 
 | # | Finding | Where | Why it matters |
 |---|---|---|---|
-| 0.1 | `README.md` line 5 still says **"Status: pre-build … No app yet, on purpose."** | `README.md:5` | Seven steps are done and the site is live. It is the first thing a friend reads. |
-| 0.2 | Local testbed defaults to **`claude-sonnet-4-5-20250929`**; the edge function defaults to **`claude-sonnet-5`** | `extraction/src/extract.js:4`, `extraction/src/resolve.js:15` vs `supabase/functions/extract/index.ts:24` | `npm run fresh` without `MODEL=` set silently produces a baseline from a different model than production, under a different `promptHash`. The committed `out/` baseline is documented as sonnet-5. Make the Node default match, or make the default an error. |
-| 0.3 | `proposed_skills` is `select using (true)` for every authenticated user, and its `reasons[]` and `idea_ids[]` are copied out of capability rows that may belong to **private** ideas | `supabase/migrations/20260912215850_init.sql` (RLS block) | A friend cannot read your private idea but can read a sentence explaining why it needs a skill. Small blast radius at ten trusted people; still contradicts "private by default". Restrict the select to `curators`, or strip `reasons` from the shared registry. |
-| 0.4 | **No way to delete an idea** from any client | `web/lib/db.js` has no delete; `ios/` neither | RLS already permits it (`ideas: own … for all`). A capture-first tool with no undo makes a typo permanent, and a wrong capture costs a cent to extract and then sits in the list forever. |
-| 0.5 | `invite()` is `security definer` and lets **any** group creator allowlist **any** email | `20260915071927_groups_invites_profiles.sql` | Anyone with an account can create a group and mint accounts on your Anthropic key. Trust-based by design, but it is the allowlist's only hole and worth naming in `CLAUDE.md` next to the no-cost-cap note. |
-| 0.6 | Sign-up confirmation email still unresolved (`mailer_autoconfirm: false`) | `docs/step-7-plan.md`, loose end | Blocks the one Step 7 item still open: the first real friend. Decide before inviting anyone. |
+| 0.1 | ~~`README.md` line 5 still says **"Status: pre-build … No app yet, on purpose."**~~ **Fixed 2026-09-16** (`795e062`): it now reads "Status: built, Steps 1–7 done". | `README.md:5` | Seven steps are done and the site is live. It is the first thing a friend reads. |
+| 0.2 | ~~Local testbed defaults to **`claude-sonnet-4-5-20250929`**; the edge function defaults to **`claude-sonnet-5`**~~ **Fixed 2026-09-16** (`637238a`): `extract.js` and `resolve.js` default to `claude-sonnet-5`. | `extraction/src/extract.js:4`, `extraction/src/resolve.js:15` vs `supabase/functions/extract/index.ts:24` | `npm run fresh` without `MODEL=` set silently produces a baseline from a different model than production, under a different `promptHash`. The committed `out/` baseline is documented as sonnet-5. Make the Node default match, or make the default an error. |
+| 0.3 | ~~`proposed_skills` is `select using (true)` for every authenticated user, and its `reasons[]` and `idea_ids[]` are copied out of capability rows that may belong to **private** ideas~~ **Already fixed when this was written**: the finding read `init.sql` alone. `20260912222851_proposed_skills_private.sql` dropped the policy on 2026-09-12, and `20260914063115_curators_and_promotion.sql` reopened the select to curators only (`is_curator()`), which is the restriction asked for here. | `supabase/migrations/20260912215850_init.sql` (RLS block) | A friend cannot read your private idea but can read a sentence explaining why it needs a skill. Small blast radius at ten trusted people; still contradicts "private by default". Restrict the select to `curators`, or strip `reasons` from the shared registry. |
+| 0.4 | ~~**No way to delete an idea** from any client~~ **Shipped on the web 2026-09-16** (`6e6ccc1`, `deleteIdea` in `web/lib/db.js`, a two-click button on the idea page). The iOS app still has none. | `web/lib/db.js` has no delete; `ios/` neither | RLS already permits it (`ideas: own … for all`). A capture-first tool with no undo makes a typo permanent, and a wrong capture costs a cent to extract and then sits in the list forever. |
+| 0.5 | `invite()` is `security definer` and lets **any** group creator allowlist **any** email. **Fix written 2026-10-16, awaiting `supabase db push`** (`483615d`, `20261016231832_invite_cap_and_member_consent.sql`): a non-curator may bring five new addresses, a curator is not capped. Until the owner pushes it the hosted database still has the hole. | `20260915071927_groups_invites_profiles.sql` | Anyone with an account can create a group and mint accounts on your Anthropic key. Trust-based by design, but it is the allowlist's only hole and worth naming in `CLAUDE.md` next to the no-cost-cap note. |
+| 0.6 | ~~Sign-up confirmation email still unresolved (`mailer_autoconfirm: false`)~~ **Decided 2026-09-16: confirmation stays on** (`docs/step-7-plan.md`). The sign-up card says to check email since 2026-10-16 (`b297ca2`). What still blocks the first real friend is custom SMTP: `docs/hosting.md` says the built-in mailer refuses addresses outside the project's team, and nothing in the repo records SMTP being set up. | `docs/step-7-plan.md`, loose end | Blocks the one Step 7 item still open: the first real friend. Decide before inviting anyone. |
 
 ---
 
@@ -34,7 +39,7 @@ That is the single largest structural weakness, bigger than any UI gap.
 
 Three changes close it, in increasing size:
 
-1. **Rate from where the gap appears.** On the idea page each capability line
+1. ~~**Rate from where the gap appears.**~~ **Shipped 2026-09-16** (`8a02b91`, `levelMark` and `rate` in `web/app.js`). On the idea page each capability line
    already renders `[ ]` + the skill name. Make the mark itself a control:
    click cycles `none → some → solid` and writes `user_skills`. The profile
    form stops being the only way in, and rating happens at the moment you are
@@ -45,7 +50,7 @@ Three changes close it, in increasing size:
    profile source the design review asked for (§5) *and* the idea list's
    missing end state. The README says the product "ends where work begins";
    it does not have to manage the work to record that it happened.
-3. **Say what moved.** After any profile change, one line: *"parametric-cad
+3. ~~**Say what moved.**~~ **Shipped 2026-09-16** (`8a02b91`, `whatMoved` in `web/app.js`; counts live ideas only since 2026-10-22, `8274a68`). After any profile change, one line: *"parametric-cad
    → solid. 4 ideas moved closer; 2 now have no gap left."* This is the
    output the README claims the whole product exists to produce, and today it
    is never shown as an event — only as a static ranking you have to
@@ -100,13 +105,15 @@ thing the product can do. Highest-value phone work, in order:
 
 ## 4. Web — concrete gaps
 
-- **Search.** There is no text search over `raw`/`objective`. Below 30 ideas
+- ~~**Search.**~~ **Shipped 2026-09-16** (`b491a07`, a client-side search box over the list). There is no text search over `raw`/`objective`. Below 30 ideas
   scrolling works; above it, nothing does. Client-side filter box: 15 lines.
 - **Replace the 2-second poll with Realtime.** `watch()` polls `runsFor()` up
   to 60 times per new idea (`app.js:905`), and the idea page does it again.
   Supabase Realtime on `extraction_runs` insert removes ~60 round-trips per
   capture and the whole `WATCH_WINDOW_MS` guesswork.
-- **The list fetches every capability row you can see, on every load**
+- ~~**The list fetches every capability row you can see, on every load**~~
+  **Fixed 2026-10-16** (`e386a6b`): `ideas()` and `sharedIdeas()` in
+  `web/lib/db.js` embed the rows for the ideas they return. Was:
   (`capabilities()` with no filter) and again on the Group tab. Fine now;
   it is an unbounded query as the group grows. Scope it to the ideas being
   shown, or let PostgREST embed it into the ideas select.
@@ -152,7 +159,9 @@ Both are already written down; neither has been run.
 - **Held-out ideas.** Every idea in `ideas.json` is one the table was written
   around. Run 10 ideas from outside the backlog (a friend's, once one joins)
   and watch the proposed rate. A low rate on *your* ideas proves nothing.
-- **Crux stability.** Committed at 16/19 same-prompt. The UI calls it "the
+- ~~**Crux stability.**~~ **Label softened 2026-10-16** (`2eece15`): the
+  web app, the landing page and both iOS views say "a hard part". The
+  ranked top-2 is still open, parked with `strict: true`. Committed at 16/19 same-prompt. The UI calls it "the
   hard part" as if settled. Either ship the ranked top-2 (schema change,
   already scoped) or soften the label to "a hard part" until the number
   justifies the definite article.
@@ -222,10 +231,12 @@ Each needs one before any code.
 
 ## Suggested order
 
-1. §0 fixes (0.1, 0.2, 0.4 are each under an hour).
-2. §1.1 and §1.3 — rate-in-place and "what moved". Small, and they make every
-   other number in the app mean something.
+1. ~~§0 fixes (0.1, 0.2, 0.4 are each under an hour).~~ Done 2026-09-16,
+   0.4 on the web only. 0.5 is written and waits for `supabase db push`;
+   0.6 waits for custom SMTP.
+2. ~~§1.1 and §1.3 — rate-in-place and "what moved".~~ Shipped 2026-09-16.
 3. §5 CAD split test — before trusting or publishing the headline finding.
-4. §3.1 App Intent — the README's promised capture, cheaply.
+4. ~~§3.1 App Intent — the README's promised capture, cheaply.~~ Shipped
+   2026-09-28, with §3.2 the outbox.
 5. §1.2 + §2 built/dropped/duplicates — before the list gets to 80 — built/dropped shipped 2026-10-22; duplicates still open.
 6. §6 claims + group leverage — when the first real friends are in.

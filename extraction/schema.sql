@@ -1,3 +1,8 @@
+-- SUPERSEDED by supabase/migrations/ (Step 4, done 2026-09-13). Kept for
+-- history; do not apply. The migrations are the schema. This draft has three RLS holes that
+-- 20260912215850_init.sql closed: shared ideas readable by anyone, user_skills
+-- readable with using (true), and no RLS on skills.
+--
 -- Supabase schema. Not needed to run the script — this is where the pipeline
 -- lands once the script's output is good enough to keep.
 --

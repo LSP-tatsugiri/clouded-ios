@@ -1,4 +1,4 @@
-# The two offline suites, on every push and pull request. Neither calls the
+# The offline suites, on every push and pull request. None calls the
 # Anthropic API or Supabase, so this costs no credit. The Deno suite is what
 # holds the Node and edge-function prompts in lockstep (CLAUDE.md); it went
 # red on 2026-09-15 and nothing noticed for a month, which is why this exists.
@@ -13,6 +13,8 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 22 }   # 22, not 20: --test globs need 21+
       - run: node --test "extraction/src/*.test.js"
+      # the web client's pure modules (web/lib/); no browser, no network
+      - run: node --test "web/test/*.test.mjs"
   deno:
     runs-on: ubuntu-latest
     steps:

@@ -10,6 +10,8 @@ what each phase decided and verified — read it before touching `web/`.
 `docs/step-6-plan.md` is the iOS capture app (built on the Mac; read it
 before touching `ios/`); `docs/step-7-plan.md` is sharing and the friend
 skill pool (built on the PC). Both are done and merged.
+`docs/superpowers/plans/2026-11-10-backlog-sweep.md` is the plan for the
+2026-11-10 pass over the backlog and the design critique.
 
 Audience: the author plus ~10 friends. No growth, revenue, or public users.
 Optimise for low friction and few moving parts, not for scale.
@@ -43,8 +45,9 @@ These are load-bearing. Changing one is a product decision, not a refactor.
   tool schema; `src/resolve.js` matches proposed capabilities to the table and
   keeps the proposal registry; `src/distance.js` turns capabilities plus profile
   into gaps; `src/stability.js` measures run-to-run wobble; `data/skills.json`
-  is the canonical table (52 entries; `design` added 2026-09-15 for `ui-mockup`); `schema.sql` is the starting point for
-  the Supabase migration; `out/` is committed on purpose.
+  is the canonical table (52 entries; `design` added 2026-09-15 for `ui-mockup`); `schema.sql` is where the
+  Supabase migrations started — superseded by `supabase/migrations/`, kept
+  for history, not to be applied; `out/` is committed on purpose.
 - `supabase/` — `migrations/` is the schema, `functions/extract/` is the
   pipeline as a Deno edge function with its tests in `functions/_shared/`,
   `scripts/` holds the seed and acceptance drivers. Keys live in gitignored
@@ -96,6 +99,9 @@ Run: `cd extraction && npm start` (uses cached output) or `npm run fresh`
 (re-extracts everything after a prompt change). Needs `ANTHROPIC_API_KEY` in
 `extraction/.env`. The web client is `node web/serve.mjs`; the Deno tests are
 `deno test --allow-read --allow-env supabase/functions/_shared/`.
+`.github/workflows/test.yml` runs the offline suites on every push and pull
+request: the Node tests in `extraction/src/` and `web/test/`, and the Deno
+tests. None of them calls the Anthropic API or Supabase.
 
 ## Build order
 
@@ -179,15 +185,15 @@ while out. Capture is the only phone-first part.
   the whole audience — so trust, deliberately. If that ever stops holding,
   a daily per-user cap in the edge function is a ten-line change.
 
-## Schema fixes needed before the schema is used
+## Schema
 
-In `extraction/schema.sql`:
-
-- `shared ideas are readable` has no role restriction and there is no
-  friend-group table. With the anon key shipped in the client, anyone can read
-  every shared idea. Add `to authenticated` and a groups/membership table.
-- `user_skills` is readable with `using (true)`, making every profile public.
-- `skills` has no RLS enabled, so it is writable through the API.
+`supabase/migrations/` is the schema. `extraction/schema.sql` is the draft
+it started from; do not apply it. The three RLS holes that draft
+had were closed in `20260912215850_init.sql`: shared ideas are readable
+only by `authenticated` members of the group they were shared to
+(`groups`, `group_members`), `user_skills` is visible to group mates
+rather than `using (true)`, and `skills` has RLS on with a select policy
+and no write policy.
 
 ## Working rules for the agent
 
