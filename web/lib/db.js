@@ -116,9 +116,12 @@ export async function groupSkills(userId) {
 
 // RLS hides rows rather than refusing them, so a stranger's link and a
 // mistyped id both come back as no row, not an error.
+// assumption (and iteration below) are read only on the idea page, the one
+// place that shows them; the list's IDEA_COLS and CAPS leave them out. Both
+// need migration 20261110161336 pushed first, or this select is an error.
 export async function idea(id) {
   const row = ok(await db.from("ideas")
-    .select("id, user_id, raw, clarification, objective, domain, is_clear, clarifying_question, status, shared_to, image_path, source_url, created_at, built_at, dropped_at, drop_reason")
+    .select("id, user_id, raw, clarification, objective, assumption, domain, is_clear, clarifying_question, status, shared_to, image_path, source_url, created_at, built_at, dropped_at, drop_reason")
     .eq("id", id).maybeSingle(), "idea");
   if (!row) throw new Error("No such idea, or it is not shared with you.");
   return row;
@@ -128,7 +131,7 @@ export async function idea(id) {
 // shows how a capability got its skill id.
 export async function capabilitiesFor(ideaId) {
   return ok(await db.from("idea_capabilities")
-    .select("id, skill_id, proposed_key, reason, crux_rank, resolved, resolved_from, resolve_why")
+    .select("id, skill_id, proposed_key, reason, iteration, crux_rank, resolved, resolved_from, resolve_why")
     .eq("idea_id", ideaId), "capabilitiesFor");
 }
 

@@ -1127,6 +1127,12 @@ dialog.auth .auth-close:hover { background: var(--flow-wash); color: var(--ink);
 /* other ideas of yours this one resembles: links and the reason, kept quiet */
 .looks-like { color: var(--ink-3); font-size: 0.9rem; margin: 0.5rem 0 0; overflow-wrap: anywhere; }
 .looks-like .why { font: 0.78rem var(--mono); }
+/* the reading extraction took, marked as a guess; "not right?" is the only
+   control on it, and sits inline with the sentence it questions */
+.assumed { color: var(--ink-2); font-size: 0.9rem; margin: 0.5rem 0 0; overflow-wrap: anywhere; }
+.assumed .lbl { font-weight: 600; color: var(--ink-3); }
+/* every #app button is 3.25rem tall; inside a sentence that splits the line */
+.assumed button.link { height: auto; padding: 0.15rem 0; vertical-align: baseline; }
 .meta { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; margin-top: 0.75rem; }
 
 /* the picture that came with an idea */
@@ -1158,11 +1164,15 @@ dialog.auth .auth-close:hover { background: var(--flow-wash); color: var(--ink);
 .capdetail-head .rating { margin-left: auto; }
 @media (max-width: 640px) {
   .capdetail-name { flex-basis: 0; }   /* the tag stays beside the name */
+  /* the second, quieter tag goes under the name rather than squeeze it */
+  .capdetail-head .iter-tag { flex-basis: 100%; margin-left: 1.9rem; }
   .capdetail-head .rating { flex: 1 1 100%; justify-content: flex-start; margin-left: 1.9rem; }
 }
 .capdetail.is-crux .capdetail-name { font-weight: 700; }
 .capdetail.proposed .capdetail-name { font-style: italic; color: var(--ink-3); }
 .crux-tag { font: 0.78rem var(--mono); color: var(--crux); white-space: nowrap; }
+/* quieter than the hard-part tag: grey, no colour of its own */
+.iter-tag { font: 0.78rem var(--mono); color: var(--ink-3); white-space: nowrap; }
 .capdetail-reason { margin: 0.25rem 0 0 1.9rem; color: var(--ink-2); font-size: 0.9rem; }
 .rate-hint { margin: 0.6rem 0 0; font-size: 0.8rem; color: var(--ink-3); }
 .moved { margin: 0.35rem 0 0; font: 500 0.85rem var(--mono); color: var(--ink-2); }

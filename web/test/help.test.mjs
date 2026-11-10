@@ -24,6 +24,8 @@ test("the page says what distance is and what it is not", () => {
   assert.match(everything, /not a time estimate/);
   assert.match(everything, /is a tie/);
   assert.match(everything, /sometimes wrong/);
+  // the idea page's "needs iteration" tag (lib/extracted.js), and that it does not move distance
+  assert.match(everything, /needs iteration[^.]*still counts it one/);
   for (const s of SECTIONS) assert.ok(s.title && s.body.length > 0);
 });
 
