@@ -138,9 +138,13 @@ while out. Capture is the only phone-first part.
   "needs real iteration".
 - **The leverage ranking is biased by how the taxonomy is split.** `skills.json`
   has 16 embedded skills but 8 fabrication ones, and the prompt says to map
-  loosely, so broad skills pick up more ideas and win by construction. Before
-  trusting the CAD result, split `parametric-cad` into 2–3 skills and see whether
-  the ranking changes.
+  loosely, so broad skills pick up more ideas and win by construction. Tested
+  2026-11-10 by splitting `parametric-cad` in three and re-running (local
+  only, not committed): a CAD skill still ranks first, but 6-against-4 became
+  4-against-3 with eight skills tied one idea behind, which is inside
+  run-to-run wobble. Treat any lead of one or two ideas in the leverage list
+  as a tie. Whether to adopt the split is open; numbers in
+  `docs/improvement-backlog.md` §5.
 - **A low `proposed` rate is not evidence the table is good.** The prompt forces
   reuse. The real risk is unrelated capabilities being merged, which is silent.
 - **Media is context, not input.** The README once called screenshots "the

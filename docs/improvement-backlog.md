@@ -171,6 +171,36 @@ Both are already written down; neither has been run.
   `data/skills.json` locally only, `npm start` (a full re-run anyway — the
   baseline is stale, see CLAUDE.md), compare the leverage top 10 against
   `git show HEAD:extraction/out/extractions.json`. ~$0.25–0.30.
+  **Run 2026-11-10** on the PC, sonnet-5, 19 of 19 extracted, the split
+  table and its output kept local and not committed (the baseline in `out/`
+  is untouched). The three new skills were rated "some", as
+  `parametric-cad` is. Leverage, top of each list:
+
+  | Baseline (2026-09-13, unsplit) | Split (2026-11-10) |
+  |---|---|
+  | 6 `parametric-cad` | 4 `cad-solid-modeling` |
+  | 4 `print-tolerancing` | 3 `cad-enclosure` |
+  | 4 `print-joinery` | 3 each: `power-budgeting`, `illustration-fundamentals`, the five Blender skills, `print-material-choice` |
+  | 3 each: five Blender skills, `print-material-choice` | 2 `cad-parametric-family` |
+
+  The model used the split as scoped: golf-mount and gundam went to solid
+  modeling; knob, dryer and (new) screws to the enclosure; pokemon-bin and
+  gridfinity to solid modeling *and* the parametric family.
+  **Reading:** the direction held and the margin did not. A CAD skill is
+  still first, and the three together touch 7 of 16 clear ideas, more than
+  any other family. But the lead went from 6-against-4 to 4-against-3 with
+  eight skills tied one idea behind, and one idea is inside run-to-run
+  wobble: against the baseline, with CAD merged back, skill overlap was
+  0.84 and the crux was the same on 13 of 16 — the same-prompt figures are
+  0.89 and 16 of 19. So "CAD is the highest-leverage skill" was mostly the
+  width of one row. What survives is weaker: fabrication modeling is the
+  largest cluster. Two caveats. There was no same-day control run on the
+  unsplit table, so some of the difference is two months of drift and the
+  `ui-mockup` promotion, not the split. And `print-tolerancing` and
+  `print-joinery` fell from 4 ideas to under 3 in the split run, most likely
+  because two CAD rows now take two of an idea's 3–7 capability slots —
+  splitting a skill moves its neighbours too. Not decided here: whether to
+  adopt the split in `skills.json` (a re-baseline and a seed migration).
 - **Held-out ideas.** Every idea in `ideas.json` is one the table was written
   around. Run 10 ideas from outside the backlog (a friend's, once one joins)
   and watch the proposed rate. A low rate on *your* ideas proves nothing.
@@ -250,7 +280,7 @@ Each needs one before any code.
    0.4 on the web only. 0.5 is written and waits for `supabase db push`;
    0.6 waits for custom SMTP.
 2. ~~§1.1 and §1.3 — rate-in-place and "what moved".~~ Shipped 2026-09-16.
-3. §5 CAD split test — before trusting or publishing the headline finding.
+3. ~~§5 CAD split test — before trusting or publishing the headline finding.~~ Run 2026-11-10: a CAD skill still leads, by one idea, inside the noise; see §5.
 4. ~~§3.1 App Intent — the README's promised capture, cheaply.~~ Shipped
    2026-09-28, with §3.2 the outbox.
 5. §1.2 + §2 built/dropped/duplicates — before the list gets to 80 — built/dropped shipped 2026-10-22; "looks like" links shipped 2026-11-10, merging two ideas still open.
