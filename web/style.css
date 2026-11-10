@@ -1228,11 +1228,15 @@ html.signed-in .landing { display: none; }
 }
 @media (max-width: 900px) { .landing { padding: 0 1rem; } }
 
+/* The landing's own type scale, each level at least 1.25 times the one
+   below: body 1rem, h3 and the hero's lede 1.25rem, h2 1.6rem, the hero
+   heading 2.2rem and up. The signed-in app keeps its sizes. */
 .landing h2 {
   margin: 0 0 1.25rem;
-  font-size: 1.3rem;
+  font-size: 1.6rem;
   font-weight: 800;
-  letter-spacing: -0.02em;
+  line-height: 1.2;
+  letter-spacing: -0.025em;
 }
 
 /* top bar: the mark, and the two doors */
@@ -1240,10 +1244,14 @@ html.signed-in .landing { display: none; }
 .land-logo { display: inline-flex; align-items: center; gap: 0.5rem; color: var(--ink); text-decoration: none; font-size: 1.35rem; font-weight: 800; letter-spacing: -0.04em; }
 .land-logo svg { width: 2rem; height: 1.35rem; }
 .land-nav-actions { display: flex; gap: 0.6rem; }
-/* a phone has room for one door beside the mark. It is "Sign in": accounts
-   are invite-only, so most visitors already have one, and "Create account"
-   is the hero's button a few lines down. */
-@media (max-width: 480px) { .land-nav-actions .btn:not(.ghost) { display: none; } }
+/* a phone gets one door up here. It is "Sign in": accounts are invite-only,
+   so most visitors already have one, and "Create account" is the hero's
+   button a few lines down. The wordmark goes too: the hero's split-flap one
+   is right below, and two in the first 100px is one too many. */
+@media (max-width: 480px) {
+  .land-nav-actions .btn:not(.ghost), .land-logo { display: none; }
+  .land-nav { justify-content: flex-end; }
+}
 /* no last line of one short word. Short blocks are balanced: `pretty` leaves
    a two-line paragraph alone, which is where "fine." sat by itself. */
 .landing p { text-wrap: pretty; }
@@ -1260,7 +1268,7 @@ html.signed-in .landing { display: none; }
 .land-copy { min-width: 0; padding-top: 1rem; }
 .land-h {
   margin: 1.5rem 0 0;
-  font-size: clamp(1.9rem, 3.6vw, 2.8rem);
+  font-size: clamp(2.2rem, 4.4vw, 3.4rem);
   font-weight: 800;
   line-height: 1.05;
   letter-spacing: -0.03em;
@@ -1269,12 +1277,14 @@ html.signed-in .landing { display: none; }
 }
 .land-sub {
   margin: 1rem 0 0;
-  font-size: 1.15rem;
+  font-size: 1.25rem;
   line-height: 1.5;
   color: var(--ink-2);
   max-width: 40ch;
 }
 .land-cta { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem 1.5rem; margin-top: 2rem; }
+/* who the doors open for, said under them rather than only in the dialog */
+.land-list { margin: 1rem 0 0; color: var(--ink-2); max-width: 56ch; }
 .landing .btn { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; }
 .land-invite { color: var(--ink-2); text-decoration: underline; text-underline-offset: 3px; }
 .land-invite:hover { color: var(--ink); }
@@ -1428,8 +1438,8 @@ html.signed-in .landing { display: none; }
    whole landing scrolled sideways: 430px of document in a 381px phone. The
    fragment shrinks to fit once the card is allowed to. */
 .land-steps li.card { min-width: 0; }
-.land-steps h3 { margin: 0; font-size: 1.15rem; font-weight: 700; letter-spacing: -0.01em; }
-.land-steps p { margin: 0.4rem 0 0; color: var(--ink-2); font-size: 0.95rem; }
+.land-steps h3 { margin: 0; font-size: 1.25rem; font-weight: 700; line-height: 1.25; letter-spacing: -0.015em; }
+.land-steps p { margin: 0.4rem 0 0; color: var(--ink-2); }
 .land-frag {
   margin: 0 0 1.1rem;
   padding: 0.85rem;
@@ -1471,4 +1481,9 @@ html.signed-in .landing { display: none; }
 .land-shared { max-width: 48rem; }
 .land-private { margin: 1.25rem 0 0; color: var(--ink-2); max-width: 60ch; }
 @media (max-width: 640px) { .land-shared .card-head { flex-direction: column; gap: 0.6rem; } }
+
+/* the close: the hero's two doors again, after the last section */
+.land-close { padding: 3rem 0 1rem; border-top: 1px solid var(--line); }
+.land-close h2 { margin-bottom: 0; }
+.land-close .land-cta { margin-top: 1.5rem; }
 
