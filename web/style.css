@@ -213,6 +213,46 @@ aside .k { font: 500 1.05rem var(--mono); color: var(--flow); }
 /* the unit under the count: "3 ideas" */
 aside .k small { display: block; font: 0.68rem/1.2 var(--mono); color: var(--ink-3); }
 aside ol li:first-child .k { font-size: 1.35rem; }
+/* the leverage rows are buttons that filter the list (leveragePanel()),
+   classed .link so the buttons' grow-on-hover leaves them alone */
+.leverage .lev-body > p { margin: 0.2rem 0 1rem; color: var(--ink-3); font-size: 0.9rem; }
+:where(#app > :not(.waifu)) .leverage button.lev-row {
+  display: grid;
+  grid-template-columns: 2.6rem 1fr;
+  gap: 0.5rem;
+  width: calc(100% + 1rem);
+  height: auto;
+  margin: -0.3rem -0.5rem;
+  padding: 0.3rem 0.5rem;
+  border-radius: 8px;
+  background: none;
+  color: var(--ink);
+  font-size: 0.9rem;
+  font-weight: 400;
+  line-height: 1.35;
+  text-align: left;
+  text-decoration: none;
+}
+.leverage ol li { display: block; }
+.leverage .lev-row:hover { background: var(--flow-wash); }
+.leverage .lev-row:hover > span:last-child { color: var(--flow); }
+.leverage .lev-row[aria-pressed="true"] { background: var(--flow-wash); box-shadow: inset 0 0 0 1px var(--flow); }
+.leverage .lev-toggle { display: none; }
+/* narrow: above the list, folded to its toggle; wide: beside it, as it was */
+@media (max-width: 900px) {
+  .layout > .leverage { order: -1; padding: 0.35rem 1rem; }
+  .leverage > h2 { display: none; }
+  :where(#app > :not(.waifu)) .leverage .lev-toggle {
+    display: flex; align-items: center; justify-content: space-between; width: 100%;
+    height: 2.75rem; padding: 0; background: none; color: var(--ink);
+    font-size: 1.05rem; font-weight: 800; border-radius: 0; text-decoration: none;
+  }
+  .leverage .lev-toggle::after { content: "+"; font: 500 1.2rem var(--mono); color: var(--ink-3); }
+  .leverage.open .lev-toggle::after { content: "−"; }
+  .leverage:not(.open) .lev-body { display: none; }
+  .leverage.open .lev-body { padding-bottom: 0.65rem; }
+  .leverage .lev-body > p { margin: 0 0 0.75rem; }
+}
 aside a { color: inherit; text-decoration: none; }
 aside a:hover { color: var(--flow); }
 
@@ -222,7 +262,9 @@ aside a:hover { color: var(--flow); }
   border-radius: 18px;
   padding: 1.2rem 1.35rem 1.1rem;
 }
-.cards { display: grid; gap: 0.9rem; }
+/* minmax(0, …): an auto column grows to its widest card's min-content, and
+   the vague card's answer row made that 397px in a 358px phone column */
+.cards { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.9rem; }
 
 /* status marks keep their bracket text and gain a colour */
 .mark { font: 500 0.85rem var(--mono); white-space: pre; color: var(--ink-3); }
@@ -396,7 +438,7 @@ input.txt, .fld input, .row input, :where(#app > :not(.waifu)) textarea {
 button.filter-toggle { height: 2.3rem; padding: 0 0.9rem; border-radius: 10px; white-space: nowrap; flex-shrink: 0; }
 button.filter-toggle.on { color: var(--flow); border-color: var(--flow); }
 button.filter-toggle[aria-expanded="true"] { background: var(--flow-wash); }
-.controls .find .link { flex-shrink: 0; }
+.controls .find .link { flex-shrink: 0; height: 2.3rem; }
 .count { margin-left: auto; font: 0.85rem var(--mono); color: var(--ink-3); white-space: nowrap; flex-shrink: 0; }
 /* the folded-away filters, a row of their own under the bar when open */
 .filter-panel {
@@ -410,16 +452,37 @@ button.filter-toggle[aria-expanded="true"] { background: var(--flow-wash); }
   border-radius: 12px;
   background: var(--bg-2);
 }
+/* the phone's stand-in for both toggles, see filterBar() */
+.controls .show-pick { display: none; }
+/* the skill filter the leverage panel set: one removable chip */
+.chips { flex: 1 1 100%; display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: -0.25rem; }
+:where(#app > :not(.waifu)) button.chip {
+  height: 2rem;
+  padding: 0 0.8rem;
+  border-radius: 999px;
+  border: 1px solid var(--flow);
+  background: var(--flow-wash);
+  color: var(--ink);
+  font-weight: 500;
+  font-size: 0.88rem;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.chip b { font-weight: 700; }
+/* One row on a phone: the show select, search, Filter (and clear), with the
+   count on a line of its own under them. Measured at 390px: the select
+   takes 8.2rem and search keeps at least 4rem with "Filter (4)" and clear
+   both showing; every control stays 2.3rem tall. */
 @media (max-width: 640px) {
   .controls { gap: 0.6rem; }
-  .controls .views, .controls .find { flex: 1 1 100%; }
-  .controls .views .seg { flex: 1 1 auto; min-width: 0; }
-  .controls .views .seg button { flex: 1 1 auto; padding: 0 0.5rem; font-size: 0.9rem; white-space: nowrap; }
-  .controls .wide { display: none; }   /* "Closest to me" reads "Closest" */
-  .controls .find { gap: 0.4rem; }
+  .controls .views { display: none; }
+  .controls .find { flex: 1 1 100%; flex-wrap: wrap; gap: 0.4rem; row-gap: 0.35rem; }
+  .controls .show-pick { display: block; flex: 0 0 8.2rem; width: 8.2rem; padding: 0 0.5rem; }
   .controls .search { flex: 1 1 4rem; padding: 0 0.5rem; }
   button.filter-toggle { padding: 0 0.7rem; }
-  .count { font-size: 0.78rem; }
+  .count { flex: 1 1 100%; order: 9; margin: 0; font-size: 0.78rem; }
   .filter-panel select { flex: 1 1 100%; max-width: none; }
 }
 
@@ -437,6 +500,29 @@ button.filter-toggle[aria-expanded="true"] { background: var(--flow-wash); }
   font-weight: 500;
 }
 .rate-first span { flex: 1 1 16rem; }
+
+/* what the last rating moved (movedBanner() in app.js): the loudest thing
+   on the list, once, after a rating changed something */
+.moved-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  margin: 1.5rem 0 0;
+  padding: 1rem 1.1rem 1rem 1.25rem;
+  border-radius: 14px;
+  background: var(--bg-2);
+  border: 1px solid var(--held);
+  border-left: 4px solid var(--held);
+  box-shadow: var(--lift);
+}
+.moved-banner p { flex: 1; margin: 0; font-size: 1.15rem; line-height: 1.4; font-weight: 500; overflow-wrap: anywhere; }
+.moved-banner b { color: var(--held); font-weight: 800; }
+:where(#app > :not(.waifu)) .moved-banner button.link {
+  width: 2rem; height: 2rem; flex-shrink: 0; margin: -0.3rem -0.4rem 0 0;
+  font-size: 1.35rem; line-height: 1; text-decoration: none;
+}
+.moved-banner + .capture { margin-top: 1.25rem; }
+@media (prefers-reduced-motion: no-preference) { .moved-banner { animation: fade 0.5s ease both; } }
 .rate-first .btn { display: inline-flex; align-items: center; text-decoration: none; white-space: nowrap; }
 
 /* a click anywhere on an idea card opens it (cardProps() in app.js) */
@@ -513,6 +599,24 @@ button.filter-toggle[aria-expanded="true"] { background: var(--flow-wash); }
 .friend-line { color: var(--flow); display: inline-flex; gap: 0.4rem; align-items: center; }
 .friend-line.dim { color: var(--ink-3); }
 
+/* delete from the list (cardDelete() in app.js): small, the foot's last
+   item. Where there is a pointer it shows only while the card is hovered or
+   holds focus, so a list of cards is not a list of red words; opacity, not
+   display, so it stays in the tab order and appears when tabbed to. */
+:where(#app > :not(.waifu)) button.card-del {
+  height: 2rem;
+  padding: 0 0.3rem;
+  font-size: 0.82rem;
+  text-decoration: none;
+}
+:where(#app > :not(.waifu)) button.card-del:hover { color: var(--crux); text-decoration: underline; }
+@media (hover: hover) and (pointer: fine) {
+  .card .card-del { opacity: 0; }
+  .card:hover .card-del, .card:focus-within .card-del { opacity: 1; }
+}
+.card-confirm { margin-top: 0.8rem; padding-top: 0.75rem; border-top: 1px dashed var(--crux); cursor: auto; }
+.card-confirm .hint { margin: 0 0 0.5rem; color: var(--ink); }
+
 /* extracting: the sweep is indeterminate on purpose, see extractingRow() */
 .card.busy .progress {
   margin: 1rem 0 0.2rem;
@@ -579,6 +683,25 @@ button.filter-toggle[aria-expanded="true"] { background: var(--flow-wash); }
   .bar i { animation: none; width: 100%; opacity: 0.5; }
   .flap.done .ch { transition: none; }
 }
+
+/* the list's "?" help (keysDialog in app.js), a child of body, not #app */
+dialog.keys { border: 0; padding: 0; background: none; color: var(--ink); max-width: calc(100vw - 2rem); }
+dialog.keys::backdrop { background: var(--scrim); }
+.keys-card {
+  width: 22rem; max-width: 100%;
+  padding: 1.25rem 1.4rem;
+  border-radius: 18px; border: 1px solid var(--line);
+  background: var(--bg-2); box-shadow: var(--lift);
+}
+.keys-card h2 { margin: 0 0 0.75rem; font-size: 1.15rem; font-weight: 800; }
+.keys-card dl { display: grid; grid-template-columns: auto 1fr; gap: 0.45rem 1rem; margin: 0; align-items: baseline; }
+.keys-card dd { margin: 0; color: var(--ink-2); }
+.keys-card kbd {
+  font: 500 0.82rem var(--mono); padding: 0.1rem 0.45rem; white-space: nowrap;
+  border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 6px; background: var(--bg);
+}
+.keys-card .hint { margin: 0.9rem 0; }
+.keys-card form { margin: 0; }
 
 /* ---------------------------------------------------------------- group */
 
@@ -769,27 +892,18 @@ aside .domains li { display: block; padding: 0; border-top: 1px solid var(--line
   :where(#app > :not(.waifu)) :is(input, textarea, select) { transition: border-color 0.15s, box-shadow 0.2s; }
 }
 
-/* the card under the pointer, tabbed to or being typed in steps forward;
-   the rest of its list steps back. The delay keeps a sweep down the list
-   from flickering. Blur only when motion is welcome. */
-:root { --frost-delay: 120ms; }
+/* the card under the pointer or holding focus lifts a little; the rest of
+   the list stays exactly as it was, readable (2026-11-10: the old fade and
+   blur of the siblings cost legibility, and blurred them for keyboard users
+   too). The rise is motion, so reduced motion keeps only the shadow. */
 .cards > .card:not(.busy):hover, .cards > .card:not(.busy):focus-within {
   position: relative;
   z-index: 1;
-  transform: scale(1.02);
   box-shadow: var(--lift);
 }
-.cards:has(> .card:not(.busy):hover, > .card:not(.busy):focus-within) > .card:not(:hover):not(:focus-within):not(.busy) {
-  opacity: 0.55;
-  transform: scale(0.985);
-}
 @media (prefers-reduced-motion: no-preference) {
-  .cards > .card {
-    transition: filter 0.28s ease var(--frost-delay), opacity 0.28s ease var(--frost-delay),
-      transform 0.28s cubic-bezier(0.2, 0.8, 0.2, 1) var(--frost-delay), box-shadow 0.28s ease var(--frost-delay);
-  }
-  .cards > .card:hover, .cards > .card:focus-within { transition-delay: 0ms; }
-  .cards:has(> .card:not(.busy):hover, > .card:not(.busy):focus-within) > .card:not(:hover):not(:focus-within):not(.busy) { filter: blur(3px); }
+  .cards > .card { transition: transform 0.2s ease-out, box-shadow 0.2s ease-out; }
+  .cards > .card:not(.busy):hover { transform: translateY(-2px); }
 }
 
 /* page switch and card glide, through the View Transitions API. render()
