@@ -144,6 +144,37 @@ export async function runsFor(ideaId, since) {
   return ok(await q, "runsFor");
 }
 
+// The same signal as runsFor(ideaId, since), pushed: a Realtime channel on
+// extraction_runs for one idea (migration 20261110153527). onRow gets the run
+// in runsFor's shape; every row is terminal (output or error), and anything
+// older than `since` is dropped, as the poll's filter would. onStatus gets
+// "SUBSCRIBED", "CHANNEL_ERROR", "TIMED_OUT" or "CLOSED". RLS decides what
+// arrives, so a stranger's idea id hears nothing rather than an error. Read
+// only. Returns the unsubscribe; calling it twice is harmless.
+let channels = 0;
+export function watchRuns(ideaId, since, { onRow, onStatus }) {
+  let ch = null;
+  try {
+    ch = db.channel(`runs:${ideaId}:${++channels}`)
+      .on("postgres_changes",
+        { event: "*", schema: "public", table: "extraction_runs", filter: `idea_id=eq.${ideaId}` },
+        ({ new: r }) => {
+          if (!r?.id || (since && !(Date.parse(r.created_at) > Date.parse(since)))) return;
+          onRow({ id: r.id, created_at: r.created_at, model: r.model, prompt_hash: r.prompt_hash,
+                  error: r.error, clear: r.output?.clear ?? null });
+        })
+      .subscribe((status) => onStatus(status));
+  } catch {
+    // no websocket at all: say so, and the caller's poll carries the wait
+    queueMicrotask(() => onStatus("CHANNEL_ERROR"));
+  }
+  return () => {
+    if (!ch) return;
+    const c = ch; ch = null;
+    db.removeChannel(c).catch(() => {});
+  };
+}
+
 // A short-lived URL for an idea's picture. The bucket is private and its
 // SELECT policy is the ideas visibility, so asking for a URL you may not have
 // fails here rather than leaking; the page shows the idea without it.
