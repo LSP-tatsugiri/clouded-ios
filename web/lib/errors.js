@@ -62,3 +62,35 @@ export function explain(err) {
     detail: raw
   };
 }
+
+// A failed extraction run.
+//
+//   explainRun(raw) -> { text, detail }
+//
+// `extraction_runs.error` is whatever the edge function caught: "API 401:
+// {…authentication_error…}" from the model API, "output truncated
+// (stop_reason=max_tokens)", "capabilities is not an array", or a database
+// message. The sentence says what broke and whether trying again can help;
+// the raw string stays whole in `detail`. First match wins, so a status code
+// is read before the words in its body.
+const RUN = [
+  [/\b40[13]\b|authentication_error|permission_error|x-api-key|API_KEY/i,
+    "the extraction service's key was refused. Trying again will not help — tell the owner."],
+  [/credit balance|billing/i,
+    "the extraction service is out of credit. Trying again will not help until it is topped up — tell the owner."],
+  [/\b429\b|\b529\b|\b50[0234]\b|rate.?limit|overloaded|timed? ?out/i,
+    "the extraction service was busy. Nothing is wrong with the idea, and trying again later can help."],
+  [/truncated|max_tokens|no tool|is not an? (boolean|array|object|string)|no capabilities|malformed|unexpected token|not valid json/i,
+    "the model's answer came back in a shape that could not be read. That is usually a one-off, and trying again can help."]
+];
+
+export function explainRun(raw) {
+  const detail = String(raw ?? "").trim() || null;
+  const hit = detail && RUN.find(([re]) => re.test(detail));
+  return {
+    text: hit
+      ? `Extraction failed: ${hit[1]}`
+      : "Extraction failed. Trying again may help; if it keeps failing, report it with the link at the bottom.",
+    detail
+  };
+}
