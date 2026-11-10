@@ -18,10 +18,13 @@ import {
   revokeInvite, runsFor, session, setBuilt, setClarification, setDisplayName, setDropped, setShare, setSkillLevel, sharedIdeas,
   signIn, signOut, signUp, skills, skillsFor, uploadFeedbackShot, watchRuns
 } from "./lib/db.js";
+// its own line, apart from the list above: the Group tab's claims
+import { addClaim, claimsFor, removeClaim } from "./lib/db.js";
 import { el, mount } from "./lib/dom.js";
 import { explain } from "./lib/errors.js";
 import { DEFAULTS, activeCount, decodeFilters, encodeFilters, needsExtraction } from "./lib/filters.js";
 import { SHORTCUTS, keyAction, nextIndex } from "./lib/keys.js";
+import { claimState, claimsByIdea, groupHeld, memberCount, withClaim } from "./lib/group.js";
 import { DROP_REASON_MAX, buildChoices, cleanReason, isLive, lifecycleOf, movedHeadline, skillsNeeded } from "./lib/lifecycle.js";
 import { UNRATED, levelChoices } from "./lib/rating.js";
 import { similarIdeas } from "./lib/similar.js";
@@ -100,6 +103,7 @@ const state = {
   feed: [],            // shared ideas from every group, newest first (decision 12)
   feedCaps: [],        // their capability rows; apart from caps, which is your own ideas' only
   feedSort: "newest",  // "newest" | "closest"
+  claims: null,        // idea_id -> [user_id] who said "I can do a hard part"; null when idea_claims cannot be read
   friend: null,        // { profile, levels } for the friend profile page
   waifu: { phase: "asking", ideaId: null, line: null }, // #/waifu: asking | sending | saved | failed
   // "signin" | "create" on the sign-in card; the landing's invite link opens it on create
@@ -1313,12 +1317,14 @@ function groupView() {
       state.loadedRoute === "group" ? createGroupCard() : el("p", { class: "muted", role: "status" }, "Loading your group…"));
   }
   const rows = feedRows();
+  // focus goes back to the button just used, as on the Ideas tab (filterBar):
+  // the page is rebuilt under it
   const sortButton = (key, label) => el("button", {
-    type: "button", "aria-pressed": String(state.feedSort === key),
-    onclick: () => { state.feedSort = key; render({ animate: true }); }
+    type: "button", "data-pick": `feed-sort-${key}`, "aria-pressed": String(state.feedSort === key),
+    onclick: () => { state.feedSort = key; render({ animate: true, focus: `[data-pick="feed-sort-${key}"]` }); }
   }, label);
 
-  return el("div", {},
+  return el("div", { class: "group" },
     header(),
     el("div", { class: "page-head" },
       el("div", {},
@@ -1332,7 +1338,7 @@ function groupView() {
       rows.length
         ? el("div", { class: "cards" }, rows.map((r) => feedRow(r, me, rows.length <= 40)))
         : el("p", { class: "muted" }, "Nothing shared yet. Share an idea from its page and it appears here for everyone in the group."),
-      el("div", { class: "side" }, state.groups.map((g) => groupSection(g, me)))
+      el("div", { class: "side" }, groupLeverage(rows), state.groups.map((g) => groupSection(g, me)))
     )
   );
 }
@@ -1352,9 +1358,14 @@ function feedRows() {
     .filter((idea) => lifecycleOf(idea) !== "dropped")
     .map((idea) => ({ idea, extraction: extractionOf(idea, capsById) }));
   if (state.feedSort === "closest") {
-    rows.sort((a, b) =>
-      compareKeys(sortKey(a.extraction, state.levels), sortKey(b.extraction, state.levels)) ||
-      Date.parse(b.idea.created_at) - Date.parse(a.idea.created_at));
+    // a vague idea has no key (sortKey is null) and sorts last; comparing a
+    // null key threw, and the sort button did nothing
+    const key = (r) => sortKey(r.extraction, state.levels);
+    rows.sort((a, b) => {
+      const ka = key(a), kb = key(b);
+      return (ka && kb ? compareKeys(ka, kb) : !ka - !kb) ||
+        Date.parse(b.idea.created_at) - Date.parse(a.idea.created_at);
+    });
   }
   return rows;
 }
@@ -1369,7 +1380,8 @@ function feedRow({ idea, extraction }, me, glide = true) {
       el("div", { class: "card-head" }, el("div", {},
         el("h3", {}, el("a", { href: `#/idea/${idea.id}` }, title)),
         el("p", { class: "raw" }, idea.status === "extracted" ? "Too vague to extract yet" : idea.status))),
-      el("div", { class: "card-foot" }, owner, lifecycleTags(idea), el("span", {}, fmtDate(idea.created_at)))
+      el("div", { class: "card-foot" }, owner, lifecycleTags(idea), el("span", {}, fmtDate(idea.created_at))),
+      claimRow(idea, false)
     );
   }
   const held = state.levels;
@@ -1400,8 +1412,91 @@ function feedRow({ idea, extraction }, me, glide = true) {
       el("span", { class: "spacer" }),
       holderText && el("span", { class: "friend-line" }, mark("friend"), holderText),
       el("span", { class: f.covered ? "friend-line" : "friend-line dim" }, mark(f.covered ? "friend" : "gap"), coverText)
-    )
+    ),
+    claimRow(idea, !!crux)
   );
+}
+
+// Group leverage (docs/improvement-backlog.md §6): the same leverage() the
+// Ideas tab runs, over the feed's live ideas and against what the group holds
+// between them rather than what the reader holds. No new request: the pool
+// and the feed are already loaded for this tab. The pool spans every group
+// you are in, and so does the feed, so with two groups this is one sum over
+// both — one group is the case in practice (decision 1).
+//
+// A list, not a ranking: a lead of one or two ideas is inside run-to-run
+// wobble (CLAUDE.md, known problems), so there are no rank numbers and the
+// first row is not set apart. Equal counts sort by name, so the order does
+// not shuffle with the feed's sort.
+const GROUP_MISSING_MAX = 8;
+function groupLeverage(rows) {
+  const n = memberCount(state.groups);
+  const items = rows.filter((r) => isLive(r.idea)).map(({ idea, extraction }) => ({ id: idea.id, extraction }));
+  const label = (e) => (e.skillId ? skillName(e.skillId) : `${e.proposedName} (proposed)`);
+  const missing = leverage(items, groupHeld(state.levels, state.pool))
+    .sort((a, b) => b.ideaIds.length - a.ideaIds.length || label(a).localeCompare(label(b)));
+  const shown = missing.slice(0, GROUP_MISSING_MAX);
+  const body = () => {
+    if (n < 2) return el("p", {}, "You are the only one here so far. When a friend joins, this lists the skills none of you hold yet.");
+    if (!items.some((i) => i.extraction.clear)) return el("p", {}, "Nothing shared to measure yet. Share an idea and this lists the skills none of you hold for it.");
+    if (!missing.length) return el("p", {}, `Between the ${n} of you, every skill the shared ideas need is held by someone.`);
+    return [
+      el("p", {}, `Between the ${n} of you, these skills are still missing:`),
+      el("ul", { class: "missing" }, shown.map((e) => el("li", {},
+        el("span", {}, label(e)),
+        el("span", { class: "k" }, `${e.ideaIds.length} shared ${e.ideaIds.length === 1 ? "idea" : "ideas"}`)))),
+      el("p", { class: "hint" },
+        missing.length > shown.length && `And ${missing.length - shown.length} more. `,
+        "Each count is how many shared ideas need that skill. A lead of one or two is a tie.")
+    ];
+  };
+  return el("aside", { class: "group-leverage", "aria-label": "What the group is missing" },
+    el("h2", {}, "Still missing"),
+    body());
+}
+
+// Claims (docs/improvement-backlog.md §6): "I can do a hard part" of a group
+// mate's shared idea. Names only, never a count: who said it is the whole
+// signal. The same row serves the feed card and the idea page.
+//
+// state.claims is null when idea_claims could not be read — before the
+// migration is pushed the table is not there — and then nothing about claims
+// is drawn at all, button included: a write would only fail.
+function claimRow(idea, hasCrux) {
+  if (!state.claims) return null;
+  const me = state.session.user.id;
+  const c = claimState(idea, hasCrux, state.claims.get(idea.id) ?? [], me);
+  if (!c.others.length && !c.mine && !c.canClaim) return null;
+  // one data-pick for both buttons: after the write the page is rebuilt, and
+  // focus lands on whichever of the two is there now
+  const pick = `claim-${idea.id}`;
+  const toggle = (on) => run(async () => {
+    await (on ? addClaim(idea.id) : removeClaim(idea.id));
+    state.claims = withClaim(state.claims, idea.id, me, on);
+  }).then(() => app.querySelector(`[data-pick="${pick}"]`)?.focus());
+  return el("div", { class: "claim" },
+    c.others.length > 0 && el("span", { class: "friend-line" }, mark("friend"),
+      `${nameList(c.others)} can do a hard part`),
+    c.mine && el("span", { class: "friend-line" }, mark("friend"), "You said you can do a hard part"),
+    c.mine && el("button", {
+      type: "button", class: "link", "data-pick": pick, disabled: state.busy,
+      "aria-label": "Undo: you said you can do a hard part", onclick: () => toggle(false)
+    }, "undo"),
+    c.canClaim && el("button", {
+      type: "button", class: "btn sm ghost", "data-pick": pick, disabled: state.busy, onclick: () => toggle(true)
+    }, "I can do a hard part"));
+}
+
+// Reads fail soft: any error (no table yet, a policy, the network) is "no
+// claims this time", said once in the console and never on the page.
+let claimsWarned = false;
+async function loadClaims(ideaIds) {
+  try { return claimsByIdea(await claimsFor(ideaIds)); }
+  catch (err) {
+    if (!claimsWarned) console.warn("Claims are off: idea_claims could not be read.", err);
+    claimsWarned = true;
+    return null;
+  }
 }
 
 // ---------------------------------------------------------------- friend
@@ -2250,6 +2345,9 @@ function ideaView() {
       state.moved && el("p", { class: "moved", role: "status" }, state.moved)
     ),
 
+    // "I can do a hard part" and who said so (claimRow(), Group section)
+    idea.shared_to && claimRow(idea, !!crux),
+
     mine && shareControl(idea, groups),
     mine && lifecycleControl(idea, caps),
     mine && deleteControl(idea),
@@ -2746,7 +2844,8 @@ async function loadRoute() {
     state.feed = feed;
     state.feedCaps = feedCaps;
     state.pool = pool;
-    await loadNames([...new Set([...feed.map((i) => i.user_id), ...[...pool.values()].flat()])]);
+    state.claims = await loadClaims(feed.map((i) => i.id));
+    await loadNames([...new Set([...feed.map((i) => i.user_id), ...[...pool.values()].flat(), ...[...(state.claims?.values() ?? [])].flat()])]);
     // members and names in two queries: group_members points at auth.users,
     // not profiles, so PostgREST cannot embed one in the other
     state.groups = await Promise.all(groups.map(async (g) => {
@@ -2766,8 +2865,10 @@ async function loadRoute() {
     ]);
     // a missing object (upload failed, decision 9) must not take the page down
     const imageUrl = one.image_path ? await mediaUrl(one.image_path).catch(() => null) : null;
+    // claims exist on shared ideas only; null (unreadable) hides the row
+    state.claims = one.shared_to ? await loadClaims([id]) : null;
     state.detail = { idea: one, caps, runs, groups, imageUrl };
-    if (one.user_id !== state.session.user.id) await loadNames([one.user_id]);
+    await loadNames([...(one.user_id !== state.session.user.id ? [one.user_id] : []), ...(state.claims?.get(id) ?? [])]);
     // an answer's wait that a route change cut short (pollRerun); unawaited, it reads only
     const since = state.rerun.get(id);
     if (since && !waits.has(id) && Date.parse(since) > Date.now() - WATCH_WINDOW_MS) pollRerun(id, since).catch(fail).then(() => render());
