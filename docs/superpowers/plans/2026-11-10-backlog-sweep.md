@@ -159,7 +159,7 @@ not re-measured.
 2. Web side — **failed**: the batch form's count went stale; list run
    errors showed raw; focus was lost on the 2 s repaint. Fixed in
    `ffc9607` (`holdFocus` in `web/lib/dom.js`).
-3. Re-review of `ffc9607` — re-review pending.
+3. Re-review of `ffc9607` — **passed**. All eight points fixed, no path sends an extra paid call. One regression: focus was carried across a page switch when the browser has no view transition (Back from the list to the Group tab focused the same idea's feed card); fixed in `4950a08`, focus now comes back only on a repaint of the same page. Left as a nit: with two or more look-alikes, "Keep it" on the duplicate confirm returns focus to the first drop link, not necessarily the one used.
 
 ### Still open after round two
 
