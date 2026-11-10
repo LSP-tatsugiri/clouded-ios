@@ -1,0 +1,24 @@
+{
+  "_note": "Edit freely. hash is appended to the page URL. signedOut makes the fake session() return null. needsRoute: the route must be in that ref's ROUTES set in app.js, else the shot is recorded as missing. needsSelector: the selector must exist after load, else missing. steps: {click}, {key}, {type}, {wait} (ms), run in order after load. dark: also shoot in dark mode. fullPage: false shoots the viewport only (a modal dialog). Idea and friend ids are fixture.json's.",
+  "viewports": {
+    "desktop": { "width": 1280, "height": 800, "mobile": false },
+    "phone": { "width": 390, "height": 844, "mobile": true }
+  },
+  "screens": [
+    { "id": "landing", "title": "Landing (signed out)", "hash": "", "signedOut": true },
+    { "id": "signin", "title": "Sign-in dialog", "hash": "#signin", "signedOut": true, "fullPage": false },
+    { "id": "list", "title": "Ideas list", "hash": "#/", "dark": true },
+    { "id": "list-filter", "title": "Ideas list, Filter panel open", "hash": "#/", "needsSelector": ".filter-toggle", "steps": [{ "click": ".filter-toggle" }, { "wait": 300 }] },
+    { "id": "list-closest", "title": "Ideas list, Closest to me", "hash": "#/?sort=closest" },
+    { "id": "idea-crux", "title": "Idea page: clear, with a crux (knob)", "hash": "#/idea/c3c3c3c3-0000-4000-8000-000000000001", "dark": true },
+    { "id": "idea-vague", "title": "Idea page: vague (blender animation)", "hash": "#/idea/c3c3c3c3-0000-4000-8000-000000000004" },
+    { "id": "idea-built", "title": "Idea page: built (golf mount)", "hash": "#/idea/c3c3c3c3-0000-4000-8000-000000000007" },
+    { "id": "profile", "title": "Profile", "hash": "#/profile", "dark": true },
+    { "id": "group", "title": "Group", "hash": "#/group" },
+    { "id": "friend", "title": "A friend's page (Mara)", "hash": "#/friend/a1a1a1a1-0000-4000-8000-000000000001" },
+    { "id": "help", "title": "Help", "hash": "#/help", "needsRoute": "help" },
+    { "id": "review", "title": "Review (curator)", "hash": "#/review", "needsRoute": "review" },
+    { "id": "report", "title": "Report a problem", "hash": "#/report", "needsRoute": "report" },
+    { "id": "waifu", "title": "Waifu capture scene", "hash": "#/waifu", "needsRoute": "waifu" }
+  ]
+}
