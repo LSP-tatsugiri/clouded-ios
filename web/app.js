@@ -34,6 +34,7 @@ import { TICK_MS, WINDOW_MS, costLine, filledAnswers, resultOf, startWait, step 
 import { explainRun } from "./lib/errors.js";
 import { MARKS, SECTIONS } from "./lib/help.js";
 import { skillsNeededList } from "./lib/lifecycle.js";
+import { assumptionOf, iterationTag } from "./lib/extracted.js";
 // build.mjs writes COMMIT into config.js on the host; the hand-written local
 // config.js has no such export, and a named import of a missing export fails
 // at link time, so read it off the namespace
@@ -116,6 +117,8 @@ const state = {
   draft: { title: "", body: "", file: null }, // the report form, kept across re-renders (watch() repaints every 2 s)
   sent: null,          // { id, number, error } after a report is sent, while the number is awaited
   waiting: "",         // progress text while an answer re-runs extraction
+  correcting: false,   // idea page: the "Assumed: … — not right?" form is open
+  correctDraft: "",    // what is typed in it, kept across re-renders
   extracting: new Map(), // idea_id -> { stage, seconds } while the list watches a new idea
   stalled: new Map(),  // idea_id -> since, for waits that ran out: what "Check again" polls for
   rerun: new Map(),    // idea_id -> since, for answers sent this session whose re-run has not landed: resumed on return
@@ -2082,6 +2085,8 @@ function capabilityDetail(cap, n) {
       mark(k),
       el("span", { class: "capdetail-name" }, capLabel(cap)),
       isCrux && el("span", { class: "crux-tag" }, "a hard part"),
+      // quiet, and only for "iteration": a property of the task, not a size
+      iterationTag(cap) && el("span", { class: "iter-tag" }, iterationTag(cap)),
       // a proposed capability has no skill to rate and stays text
       cap.skill_id && levelControl(cap.skill_id, name, `Your level: ${capLabel(cap)}`,
         (level) => rate(cap.skill_id, level, name))
@@ -2330,7 +2335,10 @@ function duplicateConfirm(idea, other) {
       el("button", { class: "btn sm ghost", type: "button", disabled: state.busy, onclick: keep }, "Keep it")));
 }
 
-function answerBox(idea) {
+// The vague idea's answer box, and (with `correct`) the form behind a clear
+// idea's "Assumed: … — not right?". Both are the same write: the webhook
+// re-runs extraction whenever clarification changes, whatever is_clear says.
+function answerBox(idea, correct = false) {
   const form = el("form", {
     class: "answer",
     onsubmit: (e) => {
@@ -2338,24 +2346,49 @@ function answerBox(idea) {
       const text = form.elements.clarification.value.trim();
       // one submit, one write: a second press while it is in flight does nothing
       if (!text || state.busy) return;
+      // an unchanged clarification starts no run, and the wait would never end
+      if (text === (idea.clarification ?? "").trim()) {
+        clearError(); state.error = "That is what it already says. Change it to re-extract."; render(); return;
+      }
       run(async () => {
         const since = new Date().toISOString();
         // the one write here, and the only thing that starts an extraction
         await setClarification(idea.id, text);
+        state.correcting = false; state.correctDraft = "";
         state.rerun.set(idea.id, since);
         await pollRerun(idea.id, since);
       });
     }
   },
-    el("label", { class: "fld" }, "Your answer",
+    el("label", { class: "fld" }, correct ? "What did you mean?" : "Your answer",
       el("textarea", {
         name: "clarification", rows: 2, required: true,
-        placeholder: "Say what the thing actually is"
-      })),
+        placeholder: correct ? "Say what the thing actually is, in a line" : "Say what the thing actually is",
+        oninput: correct ? (e) => { state.correctDraft = e.target.value; } : undefined
+      }, correct ? state.correctDraft : null)),   // a textarea's value is its text, not an attribute
     el("p", { class: "hint" }, "Answering re-runs extraction. That is one API call, about a cent."),
-    el("button", { type: "submit", class: "btn sm", disabled: state.busy }, state.busy ? "Working…" : "Answer and re-extract")
+    el("div", { class: "row" },
+      el("button", { type: "submit", class: "btn sm", disabled: state.busy }, state.busy ? "Working…" : correct ? "Correct and re-extract" : "Answer and re-extract"),
+      correct && el("button", { type: "button", class: "btn sm ghost", onclick: () => { state.correcting = false; render(); } }, "Cancel"))
   );
   return form;
+}
+
+// "Assumed: <reading> — not right?" under the title of a clear idea whose
+// wording admitted more than one reading. Only the owner gets the control:
+// a friend could not save a clarification (RLS), so they see the line alone.
+function assumedLine(idea, mine) {
+  const text = assumptionOf(idea);
+  if (!text) return null;
+  return [
+    el("p", { class: "assumed" },
+      el("span", { class: "lbl" }, "Assumed: "), text,
+      mine && !state.correcting && [" — ", el("button", {
+        type: "button", class: "link", disabled: state.busy,
+        onclick: () => { state.correcting = true; clearError(); render({ focus: ".assumed + .answer textarea" }); }
+      }, "not right?")]),
+    mine && state.correcting && answerBox(idea, true)
+  ];
 }
 
 function ideaView() {
@@ -2405,6 +2438,7 @@ function ideaView() {
     el("h1", { class: "detail-title" }, idea.objective || idea.raw),
     el("p", { class: "idea-raw" }, `captured as: ${idea.raw}`),
     idea.clarification && el("p", { class: "idea-raw" }, `you clarified: ${idea.clarification}`),
+    assumedLine(idea, mine),
     mine && looksLike(idea, caps),
 
     // the inspiration that came with the idea; extraction never saw either
@@ -2994,6 +3028,7 @@ addEventListener("hashchange", () => {
   state.confirmDuplicate = null;
   state.friend = null;
   state.waiting = "";
+  state.correcting = false; state.correctDraft = "";
   run(load);
 });
 

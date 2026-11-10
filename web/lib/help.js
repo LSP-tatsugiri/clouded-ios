@@ -37,6 +37,7 @@ export const SECTIONS = [
     title: "What distance is not",
     body: [
       "It is not a size. An easy capability and a very hard one each count one, so a small project and a long one can show the same distance.",
+      "A capability tagged needs iteration is one no existing guide walks you through, so it takes real trial and error on this project; distance still counts it one, like any other.",
       "It is not a time estimate. Nothing here says how long anything takes, because nothing here knows.",
       "And it does not settle what to learn next. In Highest leverage, a lead of one or two ideas is a tie: broadly worded skills collect more ideas just by being broad."
     ]

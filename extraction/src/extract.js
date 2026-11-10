@@ -23,16 +23,19 @@ Two hard rules:
 2. EXTRACT BY DEFAULT. ONLY ASK WHEN THERE IS GENUINELY NOTHING THERE.
    Captured ideas are terse, and terse is not vague. "shower body dryer" and
    "gridfinity tool cutout organizer" each name a thing that does something —
-   extract those. Take the most reasonable concrete reading and say what you
-   assumed in the objective.
+   extract those. Take the most reasonable concrete reading.
+   When the wording admits more than one reading, state the one you took in
+   assumption, one short sentence the person can check ("read as decorative
+   PCB art, not a coaster that senses the cup"). When only one sensible reading
+   exists, or the person's clarification already settles it, assumption is null.
    Set clear=false ONLY when the entry names no object and no action: a bare
    medium, material or category with nothing attached to it ("blender animation",
    "3d printed", "rc truck"). Then ask ONE short question that would make it
    concrete.
    An entry that names a kind of thing to build ("personal todo list app") IS
    extractable, even with no details: assume the most ordinary form of it and
-   state that assumption in the objective. Missing preferences — platform,
-   features, style, size — are never a reason to ask. Only a missing object is.
+   state that in assumption. Missing preferences — platform, features, style,
+   size — are never a reason to ask. Only a missing object is.
    When in doubt, extract. A wrong guess is visible and easy to correct; a
    question about something the person already told you is just friction.
 
@@ -51,16 +54,31 @@ ${skillList}
 Aim for 3-7 capabilities. List what is genuinely required, including the
 unglamorous mechanical or physical parts — those are usually what actually stops
 a project. If one capability is clearly the crux (the part most likely to kill
-the project), mark is_crux true on exactly that one.`;
+the project), mark is_crux true on exactly that one.
 
+For each capability, say what kind of work it is in iteration:
+"tutorial" when a competent person could get it working by following existing
+guides or documentation; "iteration" when it needs real trial and error on this
+particular project, because no guide covers this case. That is a property of
+the task, not of its length: never estimate time.`;
+
+// strict: true (2026-11-10) turns on grammar-constrained sampling, so the tool
+// input always matches this schema. Strict mode wants additionalProperties:
+// false on every object, and every property is listed in required so the
+// output order is the schema order; nullable is a type array. Supported
+// keywords only: enum, simple-quantifier pattern; no maxItems, no
+// minLength. See https://platform.claude.com/docs/en/build-with-claude/structured-outputs
+// (JSON Schema limitations). The Deno tests check the shape.
 const TOOL = {
   name: "record_extraction",
   description: "Record the analysis of one raw idea.",
+  strict: true,
   input_schema: {
     type: "object",
     properties: {
       clear: { type: "boolean", description: "false if the entry is a subject/category rather than an actual idea" },
       clarifying_question: { type: ["string", "null"], description: "one short question, only when clear=false" },
+      assumption: { type: ["string", "null"], description: "the reading you took when the wording admits more than one, one short sentence; null when the idea is unambiguous" },
       objective: { type: ["string", "null"], description: "one sentence: what the finished thing does" },
       domain: { type: ["string", "null"] },
       capabilities: {
@@ -75,13 +93,20 @@ const TOOL = {
               description: "kebab-case slug, 2-5 words, same style as the canonical ids; null when skill_id is set"
             },
             reason: { type: "string", description: "why this idea needs it, one clause" },
+            iteration: {
+              type: "string",
+              enum: ["tutorial", "iteration"],
+              description: "tutorial: existing guides would get a competent person there; iteration: needs real trial and error on this project"
+            },
             is_crux: { type: "boolean" }
           },
-          required: ["skill_id", "proposed_name", "reason", "is_crux"]
+          required: ["skill_id", "proposed_name", "reason", "iteration", "is_crux"],
+          additionalProperties: false
         }
       }
     },
-    required: ["clear", "clarifying_question", "objective", "domain", "capabilities"]
+    required: ["clear", "clarifying_question", "assumption", "objective", "domain", "capabilities"],
+    additionalProperties: false
   }
 };
 
@@ -124,7 +149,9 @@ export async function extract(raw, clarification) {
 
 // Sonnet 5 sometimes returns `capabilities` as a JSON-encoded string: either
 // the array itself, or the whole record wrapped in it. Both decode cleanly.
-// Same logic as supabase/functions/_shared/resolve.ts; the Deno tests import
+// With strict: true on TOOL (2026-11-10) a string there no longer matches the
+// schema, so this should be unreachable; it stays as a defensive decode until
+// a re-baseline shows `repaired` never set. Same logic as supabase/functions/_shared/resolve.ts; the Deno tests import
 // this file and assert the two agree.
 export function repairExtraction(o) {
   if (!o || typeof o !== "object") return { record: o, repaired: null };

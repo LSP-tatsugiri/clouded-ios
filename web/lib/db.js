@@ -116,11 +116,15 @@ export async function groupSkills(userId) {
 
 // RLS hides rows rather than refusing them, so a stranger's link and a
 // mistyped id both come back as no row, not an error.
+// assumption (and iteration below) are read only on the idea page, the one
+// place that shows them; the list's IDEA_COLS and CAPS leave them out. Before
+// migration 20261110161336 is pushed they are dropped from the select (lacksColumn).
 export async function idea(id) {
   const cols = "id, user_id, raw, clarification, objective, domain, is_clear, clarifying_question, status, shared_to, image_path, source_url, created_at, built_at, dropped_at, drop_reason";
-  const read = (extra) => db.from("ideas").select(cols + extra).eq("id", id).maybeSingle();
-  let res = hasDuplicateOf ? await read(", duplicate_of") : null;
-  if (!res || lacksDuplicateOf(res.error)) res = await read("");
+  const read = () => db.from("ideas").select([cols, ...newCols("duplicate_of", "assumption")].join(", ")).eq("id", id).maybeSingle();
+  let res = await read();
+  // one retry per column the hosted database does not have yet
+  while (lacksColumn(res.error)) res = await read();
   const row = ok(res, "idea");
   if (!row) throw new Error("No such idea, or it is not shared with you.");
   return row;
@@ -129,9 +133,12 @@ export async function idea(id) {
 // resolved_from and resolve_why are only fetched here, on the one page that
 // shows how a capability got its skill id.
 export async function capabilitiesFor(ideaId) {
-  return ok(await db.from("idea_capabilities")
-    .select("id, skill_id, proposed_key, reason, crux_rank, resolved, resolved_from, resolve_why")
-    .eq("idea_id", ideaId), "capabilitiesFor");
+  const read = () => db.from("idea_capabilities")
+    .select(["id, skill_id, proposed_key, reason, crux_rank, resolved, resolved_from, resolve_why", ...newCols("iteration")].join(", "))
+    .eq("idea_id", ideaId);
+  let res = await read();
+  while (lacksColumn(res.error)) res = await read();
+  return ok(res, "capabilitiesFor");
 }
 
 // Every attempt ever, newest first. `since` finds the run an answer triggered:
@@ -348,15 +355,24 @@ export async function setDropped(id, reason, duplicateOf = null) {
   return ok(await write(row), "setDropped");
 }
 
-// ideas.duplicate_of arrives with migration 20261110161103_idea_duplicate_of,
-// which the owner pushes by hand. Until then the hosted database refuses any
-// read or write that names it: Postgres says undefined column (42703) on a
-// select, PostgREST says not in the schema cache (PGRST204) on an update. Both
-// mean "retry without it"; nothing was written. The first refusal is
-// remembered so later calls skip straight to the plain query.
+// Three columns arrive with migrations the owner pushes by hand:
+// ideas.duplicate_of (20261110161103), ideas.assumption and
+// idea_capabilities.iteration (20261110161336). Until then the hosted database
+// refuses any read or write that names one: Postgres says undefined column
+// (42703) on a select, PostgREST says not in the schema cache (PGRST204) on an
+// update. Both mean "retry without it"; nothing was written. A refusal is
+// remembered so later calls leave that column out from the start.
+const absent = new Set();
+const newCols = (...names) => names.filter((n) => !absent.has(n));
+function lacksColumn(error) {
+  if (!error || (error.code !== "42703" && error.code !== "PGRST204")) return false;
+  const col = ["duplicate_of", "assumption", "iteration"].find((n) => !absent.has(n) && (error.message ?? "").includes(n));
+  if (col) absent.add(col);
+  return !!col;
+}
 let hasDuplicateOf = true;
 function lacksDuplicateOf(error) {
-  const missing = !!error && (error.code === "42703" || error.code === "PGRST204") && /duplicate_of/.test(error.message ?? "");
+  const missing = lacksColumn(error) && absent.has("duplicate_of");
   if (missing) hasDuplicateOf = false;
   return missing;
 }

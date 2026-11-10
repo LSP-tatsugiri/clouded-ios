@@ -72,9 +72,15 @@ function record(reg, key, name, reason, ideaId, runId) {
 
 // ---------- semantic ----------
 
+// strict: true as on record_extraction (2026-11-10). This schema is flat and
+// has never come back double-encoded, but the code below trusts `match` to be
+// one of the three enum values and `id` to be a string or null; strict mode
+// guarantees both for free. Kept equal to RESOLVE_TOOL in
+// supabase/functions/_shared/resolve.ts; the Deno tests compare them.
 const TOOL = {
   name: "resolve_skill",
   description: "Decide what a proposed capability actually is.",
+  strict: true,
   input_schema: {
     type: "object",
     properties: {
@@ -82,9 +88,11 @@ const TOOL = {
       id: { type: ["string", "null"], description: "the canonical skill id or the previous proposal slug; null when new" },
       why: { type: "string", description: "one clause" }
     },
-    required: ["match", "id", "why"]
+    required: ["match", "id", "why"],
+    additionalProperties: false
   }
 };
+export { TOOL as RESOLVE_TOOL };
 
 async function semantic(name, reason, ideaRaw, previous) {
   const key = process.env.ANTHROPIC_API_KEY;
@@ -159,13 +167,15 @@ export async function resolveExtraction(extraction, idea, reg, runId) {
       const e = record(reg, key, name, cap.reason, idea.id, runId); if (cap.is_crux) e.crux_count++;
     }
   }
-  // two capabilities that resolved to the same skill collapse into one (keep crux)
+  // two capabilities that resolved to the same skill collapse into one (keep
+  // crux, and keep "iteration" if either half needed it)
   const seen = new Map();
   extraction.capabilities = extraction.capabilities.filter((cap) => {
     if (!cap.skill_id) return true;
     const prev = seen.get(cap.skill_id);
     if (!prev) { seen.set(cap.skill_id, cap); return true; }
     if (cap.is_crux) prev.is_crux = true;
+    if (cap.iteration === "iteration") prev.iteration = "iteration";
     prev.merged_from = [...(prev.merged_from || []), cap.resolved_from || cap.proposed_name].filter(Boolean);
     return false;
   });

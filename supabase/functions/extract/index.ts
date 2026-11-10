@@ -65,7 +65,7 @@ export async function run(ideaId: string, db = new Db()): Promise<void> {
     await resolveExtraction(output, idea, reg, runId, { skills, semantic: makeSemantic(MODEL, skills) });
     await db.writeCapabilities(ideaId, capabilityRows(ideaId, runId, output.capabilities));
     await db.markIdea(ideaId, {
-      objective: output.objective, domain: output.domain, is_clear: output.clear,
+      objective: output.objective, assumption: output.assumption ?? null, domain: output.domain, is_clear: output.clear,
       clarifying_question: output.clarifying_question, status: "extracted"
     });
     await db.saveRegistry(reg);

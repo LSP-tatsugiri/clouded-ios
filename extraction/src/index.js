@@ -78,13 +78,14 @@ for (const r of clear) {
   const d = distanceOf(r.ex, held);
   console.log(`\n${"=".repeat(72)}`);
   console.log(`${r.raw}`);
+  if (r.ex.assumption) console.log(`assumed: ${r.ex.assumption}`);
   console.log(`${d.gap} short${d.partial ? ` · ${d.partial} partial` : ""}${d.have ? ` · ${d.have} held` : ""}`);
   console.log("-".repeat(72));
   for (const cap of r.ex.capabilities) {
     const c = classify(cap, held);
     const mark = { have: "[x]", partial: "[~]", gap: "[ ]", proposed: "[?]" }[c];
     const label = cap.skill_id ? skillName[cap.skill_id] || cap.skill_id : `${cap.proposed_name}  (proposed)`;
-    console.log(`  ${mark} ${label}${cap.is_crux ? "   <-- crux" : ""}`);
+    console.log(`  ${mark} ${label}${cap.iteration === "iteration" ? "  (iteration)" : ""}${cap.is_crux ? "   <-- crux" : ""}`);
   }
 }
 
