@@ -515,7 +515,6 @@ button.filter-toggle[aria-expanded="true"] { background: var(--flow-wash); }
   border-radius: 14px;
   background: var(--bg-2);
   border: 1px solid var(--held);
-  border-left: 4px solid var(--held);
   box-shadow: var(--lift);
 }
 .moved-banner p { flex: 1; margin: 0; font-size: 1.15rem; line-height: 1.4; font-weight: 500; overflow-wrap: anywhere; }
