@@ -54,6 +54,28 @@ export function cleanReason(text) {
   return t && t.length <= DROP_REASON_MAX ? t : null;
 }
 
+// The reason stored when `idea` is dropped as a duplicate of `other`, from the
+// "Looks like" line: `duplicate of “<other's objective, or raw>”`, cut at a
+// word with an ellipsis so it always passes cleanReason. A shared idea stays
+// readable by its group after it is dropped, so when `other` is not shared to
+// the same group its text is left out rather than shown to them.
+const DUP_PREFIX = "duplicate of “";
+const DUP_FALLBACK = "duplicate of another of my ideas";
+
+export function duplicateReason(idea, other) {
+  if (idea.shared_to && other.shared_to !== idea.shared_to) return DUP_FALLBACK;
+  const text = (other.objective?.trim() || other.raw?.trim() || "").replace(/\s+/g, " ");
+  if (!text) return DUP_FALLBACK;
+  const whole = `${DUP_PREFIX}${text}”`;
+  if (whole.length <= DROP_REASON_MAX) return whole;
+  const room = DROP_REASON_MAX - DUP_PREFIX.length - "…”".length;
+  let cut = text.slice(0, room);
+  const space = cut.lastIndexOf(" ");
+  if (space > room * 0.6) cut = cut.slice(0, space);
+  cut = cut.replace(/[\uD800-\uDBFF]$/, "").replace(/[\s,;:.–—-]+$/, "");
+  return `${DUP_PREFIX}${cut}…”`;
+}
+
 // The first half of the "what moved" line. Every skill in one batch went to
 // the same level, so the first one's level speaks for all of them. `nameOf`
 // turns a skill id into the name the page shows, so the line never prints
