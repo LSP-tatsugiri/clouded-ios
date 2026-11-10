@@ -812,19 +812,38 @@ function setStatus(text, detail = null, error = false) {
 // radios and the "not rated" tag (CSS, off the radios), so nothing claims a
 // rating the database does not have and the same level can be picked again
 // (a radio left checked fires no change).
+//
+// The level to go back to is the last one the database is known to hold, not
+// the screen as it was at this click: with two picks in flight the second
+// one's "before" is the first one's unsaved guess. `saving` keeps that level
+// per skill for as long as a write for it is in flight.
+const saving = new Map();   // skill id -> { n: writes in flight, was: level in the database }
+
 function save(skillId, level, control) {
   const before = new Map(state.levels);
+  const flight = saving.get(skillId) ?? { n: 0, was: state.levels.get(skillId) };
+  flight.n++;
+  saving.set(skillId, flight);
   state.levels.set(skillId, level);
   refreshTally();
   setStatus("saving…");
   setSkillLevel(state.session.user.id, skillId, level)
-    .then(ensureIdeas)
-    .then(() => setStatus(whatMoved([skillId], before, state.levels)))
-    .catch((err) => {
+    .then(async () => {
+      flight.was = level;
+      // the rating is saved from here on: failing to read the ideas only
+      // costs the "what moved" line, and must not undo it on screen
+      try {
+        await ensureIdeas();
+        setStatus(whatMoved([skillId], before, state.levels));
+      } catch (err) {
+        console.error(err);
+        setStatus("saved");
+      }
+    }, (err) => {
       console.error(err);
       // unless something newer was picked for this skill while this was in flight
       if (state.levels.get(skillId) === level) {
-        const was = before.get(skillId);
+        const was = flight.was;
         if (was) state.levels.set(skillId, was); else state.levels.delete(skillId);
         refreshTally();
         for (const r of control.querySelectorAll("input[type=radio]")) r.checked = r.value === was;
@@ -832,7 +851,8 @@ function save(skillId, level, control) {
       }
       const { text, detail } = explain(err);
       setStatus(text, detail, true);
-    });
+    })
+    .finally(() => { if (--flight.n === 0) saving.delete(skillId); });
 }
 
 // The list loads ideas and capabilities; the profile and the idea page do
