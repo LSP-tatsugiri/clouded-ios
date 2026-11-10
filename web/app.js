@@ -20,7 +20,8 @@ import {
 } from "./lib/db.js";
 import { el, mount } from "./lib/dom.js";
 import { explain } from "./lib/errors.js";
-import { DEFAULTS, activeCount, decodeFilters, encodeFilters } from "./lib/filters.js";
+import { DEFAULTS, activeCount, decodeFilters, encodeFilters, needsExtraction } from "./lib/filters.js";
+import { SHORTCUTS, keyAction, nextIndex } from "./lib/keys.js";
 import { DROP_REASON_MAX, buildChoices, cleanReason, isLive, lifecycleOf, movedHeadline, skillsNeeded } from "./lib/lifecycle.js";
 import { UNRATED, levelChoices } from "./lib/rating.js";
 import { similarIdeas } from "./lib/similar.js";
@@ -68,11 +69,14 @@ const state = {
   skills: [],          // 52 rows, seeded by migration, cached after first load
   levels: new Map(),   // skill_id -> none | some | solid
   // both mirrored in the hash query, see lib/filters.js and filtersToHash()
-  filters: { domain: "", crux: "", proposed: false, friend: false, q: "", lifecycle: "live" },
+  filters: { domain: "", crux: "", proposed: false, friend: false, skill: "", q: "", lifecycle: "live" },
   // Ideas tab: newest | closest (the distance sort). Newest by default, as the
   // Group feed already was — what you just captured is what you came to see.
   sort: "newest",
   filterOpen: false,   // the list's Filter disclosure; in state so a re-render keeps it open
+  leverageOpen: false, // the list's "What to learn next" disclosure, which only a narrow window folds
+  confirmCard: null,   // id of the list card whose Delete is waiting for a second click
+  lastMoved: null,     // { head, parts, seen }: the last rating that moved an idea, for the list's banner
   pool: new Map(),     // skill_id -> [user_id] of group mates holding it solid
   names: new Map(),    // user_id -> display_name, for everyone in your groups
   curator: null,       // null = not yet checked
@@ -448,11 +452,46 @@ function cardProps(idea, cls, glide, anywhere = true) {
     style: glide ? `view-transition-name: idea-${idea.id}` : null,
     onclick: anywhere && ((e) => {
       if (e.defaultPrevented || e.button !== 0 || e.detail > 1 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
-      if (e.target.closest("a, button, input, textarea, select, label, form")) return;
+      if (e.target.closest("a, button, input, textarea, select, label, form, .card-confirm")) return;
       if (String(getSelection()) !== "") return;
       location.hash = `#/idea/${idea.id}`;
     })
   };
+}
+
+// Delete from the list: the idea page's two steps (deleteControl), inline on
+// your own cards. The button is the last thing in the card's foot and quiet
+// until the card is hovered or holds focus (always there on a touch screen);
+// the question takes its place under the foot. Focus goes to "Keep it", so a
+// second Enter cannot delete, and after a delete to the card that moved up.
+const cardLinks = () => [...app.querySelectorAll(".list .card.idea h3 a")];
+
+function cardDelete(idea) {
+  return state.confirmCard !== idea.id && el("button", {
+    type: "button", class: "link danger card-del", "aria-label": `Delete idea: ${idea.objective || idea.raw}`,
+    onclick: () => { state.confirmCard = idea.id; render({ focus: `[data-idea="${idea.id}"] .keep` }); }
+  }, "Delete");
+}
+
+function cardConfirm(idea) {
+  if (state.confirmCard !== idea.id) return null;
+  const at = `[data-idea="${idea.id}"]`;
+  return el("div", { class: "card-confirm", role: "group", "aria-label": "Delete this idea" },
+    el("p", { class: "hint" }, "Delete this idea? Its extraction goes with it."),
+    el("div", { class: "row" },
+      el("button", { class: "btn sm warn", type: "button", disabled: state.busy, onclick: async () => {
+        const i = cardLinks().findIndex((a) => a.closest(at));
+        await run(async () => {
+          state.confirmCard = null;
+          await deleteIdea(idea.id, idea.image_path);
+          announce("Idea deleted.");
+          await load();
+        });
+        const links = cardLinks();
+        (links[i] ?? links[i - 1] ?? captureBox).focus();
+      } }, "Yes, delete"),
+      el("button", { class: "btn sm ghost keep", type: "button",
+        onclick: () => { state.confirmCard = null; render({ focus: `${at} .card-del` }); } }, "Keep it")));
 }
 
 function ideaRow({ idea, extraction }, glide = true) {
@@ -482,8 +521,10 @@ function ideaRow({ idea, extraction }, glide = true) {
       friendLine({ idea, extraction }),
       el("span", { class: "spacer" }),
       el("span", {}, "you"),
-      el("span", {}, fmtDate(idea.created_at))
-    )
+      el("span", {}, fmtDate(idea.created_at)),
+      cardDelete(idea)
+    ),
+    cardConfirm(idea)
   );
 }
 
@@ -567,7 +608,8 @@ function vagueRow(idea, glide = true) {
         form,
         // answering runs extraction server-side, which is a paid API call
         el("p", { class: "hint" }, "Answering re-runs extraction, about a cent.")]),
-    el("div", { class: "card-foot" }, lifecycleTags(idea), el("span", {}, "you"), el("span", {}, fmtDate(idea.created_at)))
+    el("div", { class: "card-foot" }, lifecycleTags(idea), el("span", {}, "you"), el("span", {}, fmtDate(idea.created_at)), cardDelete(idea)),
+    cardConfirm(idea)
   );
 }
 
@@ -592,7 +634,8 @@ function waitingRow(idea, kind, glide) {
         el("button", { type: "button", class: "sm secondary", "data-check": idea.id, disabled: state.busy, onclick: () => checkIdea(idea.id) }, "Check again"),
         said && el("span", { class: "hint", role: "status" }, said)),
       el("p", { class: "hint" }, "If it stays like this, tell the owner — the extraction service may be down.")),
-    el("div", { class: "card-foot" }, lifecycleTags(idea), el("span", {}, "you"), el("span", {}, fmtDate(idea.created_at)))
+    el("div", { class: "card-foot" }, lifecycleTags(idea), el("span", {}, "you"), el("span", {}, fmtDate(idea.created_at)), cardDelete(idea)),
+    cardConfirm(idea)
   );
 }
 
@@ -703,6 +746,19 @@ function filterBar(domains, shownCount, total) {
   const check = (k, label) => el("label", { class: "chk" },
     el("input", { type: "checkbox", name: k, checked: f[k], onchange: (e) => set(k, e.target.checked) }),
     el("span", {}, label));
+  // a phone has no room for both toggles beside search: one select stands in
+  // for them there (CSS shows one or the other), so the bar is a single row
+  const show = f.lifecycle === "live" ? `live-${state.sort}` : f.lifecycle;
+  const showPick = el("select", {
+    name: "show", class: "show-pick", "aria-label": "Show",
+    onchange: (e) => {
+      const [life, sort] = e.target.value.split("-");
+      if (sort) state.sort = sort;
+      set("lifecycle", life, '.controls [name="show"]');
+    }
+  }, [["live-newest", "Live, newest"], ["live-closest", "Live, closest"], ["built", "Built"], ["dropped", "Dropped"]]
+    .map(([v, label]) => el("option", { value: v, selected: show === v }, label)));
+  const skillLabel = f.skill.startsWith("proposed:") ? `${f.skill.slice(9)} (proposed)` : skillName(f.skill);
   return el("div", { class: "controls" },
     el("div", { class: "views" },
       el("div", { class: "seg", role: "group", "aria-label": "Show" },
@@ -711,13 +767,14 @@ function filterBar(domains, shownCount, total) {
       f.lifecycle === "live" && el("div", { class: "seg", role: "group", "aria-label": "Sort" },
         sortButton("newest", "Newest"), sortButton("closest", ["Closest", el("span", { class: "wide" }, " to me")]))),
     el("div", { class: "find" },
+      showPick,
       searchBox,
       el("button", {
         type: "button", class: on ? "secondary filter-toggle on" : "secondary filter-toggle",
         "aria-expanded": String(state.filterOpen), "aria-controls": state.filterOpen ? "filter-panel" : null,
         onclick: () => { state.filterOpen = !state.filterOpen; render({ focus: ".filter-toggle" }); }
       }, on ? `Filter (${on})` : "Filter"),
-      (on > 0 || f.q) && el("button", {
+      (on > 0 || f.q || f.skill) && el("button", {
         type: "button", class: "link",
         onclick: () => {
           const { sort, ...cleared } = DEFAULTS;
@@ -727,6 +784,13 @@ function filterBar(domains, shownCount, total) {
         }
       }, "clear"),
       el("span", { class: "count" }, `${shownCount} of ${total} shown`)),
+    // set from the leverage panel; a chip rather than a panel field, since
+    // it names one skill and the way back is to take it off
+    f.skill && el("div", { class: "chips" },
+      el("button", {
+        type: "button", class: "chip", "aria-label": `Remove filter: needs ${skillLabel}`,
+        onclick: () => set("skill", "", ".filter-toggle")
+      }, el("span", {}, "Needs: ", el("b", {}, skillLabel)), el("span", { "aria-hidden": "true" }, " ×"))),
     state.filterOpen && el("div", { class: "filter-panel", id: "filter-panel", role: "group", "aria-label": "Filters" },
       el("select", { name: "domain", "aria-label": "Domain", onchange: (e) => set("domain", e.target.value) },
         el("option", { value: "", selected: f.domain === "" }, "Any domain"),
@@ -752,19 +816,54 @@ function rateFirst() {
     el("a", { href: "#/profile", class: "btn sm" }, "Rate your skills"));
 }
 
+// Each row is a button that filters the list to the ideas it counts (the
+// skill filter, shown as a chip under the bar); pressing the row that is on
+// takes it off. Leverage counts live ideas, so it switches the list to Live.
+// Beside the list on a wide window; on a narrow one it sits above the list,
+// folded, as "What to learn next" (CSS swaps the heading for the toggle).
 function leveragePanel(items) {
   const top = leverage(items, state.levels).slice(0, 10);
-  return el("aside", { class: "leverage", "aria-label": "Highest leverage" },
+  const f = state.filters;
+  const pick = (key) => {
+    f.skill = f.skill === key ? "" : key;
+    if (f.skill) f.lifecycle = "live";
+    render({ animate: true, focus: `.leverage [data-skill="${CSS.escape(key)}"]` });
+  };
+  return el("aside", { class: state.leverageOpen ? "leverage open" : "leverage", "aria-label": "Highest leverage" },
     el("h2", {}, "Highest leverage"),
-    el("p", {}, "Learn one of these and this many ideas move closer."),
-    el("ol", {}, top.map((e) => el("li", {},
-      // the unit under the number, so it is not a bare figure to anyone
-      el("span", { class: "k" }, String(e.ideaIds.length), el("small", {}, e.ideaIds.length === 1 ? " idea" : " ideas")),
-      el("span", {}, e.skillId ? skillName(e.skillId) : `${e.proposedName} (proposed)`)
-    ))),
-    // before the first load there is nothing to rank, which is not the same as nothing to learn
-    !top.length && state.loadedRoute === "list" && el("p", { class: "muted" }, "Nothing to learn — every capability is held.")
+    el("button", {
+      type: "button", class: "link lev-toggle", "aria-expanded": String(state.leverageOpen), "aria-controls": "lev-body",
+      onclick: () => { state.leverageOpen = !state.leverageOpen; render({ focus: ".lev-toggle" }); }
+    }, "What to learn next"),
+    el("div", { class: "lev-body", id: "lev-body" },
+      el("p", {}, "Learn one of these and this many ideas move closer. Pick one to see them."),
+      el("ol", {}, top.map((e) => el("li", {}, el("button", {
+        type: "button", class: "link lev-row", "data-skill": e.key, "aria-pressed": String(f.skill === e.key), onclick: () => pick(e.key)
+      },
+        // the unit under the number, so it is not a bare figure to anyone
+        el("span", { class: "k" }, String(e.ideaIds.length), el("small", {}, e.ideaIds.length === 1 ? " idea" : " ideas")),
+        el("span", {}, e.skillId ? skillName(e.skillId) : `${e.proposedName} (proposed)`)
+      )))),
+      // before the first load there is nothing to rank, which is not the same as nothing to learn
+      !top.length && state.loadedRoute === "list" && el("p", { class: "muted" }, "Nothing to learn — every capability is held."))
   );
+}
+
+// The last "what moved" line (whatMoved() keeps it in state.lastMoved), as
+// the first thing on the list after a rating changed something: the line the
+// product exists to produce. Shown on one visit; leaving the list or the ×
+// puts it away. Not a live region: the profile already said it there.
+function movedBanner() {
+  const m = state.lastMoved;
+  if (!m?.moved) return null;
+  m.shown = true;
+  const [, head, rest] = /^(.*? → \w+\.) (.*)$/.exec(m.text) ?? [null, "", m.text];
+  return el("div", { class: "moved-banner" },
+    el("p", {}, head && el("b", {}, head, " "), rest),
+    el("button", {
+      type: "button", class: "link", "aria-label": "Dismiss",
+      onclick: () => { state.lastMoved = null; render({ focus: ".capture textarea" }); }
+    }, "×"));
 }
 
 function listView() {
@@ -803,13 +902,18 @@ function listView() {
     const hay = `${idea.raw} ${idea.objective ?? ""} ${idea.domain ?? ""}`.toLowerCase();
     return terms.every((t) => hay.includes(t));
   };
-  const vagueShown = vague.filter((r) => matches(r.idea));
+  // a vague idea has no domain or capabilities to match, so any filter that
+  // reads them leaves it out; search and Live/Built/Dropped still apply
+  const vagueShown = needsExtraction(f) ? [] : vague.filter((r) => matches(r.idea));
+  // the leverage panel's key: the skill id, or "proposed:<key>"
+  const needs = (r) => r.extraction.capabilities.some((c) => (c.skill_id ?? `proposed:${c.proposed_key}`) === f.skill);
   const shown = clear.filter((r) =>
     matches(r.idea) &&
     (!f.domain || r.idea.domain === f.domain) &&
     (!f.crux || cruxStatus(r.extraction, state.levels) === f.crux) &&
     (!f.proposed || r.extraction.capabilities.some((c) => !c.skill_id)) &&
-    (!f.friend || friendMarker(r).cruxHeld));
+    (!f.friend || friendMarker(r).cruxHeld) &&
+    (!f.skill || needs(r)));
 
   const add = el("form", {
     class: "capture",
@@ -869,6 +973,7 @@ function listView() {
   return el("div", {},
     header(),
     el("h1", { class: "sr-only" }, "Your ideas"),
+    movedBanner(),
     add,
     errorLine(),
     loaded && !rated && rateFirst(),
@@ -1031,7 +1136,7 @@ function whatMoved(skillIds, before, after) {
   if (closer) parts.push(`${n(closer, "idea", "ideas")} moved closer`);
   if (cleared) parts.push(`${cleared} now ${cleared === 1 ? "has" : "have"} no gap left`);
   if (further) parts.push(`${n(further, "idea", "ideas")} moved further away`);
-  return `${movedHeadline(skillIds, after, skillName)} ${parts.length ? parts.join("; ") + "." : "Nothing moved."}`;
+  return (state.lastMoved = { text: `${movedHeadline(skillIds, after, skillName)} ${parts.length ? parts.join("; ") + "." : "Nothing moved."}`, moved: parts.length > 0 }).text;
 }
 
 // The one rating control, on the profile and on every capability of the idea
@@ -2582,6 +2687,8 @@ addEventListener("hashchange", () => {
   setStatus("");
   state.detail = null;
   state.confirmDeleteIdea = false;
+  state.confirmCard = null;
+  if (state.lastMoved?.shown) state.lastMoved = null;   // the list's banner shows on one visit
   // a pending "Leave?" or "Remove?" should not be waiting when you come back
   state.confirmDelete = null;
   state.confirmRemove = null;
@@ -2593,6 +2700,34 @@ addEventListener("hashchange", () => {
   state.friend = null;
   state.waiting = "";
   run(load);
+});
+
+// The list's shortcuts (lib/keys.js decides which key means what). The help
+// is one <dialog> for the session, outside #app, so a repaint every 2 s while
+// an idea extracts cannot close it; Escape closes it as any modal does.
+const keysDialog = el("dialog", { class: "keys", "aria-labelledby": "keys-h",
+  onclick: (e) => { if (e.target === keysDialog) keysDialog.close(); } },
+  el("div", { class: "keys-card" },
+    el("h2", { id: "keys-h" }, "Keyboard shortcuts"),
+    el("dl", {}, SHORTCUTS.map(([k, what]) => [el("dt", {}, el("kbd", {}, k)), el("dd", {}, what)])),
+    el("p", { class: "hint" }, "On the Ideas tab, whenever you are not typing."),
+    el("form", { method: "dialog" }, el("button", { class: "btn sm ghost" }, "Close"))));
+document.body.append(keysDialog);
+
+addEventListener("keydown", (e) => {
+  if (!state.session || state.route !== "list" || authDialog.open) return;
+  const onCard = !!document.activeElement?.closest?.(".list .card.idea");
+  const action = keyAction(e, { onCard });
+  if (!action) return;
+  if (keysDialog.open && action !== "help") return;
+  // the key would otherwise land in the box it just focused, or scroll
+  e.preventDefault();
+  if (action === "help") return keysDialog.open ? keysDialog.close() : keysDialog.showModal();
+  if (action === "search") return searchBox.focus();
+  if (action === "capture") return captureBox.focus();
+  const links = cardLinks();
+  const at = links.findIndex((a) => a.closest(".card")?.contains(document.activeElement));
+  links[nextIndex(at, links.length, action)]?.focus();
 });
 
 // Fires on sign-in, sign-out and token refresh, and is what repaints after the

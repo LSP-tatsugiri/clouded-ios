@@ -14,6 +14,7 @@ export const DEFAULTS = Object.freeze({
   crux: "",              // "" | have | partial | gap — the hard part's state
   proposed: false,
   friend: false,
+  skill: "",             // a skill id, or "proposed:<key>": only ideas needing it (the leverage panel sets it)
   q: ""
 });
 
@@ -23,9 +24,9 @@ const ONE_OF = {
   crux: ["", "have", "partial", "gap"]
 };
 const FLAGS = ["proposed", "friend"];
-const TEXT = { domain: 60, q: 200 };   // longest value accepted from a link
+const TEXT = { domain: 60, skill: 80, q: 200 };   // longest value accepted from a link
 
-/** `state` is { sort, lifecycle, domain, crux, proposed, friend, q }. No leading "?". */
+/** `state` is { sort, lifecycle, domain, crux, proposed, friend, skill, q }. No leading "?". */
 export function encodeFilters(state) {
   const p = new URLSearchParams();
   for (const k of Object.keys(DEFAULTS)) {
@@ -55,7 +56,16 @@ export function decodeFilters(query) {
 }
 
 // How many of the folded-away filters are on: the number in "Filter (2)".
-// Search, sort and Live/Built/Dropped are always on screen, so they never count.
+// Search, sort and Live/Built/Dropped are always on screen, and the skill
+// filter is a chip under the bar, so they never count.
 export function activeCount(state) {
   return (state.domain ? 1 : 0) + (state.crux ? 1 : 0) + (state.proposed ? 1 : 0) + (state.friend ? 1 : 0);
+}
+
+// Whether a filter is on that only an extracted idea can pass. A vague idea
+// has no domain and no capabilities, so it matches none of these and the list
+// leaves it out while one is on. Search and Live/Built/Dropped read the idea
+// itself and keep applying to it.
+export function needsExtraction(state) {
+  return activeCount(state) > 0 || !!state.skill;
 }
