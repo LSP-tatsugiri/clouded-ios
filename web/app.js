@@ -31,7 +31,7 @@ import { canDictate, dictation } from "./lib/speech.js";
 import * as config from "./config.js";
 
 const COMMIT = config.COMMIT ?? "dev";
-import { FAILED, SAVED, SENDING, bandFor, forcedBand, opener } from "./lib/waifu.js";
+import { ANSWER_LINK, FAILED, SAVED, SENDING, bandFor, forcedBand, opener, readBack } from "./lib/waifu.js";
 
 const MARK = { have: "[x]", partial: "[~]", gap: "[ ]", proposed: "[?]", friend: "[+]" };
 // Closest-to-me bands, by the short count: key, heading, one line under it.
@@ -1329,19 +1329,26 @@ function waifuView() {
     }
   };
   state.waifu.fit = fit;
-  const say = (words, link) => {
+  const say = (words, link, label = "See it on the list.") => {
     line.replaceChildren(words);
-    if (link) line.append(" ", el("a", { href: `#/idea/${link}` }, "See it on the list."));
+    if (link) line.append(" ", el("a", { href: `#/idea/${link}` }, label));
     requestAnimationFrame(fit);
   };
+  // After a save: "Got it", then, once waifuListen has the extraction, the
+  // hard part read back or her question (w.said, and w.vague for which
+  // link). Kept in state, like fit, so the result reaches whichever view is
+  // on screen when it lands.
+  const heard = () => say(w.said ?? SAVED, w.ideaId, w.vague ? ANSWER_LINK : undefined);
+  w.heard = heard;
   say(w.phase === "saved" ? SAVED : w.phase === "failed" ? FAILED : w.line);
-  if (w.phase === "saved" && w.ideaId) say(SAVED, w.ideaId);
+  if (w.phase === "saved" && w.ideaId) heard();
 
   const input = el("textarea", {
     class: "waifu-input", rows: 2, placeholder: "An idea, in as few words as you like",
     autocomplete: "off",
     onkeydown: (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); form.requestSubmit(); } },
-    oninput: () => { if (w.phase !== "asking" && w.phase !== "sending") { w.phase = "asking"; say(w.line); } }
+    // typing the next idea moves on: she goes back to asking and stops listening for the last one
+    oninput: () => { if (w.phase !== "asking" && w.phase !== "sending") { w.phase = "asking"; w.listen = null; say(w.line); } }
   });
   const button = el("button", { type: "submit" }, "Tell her");
   const form = el("form", {
@@ -1353,7 +1360,8 @@ function waifuView() {
       w.phase = "sending"; button.disabled = true; say(SENDING);
       try {
         const { id } = await addIdea(raw);
-        w.phase = "saved"; w.ideaId = id; input.value = ""; say(SAVED, id);
+        w.phase = "saved"; w.ideaId = id; w.said = null; w.vague = false; input.value = ""; heard();
+        waifuListen(id, band);                     // unawaited: the box is free for the next idea
       } catch {
         w.phase = "failed"; say(FAILED);           // the text stays in the box
       } finally {
@@ -1391,6 +1399,56 @@ function waifuView() {
 // The bubble refits its text when the window changes size; one listener,
 // pointing at whichever view is current.
 addEventListener("resize", () => state.waifu.fit?.());
+
+// She waits for the extraction of the idea she was just told, then says one
+// line about it (readBack, lib/waifu.js). The scene's own wait, apart from
+// the list's watch(): the same window (60 looks, 2 s apart), nothing drawn
+// while it runs, and silence if the run failed or never showed.
+//
+// It only reads. Inserting an idea and writing a clarification are the two
+// things that start an extraction, a paid API call, and neither is in here.
+//
+// No `since` for runsFor: the idea is seconds old, so any run is its first.
+// The function writes the run, then the capabilities, then the idea row, so
+// the result is read once the row agrees with the run.
+const WAIFU_LOOKS = 60, WAIFU_TICK_MS = 2000;
+
+async function waifuListen(ideaId, band) {
+  const w = state.waifu;
+  const token = w.listen = {};
+  const pause = (ms) => new Promise((r) => setTimeout(r, ms));
+  const on = () => w.listen === token && state.route === "waifu" && !!state.session;
+  try {
+    let run = null;
+    for (let i = 0; i < WAIFU_LOOKS && !run; i++) {
+      await pause(WAIFU_TICK_MS);
+      if (!on()) return;
+      [run] = await runsFor(ideaId);
+    }
+    if (!run || run.error) return;
+    let row = null;
+    for (let i = 0; i < 10 && on(); i++) {
+      row = await fetchIdea(ideaId);
+      if (row.is_clear === run.clear) break;
+      row = null;
+      await pause(1000);
+    }
+    if (!row || !on()) return;
+    const capabilities = row.is_clear ? await capabilitiesFor(ideaId) : [];
+    const said = readBack({ ...row, capabilities }, skillName, band);
+    if (!said || !on() || w.phase !== "saved" || w.ideaId !== ideaId) return;
+    w.said = said; w.vague = row.is_clear === false;
+    announce(said);
+    w.heard?.();
+  } catch {
+    // a failed read is not worth a word from her; the idea is saved either way
+  } finally {
+    if (w.listen === token) w.listen = null;
+  }
+}
+
+// Leaving the scene stops the wait; a ?band= change within it does not.
+addEventListener("hashchange", () => { if (currentRoute() !== "waifu") state.waifu.listen = null; });
 
 // The cloud outline in a 0–1 box, drawn clockwise from the left edge: five
 // lumps over the top, two down the right, the swoosh tail at the bottom

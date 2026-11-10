@@ -5,6 +5,11 @@
 // The lines are deliberately neutral — no voice has been chosen yet — and
 // none of them may ever contain a score or a time estimate (CLAUDE.md).
 
+// distance.js by a relative path, so Node (the tests) and the browser both
+// find it: from /lib/ the two dots clamp at the site root and land on the
+// same /extraction/src/distance.js that app.js imports.
+import { cruxOf } from "../../extraction/src/distance.js";
+
 // Six bands by local hour. Night wraps midnight: 20:00 to 00:59.
 export const BANDS = ["late", "dawn", "morning", "afternoon", "dusk", "night"];
 
@@ -41,4 +46,46 @@ export const FAILED = "That didn't save. Try again?";
 export function opener(band, random = Math.random) {
   const pool = OPENERS[band] ?? OPENERS.night;
   return pool[Math.floor(random() * pool.length)];
+}
+
+// ---- what she says once extraction lands (docs/improvement-backlog.md §7)
+
+// A lead-in per band for an idea too vague to extract; the question follows.
+export const VAGUE_LEADS = {
+  late:      "Too late at night for riddles.",
+  dawn:      "I'm barely awake, so help me out.",
+  morning:   "One thing before the day gets going.",
+  afternoon: "Hold on, one thing.",
+  dusk:      "Before the light goes, one thing.",
+  night:     "Mm, I can't quite picture it."
+};
+// The scene has no answer box (its one box captures), so the question links
+// to the idea page, which has.
+export const ANSWER_LINK = "Answer it on its page.";
+
+// "Read a sensor…" -> "read a sensor…", but "PCB…", "I2C…" and "3D…" stay.
+function lower(name) {
+  const first = name.split(/\s/, 1)[0];
+  return /[A-Z0-9]/.test(first.slice(1)) || /^\d/.test(first) ? name : name[0].toLowerCase() + name.slice(1);
+}
+
+// One line about a finished extraction, or null when there is nothing to add
+// to "Got it". `x` is the idea row with its capability rows:
+// { is_clear | clear, clarifying_question, capabilities }; `nameOf` maps a
+// skill id to its name. A table skill is a task ("Read a sensor over I2C…"),
+// so it is read back as something to do; a proposed one is only a slug
+// ("label-design"), so it is read back as a thing.
+export function readBack(x, nameOf, band) {
+  const clear = x?.clear ?? x?.is_clear;
+  if (clear === false) {
+    const q = x.clarifying_question?.trim();
+    return q ? `${VAGUE_LEADS[band] ?? VAGUE_LEADS.night} ${q}` : null;
+  }
+  if (clear !== true) return null;
+  const crux = cruxOf(x);
+  if (!crux) return null;
+  const name = crux.skill_id ? nameOf?.(crux.skill_id)?.trim().replace(/[.?!]+$/, "") : null;
+  if (name && name !== crux.skill_id) return `The hard part's having to ${lower(name)}, right?`;
+  const slug = crux.skill_id ?? crux.proposed_key ?? crux.proposed_name;
+  return slug ? `The hard part's the ${slug.replace(/[-_]+/g, " ").trim()}, right?` : null;
 }
