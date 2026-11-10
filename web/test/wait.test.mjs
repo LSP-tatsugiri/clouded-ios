@@ -1,7 +1,7 @@
 // Run: node --test web/test/*.test.mjs
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { SLOW_MS, SUBSCRIBE_MS, TICK_MS, WINDOW_MS, costLine, filledAnswers, resultOf, startWait, step } from "../lib/wait.js";
+import { SLOW_MS, SUBSCRIBE_MS, TICK_MS, WINDOW_MS, batchSubmit, costLine, filledAnswers, resultOf, startWait, step } from "../lib/wait.js";
 
 // feed events through step(), collecting every act with the event that caused it
 function drive(events, s = startWait()) {
@@ -95,4 +95,14 @@ test("filledAnswers keeps only what was typed, trimmed, in order", () => {
 test("costLine counts", () => {
   assert.equal(costLine(1), "Answering re-runs extraction, about a cent each. 1 answer, 1 re-run.");
   assert.match(costLine(3), /3 answers, 3 re-runs\.$/);
+});
+
+test("batchSubmit says what Send will send", () => {
+  const drafts = new Map([["a", "a lamp"], ["b", "  "], ["c", "a shelf"]]);
+  const n = filledAnswers(["a", "b", "c"], drafts).length;
+  assert.deepEqual(batchSubmit(n), { cost: costLine(2), label: "Send 2 answers" });
+  assert.equal(batchSubmit(1).label, "Send 1 answer");
+  assert.equal(batchSubmit(0).label, "Send answers");
+  assert.doesNotMatch(batchSubmit(0).cost, /\d/);
+  assert.equal(batchSubmit(2, true).label, "Sending…");
 });

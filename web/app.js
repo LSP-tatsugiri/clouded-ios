@@ -20,7 +20,7 @@ import {
 } from "./lib/db.js";
 // its own line, apart from the list above: the Group tab's claims
 import { addClaim, claimsFor, removeClaim } from "./lib/db.js";
-import { el, mount } from "./lib/dom.js";
+import { el, holdFocus, mount } from "./lib/dom.js";
 import { explain } from "./lib/errors.js";
 import { DEFAULTS, activeCount, decodeFilters, encodeFilters, needsExtraction } from "./lib/filters.js";
 import { SHORTCUTS, keyAction, nextIndex } from "./lib/keys.js";
@@ -29,7 +29,7 @@ import { DROP_REASON_MAX, buildChoices, cleanReason, duplicateReason, isLive, li
 import { UNRATED, levelChoices } from "./lib/rating.js";
 import { similarIdeas } from "./lib/similar.js";
 import { canDictate, dictation } from "./lib/speech.js";
-import { TICK_MS, WINDOW_MS, costLine, filledAnswers, resultOf, startWait, step } from "./lib/wait.js";
+import { TICK_MS, WINDOW_MS, batchSubmit, filledAnswers, resultOf, startWait, step } from "./lib/wait.js";
 // separate lines for the help page, run errors and the profile's lead section
 import { explainRun } from "./lib/errors.js";
 import { MARKS, SECTIONS } from "./lib/help.js";
@@ -494,6 +494,7 @@ function cardConfirm(idea) {
     el("p", { class: "hint" }, "Delete this idea? Its extraction goes with it."),
     el("div", { class: "row" },
       el("button", { class: "btn sm warn", type: "button", disabled: state.busy, onclick: async () => {
+        if (state.busy) return;   // a double click deletes once
         const i = cardLinks().findIndex((a) => a.closest(at));
         await run(async () => {
           state.confirmCard = null;
@@ -577,14 +578,12 @@ function extractingRow(idea, { stage, seconds, again }) {
 //
 // The answer fields are kept across renders, like captureBox: the list
 // repaints every 2 s while another idea extracts, and a rebuilt field would
-// drop what was typed. kept() hands back the same element and puts the caret
-// back in it if it had it.
+// drop what was typed. kept() hands back the same element; render() puts
+// the caret back in it if it had it (holdFocus).
 const answerInputs = new Map(), batchInputs = new Map();   // idea_id -> field
 function kept(map, id, make) {
   if (!map.has(id)) map.set(id, make());
-  const f = map.get(id);
-  if (document.activeElement === f) queueMicrotask(() => { if (f.isConnected && document.activeElement !== f) f.focus({ preventScroll: true }); });
-  return f;
+  return map.get(id);
 }
 
 function vagueRow(idea, glide = true) {
@@ -678,13 +677,15 @@ function vagueBatch(ideas) {
       `Answer all ${list.length} on one screen`));
 
   const ids = list.map((i) => i.id);
-  const n = () => filledAnswers(ids, b.drafts).length;
   const cost = el("p", { class: "hint" });
   const submit = el("button", { type: "submit", class: "btn sm" });
-  const recount = () => {
-    const k = n();
-    cost.textContent = k ? costLine(k) : "Answering re-runs extraction, about a cent each. Fill in the ones you can; empty ones are left as they are.";
-    submit.textContent = b.sending ? "Sending…" : k ? `Send ${k} ${k === 1 ? "answer" : "answers"}` : "Send answers";
+  // the fields are kept across renders but this form is not, so their
+  // oninput calls whichever recount the latest render left here
+  batchRecount = () => {
+    const k = filledAnswers(ids, b.drafts).length;
+    const said = batchSubmit(k, b.sending);
+    cost.textContent = said.cost;
+    submit.textContent = said.label;
     submit.disabled = !k || b.sending || state.busy;
   };
   const form = el("form", {
@@ -699,16 +700,17 @@ function vagueBatch(ideas) {
       el("label", { class: "fld" }, el("span", {}, "Your answer", el("span", { class: "sr-only" }, ` for “${i.raw}”`)),
         kept(batchInputs, i.id, () => el("textarea", {
           name: `answer-${i.id}`, rows: 2, placeholder: "Leave empty to skip",
-          oninput: (e) => { b.drafts.set(i.id, e.target.value); recount(); }
+          oninput: (e) => { b.drafts.set(i.id, e.target.value); batchRecount(); }
         })))))),
     b.note && el("p", { class: "error", role: "status" }, b.note),
     cost,
     el("div", { class: "row" }, submit,
       el("button", { type: "button", class: "link", onclick: () => { b.open = false; render({ focus: ".batch-open button" }); } }, "close"))
   );
-  recount();
+  batchRecount();
   return form;
 }
+let batchRecount = () => {};
 
 function sendBatch(ids) {
   const b = state.batch;
@@ -734,7 +736,9 @@ function sendBatch(ids) {
     } finally {
       b.sending = false;
     }
-  });
+  // the Send button was rebuilt as "Sending…" and back: put focus on what is
+  // left of the batch (an unsent answer, or its opener), else the capture box
+  }).then(() => (app.querySelector(".batch textarea, .batch-open button") ?? captureBox).focus());
 }
 
 // Always on screen: Live/Built/Dropped, the sort, search and the count. The
@@ -918,7 +922,11 @@ function listView() {
   };
   // a vague idea has no domain or capabilities to match, so any filter that
   // reads them leaves it out; search and Live/Built/Dropped still apply
-  const vagueShown = needsExtraction(f) ? [] : vague.filter((r) => matches(r.idea));
+  // newest-marked first, as the cards read (and so the batch form): a built
+  // or dropped view by its mark, a live one by created_at, both marks null
+  const when = (i) => Date.parse(i.built_at ?? i.dropped_at ?? i.created_at);
+  const vagueShown = needsExtraction(f) ? []
+    : vague.filter((r) => matches(r.idea)).sort((a, b) => when(b.idea) - when(a.idea));
   // the leverage panel's key: the skill id, or "proposed:<key>"
   const needs = (r) => r.extraction.capabilities.some((c) => (c.skill_id ?? `proposed:${c.proposed_key}`) === f.skill);
   const shown = clear.filter((r) =>
@@ -933,6 +941,9 @@ function listView() {
     class: "capture",
     onsubmit: (e) => {
       e.preventDefault();
+      // one submit, one addIdea: run() sets busy before its first await, so a
+      // held Enter's second submit stops here
+      if (state.busy) return;
       mic?.stop();   // a word still being transcribed is not part of the idea
       const raw = captureBox.value.trim();
       if (!raw) return;
@@ -960,9 +971,6 @@ function listView() {
   const batch = vagueBatch(vagueShown.map((r) => r.idea));
   let body;
   if (state.sort === "newest" || state.filters.lifecycle !== "live") {
-    // a built or dropped view reads newest-marked first; for live ideas both
-    // marks are null, so this is the plain created-at order
-    const when = (i) => Date.parse(i.built_at ?? i.dropped_at ?? i.created_at);
     const all = [...shown, ...vagueShown].sort((a, b) => when(b.idea) - when(a.idea));
     body = [batch, el("div", { class: "cards" }, all.map(card))];
   } else {
@@ -1318,7 +1326,7 @@ function groupView() {
   if (!state.groups.length) {
     // no groups loaded yet is not "you have no group": hold the create card back until load() says so
     return el("div", {}, header(), errorLine(),
-      state.loadedRoute === "group" ? createGroupCard() : el("p", { class: "muted", role: "status" }, "Loading your group…"));
+      state.loadedRoute === "group" ? createGroupCard() : [el("h1", { class: "sr-only" }, "Group"), el("p", { class: "muted", role: "status" }, "Loading your group…")]);
   }
   const rows = feedRows();
   // focus goes back to the button just used, as on the Ideas tab (filterBar):
@@ -1535,10 +1543,8 @@ function friendView() {
     byDomain.size
       ? [...byDomain].map(([domain, list]) => el("section", { class: "dom card" },
           el("h2", {}, domain),
-          list.map(({ skill, level }) => el("div", { class: "skill" },
-            el("div", {},
-              el("div", { class: "nm" }, skill.name),
-              el("code", {}, skill.id)),
+          list.map(({ skill, level }) => el("div", { class: "skill", title: skill.id },
+            el("div", {}, el("div", { class: "nm" }, skill.name)),
             el("span", { class: `tag level-${level}` }, level)
           ))
         ))
@@ -2035,7 +2041,7 @@ async function watch(ideaId, since, again = false) {
     if (got === CANCELLED) return;
     state.rerun.delete(ideaId);
     if (!got) stall(ideaId, since, "Extraction has not landed yet. It may still be running.");
-    else if (got.error) { state.error = `Extraction failed: ${got.error}`; announce(state.error); }
+    else if (got.error) failRun(got.error);
     else announce("Extraction finished.");
   } catch (err) {
     fail(err);
@@ -2308,7 +2314,7 @@ function looksLike(idea, caps) {
         el("span", { class: "why" }, ` (${lifecycleOf(other) === "built" ? `${m.why} · built` : m.why})`),
         canDrop(other) && !asking && [" ", el("button", {
           class: "link", type: "button", disabled: state.busy,
-          onclick: () => { state.confirmDuplicate = other.id; clearError(); render(); }
+          onclick: () => { state.confirmDuplicate = other.id; clearError(); render({ focus: ".dup-confirm .ghost" }); }
         }, "Drop this one as a duplicate")]
       ];
     })),
@@ -2319,7 +2325,7 @@ function looksLike(idea, caps) {
 // reason written for you and a pointer to the other idea (setDropped's third
 // argument); "Back to live" undoes it. Nothing else is written.
 function duplicateConfirm(idea, other) {
-  const keep = () => { state.confirmDuplicate = null; render(); };
+  const keep = () => { state.confirmDuplicate = null; render({ focus: ".looks-like button.link" }); };
   return el("div", { class: "dup-confirm" },
     el("p", { class: "hint" }, `Drop this as a duplicate of “${other.objective || other.raw}”?`),
     el("div", { class: "row" },
@@ -2330,7 +2336,7 @@ function duplicateConfirm(idea, other) {
           state.confirmDuplicate = null;
           state.ideas = [];
           await load();
-        });
+        }).then(() => app.querySelector(".life-banner button, .looks-like button.link")?.focus());
       } }, "Yes, drop it"),
       el("button", { class: "btn sm ghost", type: "button", disabled: state.busy, onclick: keep }, "Keep it")));
 }
@@ -2778,18 +2784,30 @@ function viewFor() {
 const ROUTE_ORDER = { list: 0, idea: 0.5, group: 1, friend: 1.5, profile: 2, review: 3, report: 4, help: 5 };
 let paintedRoute = null;
 let latest = null;   // a transition's callback paints whatever was built last
+let heldFocus = null;   // holdFocus()'s restore, from before the page was built
 
 function render({ animate = false, focus = null } = {}) {
   // the static landing (index.html) shows only while signed out
   document.documentElement.classList.toggle("signed-in", !!state.session);
   if (!state.session) { paintAuth(); paintedRoute = state.route; return; }
   if (authDialog.open) authDialog.close();   // signed in from the dialog
+  // before viewFor(): building the page moves the kept fields (captureBox,
+  // searchBox, the answers) out of it, which blurs them. A render that comes
+  // before a pending transition paints keeps the first one's memory.
+  heldFocus ??= holdFocus(app);
   latest = viewFor();
   if (state.route !== "waifu") latest.append(footer());
   // `focus` is a selector for the control that caused this render: the page
   // is rebuilt under it, and a keyboard user would otherwise start again
   // from the top
-  const paint = () => { mount(app, latest); if (focus) app.querySelector(focus)?.focus(); };
+  // otherwise; with no `focus`, whatever had it gets it back (holdFocus)
+  const paint = () => {
+    const restore = heldFocus;
+    heldFocus = null;
+    mount(app, latest);
+    const to = focus && app.querySelector(focus);
+    if (to) to.focus(); else restore?.();
+  };
   const switched = paintedRoute !== null && paintedRoute !== state.route;
   const can = state.session && document.startViewTransition && !reduceMotion()
     && state.route !== "waifu" && paintedRoute !== "waifu";

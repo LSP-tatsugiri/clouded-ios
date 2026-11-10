@@ -72,3 +72,13 @@ export function filledAnswers(ids, drafts) {
 // "1 answer, 1 re-run" — said before the submit, in the single box's words.
 export const costLine = (n) =>
   `Answering re-runs extraction, about a cent each. ${n} ${n === 1 ? "answer" : "answers"}, ${n} ${n === 1 ? "re-run" : "re-runs"}.`;
+
+// The batch form's cost line and Send button for `n` filled answers: what
+// Send will do, said before it is pressed. Worked out from the drafts on
+// every render and every keystroke, so the two can never disagree.
+export function batchSubmit(n, sending = false) {
+  return {
+    cost: n ? costLine(n) : "Answering re-runs extraction, about a cent each. Fill in the ones you can; empty ones are left as they are.",
+    label: sending ? "Sending…" : n ? `Send ${n} ${n === 1 ? "answer" : "answers"}` : "Send answers"
+  };
+}

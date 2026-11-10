@@ -305,15 +305,16 @@ aside a:hover { color: var(--flow); }
 /* two-way toggle */
 .seg {
   display: inline-flex;
-  padding: 3px;
+  padding: 1px;
   border-radius: 999px;
   background: var(--bg-2);
   border: 1px solid var(--line);
 }
 /* as tall as the search box and the Filter button it sits beside (2.3rem,
-   less the track's padding and border), not the 3.25rem of a main button */
+   less the track's padding and border), not the 3.25rem of a main button;
+   the track's padding is 1px so the button itself stays over 32px */
 .seg button {
-  height: calc(2.3rem - 8px);
+  height: calc(2.3rem - 4px);
   border: 0;
   background: none;
   padding: 0 0.95rem;
