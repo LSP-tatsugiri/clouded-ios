@@ -201,6 +201,14 @@ Learned the hard way; keep them true on every machine.
   many calls it makes. One extraction is about $0.01 (system prompt ~2,600
   tokens for the 52-skill list, ~450 out; Sonnet 5 at $2/M in, $10/M out)
   plus ~$0.006 per semantic resolve call.
+- **The Anthropic API key expires on 2027-02-01.** The owner renewed it on
+  2026-11-10 after the previous one lapsed. It lives in two places that do
+  not sync: `extraction/.env` on the PC (the local testbed) and the
+  `ANTHROPIC_API_KEY` secret of the Supabase project (the `extract` edge
+  function — check with `supabase secrets list`, which shows names and
+  digests only). An expired key fails every extraction with a 401, which
+  the web client shows as an idea stuck on "extracting"; if that happens
+  near the date, renew the key before debugging anything else.
 - **Some Supabase CLI steps are the owner's to run**, in a real terminal:
   `supabase login` (needs a TTY), `supabase db push` (the real apply) and
   `supabase functions deploy`. From the agent: write the migration file
