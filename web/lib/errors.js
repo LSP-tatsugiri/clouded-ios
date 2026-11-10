@@ -25,6 +25,8 @@ const WRITES = {
   renameGroup: "rename the group",
   deleteGroup: "delete the group",
   removeMember: "remove that member",
+  addClaim: "say you can do a hard part",
+  removeClaim: "take back that you can do a hard part",
   uploadFeedbackShot: "upload the screenshot",
   addFeedback: "send the report"
 };

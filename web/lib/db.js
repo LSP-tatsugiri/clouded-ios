@@ -228,6 +228,34 @@ export async function revokeInvite(groupId, email) {
   if (error) throw new Error(error.message);
 }
 
+// ---------------------------------------------------------------- claims
+
+// Who said "I can do a hard part" of these ideas, oldest first. RLS returns a
+// claim only where the idea itself is visible. Callers must treat a throw as
+// "no claims feature", not as a failed page: until the idea_claims migration
+// is pushed the table does not exist and this is a 404.
+export async function claimsFor(ideaIds) {
+  if (!ideaIds.length) return [];
+  return ok(await db.from("idea_claims")
+    .select("idea_id, user_id, created_at")
+    .in("idea_id", ideaIds)
+    .order("created_at"), "claimsFor");
+}
+
+// user_id defaults to auth.uid() and the policy refuses anything else, an
+// idea of your own, and one that is not shared to a group you are in. Saying
+// it twice is not an error: the row is already there (23505).
+export async function addClaim(ideaId) {
+  const { error } = await db.from("idea_claims").insert({ idea_id: ideaId });
+  if (error && error.code !== "23505") throw new Error(`addClaim: ${error.message}`);
+}
+
+// No user filter: the delete policy reaches your own row and no other.
+export async function removeClaim(ideaId) {
+  const { error } = await db.from("idea_claims").delete().eq("idea_id", ideaId);
+  if (error) throw new Error(`removeClaim: ${error.message}`);
+}
+
 export async function skills() {
   return ok(await db.from("skills")
     .select("id, name, domain, aliases, hazard, sort_order")

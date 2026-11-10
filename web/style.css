@@ -622,8 +622,66 @@ a.owner:hover { color: var(--flow); }
 .manage .fld:first-of-type { margin-top: 0; }
 .manage .invite { margin-top: 0.75rem; }
 .manage .status { display: block; margin-top: 0.4rem; }
+/* "Remove X?" and its two buttons, stacked: side by side in the 19rem panel
+   the buttons broke into two lines each */
+.manage .plain li.confirm { flex-direction: column; align-items: stretch; gap: 0.4rem; }
+.manage .plain li.confirm .hint { margin: 0; }
+.manage .confirm .row button, .group-actions .row button { white-space: nowrap; }
 .group-actions { margin-top: 1rem; }
 .group-actions .row { margin-top: 0.5rem; }
+
+/* what the group is missing between them (groupLeverage() in app.js): a
+   plain list with a count per skill, deliberately no rank numbers */
+.missing { list-style: none; margin: 0; padding: 0; }
+.missing li {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.75rem;
+  padding: 0.5rem 0;
+  border-top: 1px solid var(--line);
+  font-size: 0.92rem;
+  line-height: 1.35;
+}
+.missing li > span:first-child { min-width: 0; overflow-wrap: anywhere; }
+.missing .k { font: 0.78rem var(--mono); color: var(--ink-3); white-space: nowrap; }
+.group-leverage .hint { margin-top: 0.75rem; }
+
+/* "I can do a hard part" and who said so, under a feed card's footer and on
+   the idea page (claimRow() in app.js) */
+.claim { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 0.9rem; margin-top: 0.8rem; font-size: 0.88rem; }
+.claim .friend-line { min-width: 0; overflow-wrap: anywhere; }
+.claim .btn.sm { height: 2.5rem; }
+.claim button.link { min-height: 2rem; padding: 0 0.25rem; }
+.detail > .claim { margin: 1rem 0; }
+
+/* the Group tab on a phone (390px is the target): one column, nothing wider
+   than the screen, every control at least 32px tall and the main buttons
+   44px. Rows of name + action keep the action on the line and let the name
+   wrap, rather than breaking into a row per word. */
+@media (max-width: 640px) {
+  .group .page-head { margin: 1.5rem 0 1rem; }
+  .group .page-head h1 { font-size: 1.8rem; overflow-wrap: anywhere; }
+  .group .page-head .seg { width: 100%; }
+  .group .page-head .seg button { flex: 1 1 0; height: 2.5rem; padding: 0 0.5rem; }
+  .group .card { padding: 1rem 1rem 0.9rem; }
+  .group .card-head { flex-direction: column; gap: 0.6rem; }
+  .group .card-foot .friend-line { min-width: 0; overflow-wrap: anywhere; }
+  .group aside { padding: 1rem; }
+  .group .people li { min-height: 2.75rem; }
+  /* inline links whose text is shorter than a finger: taller hit area, same line */
+  .group .people a, .group .card-foot a.owner, .group .card h3 a { padding: 0.35rem 0; }
+  .group .manage summary { padding: 0.6rem 0; }
+  .group .plain li > span { min-width: 0; overflow-wrap: anywhere; }
+  .group .plain li > button.link, .group .group-actions button.link { flex-shrink: 0; min-height: 2.75rem; padding: 0 0.25rem; }
+  .group .fld .row input { height: 2.75rem; }
+  .group .fld .row .btn.sm, .group .fld .row button.sm, .group .group-actions .btn.sm, .group .confirm .btn.sm { height: 2.75rem; flex-shrink: 0; }
+  .group .group-actions .row, .group .plain .row { flex-wrap: wrap; }
+  .group .claim .btn.sm { height: 2.75rem; }
+  .group-create .row { flex-wrap: wrap; }
+  .group-create .row input { flex: 1 1 100%; height: 2.75rem; }
+  .group-create .row .btn { height: 2.75rem; }
+}
 
 .group-create { max-width: 32rem; margin-top: 2rem; }
 .group-create h1 { margin: 0 0 0.5rem; font-size: 1.3rem; font-weight: 800; letter-spacing: -0.02em; }
@@ -697,6 +755,15 @@ a.owner:hover { color: var(--flow); }
 .lvl [data-l="none"] input:checked + span { background: var(--ink-3); color: var(--bg-2); }
 .lvl [data-l="some"] input:checked + span { background: var(--partial); color: var(--bg-2); }
 .lvl [data-l="solid"] input:checked + span { background: var(--held); color: var(--bg-2); }
+/* a profile row on a phone: the name above (the 640px .skill rule), the
+   control under it across the row, three equal options 44px tall. The
+   "not rated" tag keeps its line beside the control when there is room. */
+@media (max-width: 640px) {
+  .profile .skill .rating { display: flex; justify-content: flex-start; }
+  .profile .skill .lvl { flex: 1 1 13rem; }
+  .profile .skill .lvl label { flex: 1 1 0; }
+  .profile .skill .lvl span { min-height: 2.75rem; min-width: 0; padding: 0.38rem 0.5rem; }
+}
 
 /* "Show only unrated": the side panel's checkbox hides rated rows, then
    the domains left with none, then shows the all-rated card */
