@@ -147,13 +147,19 @@ Structured output, enforced via a tool schema rather than free-text JSON:
 {
   clear: boolean,
   clarifying_question: string | null,
+  assumption: string | null,
   objective: string | null,
   domain: string | null,
   capabilities: [
-    { skill_id, proposed_name, reason, is_crux }
+    { skill_id, proposed_name, reason, iteration, is_crux }
   ]
 }
 ```
+
+`assumption` (2026-11-10) is the reading the model took when the wording
+admits more than one; the idea page shows it as a correctable line.
+`iteration` is `"tutorial"` or `"iteration"` per capability, shown as a tag;
+distance does not use it. The tool is `strict: true`.
 
 - 3–7 capabilities per idea.
 - Exactly one may be marked `is_crux` — the part most likely to kill the project.
@@ -506,9 +512,9 @@ the time, but on the crux only 13/19. Where two capabilities are both plausible
 project-killers (airflow vs waterproofing for the dryer, mechanism vs vision for
 the Gundam head), the model picks either. With the resolve step in place and
 the model on Sonnet 5 (measured 2026-09-13): crux identical 16/19, verdict
-19/19, skill overlap 0.89. Until this is settled — a ranked top-2, parked with
-`strict: true` until the next baseline run since both move the prompt hash —
-the UI should present the crux as *a* hard part, not *the* hard part.
+19/19, skill overlap 0.89. So the UI presents the crux as *a* hard part,
+not *the* hard part. A ranked top-2 was considered and decided against on
+2026-11-10: exactly one crux stays the rule.
 
 **A flat gap count is not size.** Every gap counts 1 and the model is capped at
 3–7 capabilities, so "pick PETG for heat" weighs the same as "mechanical

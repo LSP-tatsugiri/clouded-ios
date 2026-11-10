@@ -83,13 +83,109 @@ hunts regressions. Findings go back to a fixer; repeat until it passes.
 | iOS share-sheet title (§3.4), Control Centre button (§3.3) | Mac only. |
 | Distance is a flat count; leverage biased by taxonomy; held-out ideas | Open product questions in `CLAUDE.md`, each needing an API experiment or a friend's ideas. |
 
+## Round two
+
+Branch `agent/backlog-round-2`, stacked on `agent/backlog-sweep` (round
+one), so it carries round one and `agent/critique-p1` with it. Commits:
+`git log --oneline agent/backlog-sweep..agent/backlog-round-2`.
+
+Unlike round one, this round had the Anthropic key (renewed 2026-11-10)
+and spent it once, on the re-baseline.
+
+### Owner decisions, 2026-11-10
+
+- Build the assumption line, `strict: true` on both tools, and the
+  per-capability tutorial/iteration tag.
+- Do **not** build the ranked second crux. The "exactly one crux" invariant
+  stays; "a hard part" is the answer to its instability.
+- A duplicate is resolved by dropping one idea with a pointer to the other,
+  not by merging. `ideas.raw` is never overwritten.
+- Skip look and feel (backlog §8) this round.
+- Skip email: SMTP for sign-up confirmation (§0.6) and the weekly digest (§6).
+
+### Workstreams
+
+- **A — list** (`ea12053`, `558034a`): delete from your own cards; keyboard
+  shortcuts `/ n j k ?` (`web/lib/keys.js`); hover lifts a card without
+  blurring its siblings; a leverage row filters the list (`skill` in the
+  hash); the leverage panel above the list below 900px; a one-row filter bar
+  at 390px; vague ideas left out under extraction-based filters; the "what
+  moved" line opens the list once.
+- **B — idea page, profile, help** (`4d79c08`): developer data under one
+  Details; skill ids off the profile rows; `#/help` (`web/lib/help.js`);
+  the profile opens on "Your ideas need these"; a failed run reads as a
+  sentence (`explainRun`); mic contrast in dark mode; the sign-in dialog's
+  heading.
+- **C — group, claims, mobile** (`cfe4591`, `0b42abd`): the "Still missing"
+  panel (`web/lib/group.js`); "I can do a hard part" (migration
+  `20261110115450_idea_claims.sql`); the Group tab and profile grid at 390px
+  (the header nav still wraps); the feed's Closest sort no longer throws on
+  a vague idea.
+- **D — landing, waifu** (`f4aaa99`, `36daae4`): one wordmark on a phone,
+  invite-only said by the sign-in doors, a closing call to action, a clearer
+  type scale; the waifu scene reads the hard part back, or asks a vague
+  idea's question in her band's words.
+- **E — extraction waiting** (`d1431b6`, `13c7ba7`): Realtime raced against
+  a slower poll (migration `20261110153527_realtime_extraction_runs.sql`,
+  `web/lib/wait.js`); an idea with no result gets a read-only "Check again"
+  card; one form answers every vague idea.
+- **F — prompt** (`6e1a299`, `df2e51b`, `9ad1502`): `assumption` and
+  per-capability `iteration` (migration
+  `20261110161336_assumption_and_iteration.sql`), `strict: true` on
+  `record_extraction` and `resolve_skill`; the idea page shows "Assumed: …
+  — not right?" and a "needs iteration" tag (`web/lib/extracted.js`).
+  Distance does not read `iteration`. Prompt hash `b6a035830560` →
+  `57810805f527`.
+- **G — drop as duplicate** (`7108fe2`, `939b23d`): "Drop this one as a
+  duplicate" beside each "Looks like" match (migration
+  `20261110161103_idea_duplicate_of.sql`).
+
+### Re-baseline
+
+`b818caa`, 2026-11-10, sonnet-5, prompt `57810805f527`, about $0.20: 19 of
+19 extracted, 15 clear (anime90s is now vague, one fewer than before), no
+idea with two cruxes, 35 of 76 capabilities tagged `iteration`. **Known
+flaw:** `assumption` was filled on all 15 clear ideas, unambiguous ones
+included; recorded in `CLAUDE.md` Known problems. Same-prompt wobble was
+not re-measured.
+
+### Review rounds
+
+1. Database side — **failed**: `distance.test.js` still pinned the
+   2026-09-13 baseline; dropping as a duplicate did not fall back once
+   `duplicate_of` was known missing; the Realtime subscription asked for
+   every event, DELETEs included, which Realtime sends without RLS. Fixed in
+   `e0af96f`.
+2. Web side — **failed**: the batch form's count went stale; list run
+   errors showed raw; focus was lost on the 2 s repaint. Fixed in
+   `ffc9607` (`holdFocus` in `web/lib/dom.js`).
+3. Re-review of `ffc9607` — re-review pending.
+
+### Still open after round two
+
+§3.3 and §3.4 (iOS, on the Mac); §4 the header nav at 390px; §5 held-out
+ideas, the CAD split, weighting distance by `iteration`; §6 the weekly
+digest and §0.6 SMTP; §8 look and feel, Live2D included; the critique's
+remaining questions to consider.
+
 ## Owner steps after review
 
-1. Merge `agent/critique-p1`, then `agent/backlog-sweep`, into `main`.
-2. `supabase db push --include-all` — applies `20261016231832_invite_cap_and_member_consent.sql`.
-   The flag is needed because that file sorts before `20261022233104_idea_lifecycle.sql`,
-   which is already on the hosted database; a plain push stops and asks for it.
-3. `supabase functions deploy extract` — the merged branch changed its secret check.
-   If renewing the Anthropic key on 2026-11-10 produced a new key string, also
-   `supabase secrets set ANTHROPIC_API_KEY=…`: the project secret was last updated 2026-09-13.
-4. Close issue #4 (the test report "123"); delete the nine merged remote branches listed in the 2026-09-28 handoff.
+Round one's steps are folded in: `20261016231832` is already on the hosted
+database (`supabase migration list`, 2026-11-10), so its `--include-all`
+push is no longer needed.
+
+1. Merge the round-two pull request (`agent/backlog-round-2` into `main`).
+   It contains round one and `agent/critique-p1`.
+2. `supabase db push`. No `--include-all`: `supabase migration list` shows
+   everything through `20261022233104` applied, and the four new files,
+   `20261110115450_idea_claims.sql`,
+   `20261110153527_realtime_extraction_runs.sql`,
+   `20261110161103_idea_duplicate_of.sql` and
+   `20261110161336_assumption_and_iteration.sql`, all sort after it.
+3. `supabase functions deploy extract` — after the push, never before: the
+   new function writes `ideas.assumption` and `idea_capabilities.iteration`,
+   and against a database without those columns the capability write fails
+   and the idea is marked failed with no capabilities.
+4. If the renewed Anthropic key is a new string, `supabase secrets set
+   ANTHROPIC_API_KEY=…`; the project secret was last updated 2026-09-13.
+5. Close issue #4 (the test report "123").

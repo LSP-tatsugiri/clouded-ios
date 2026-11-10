@@ -64,9 +64,15 @@ These are load-bearing. Changing one is a product decision, not a refactor.
   ideas only. The Group feed hides dropped ideas and tags built ones;
   dropping never unshares. Since 2026-11-10 the list's filters and sort
   live in the hash query (`lib/filters.js`), your own idea pages link
-  near-duplicates (`lib/similar.js`, link only, no merge), rating is one
+  near-duplicates (`lib/similar.js`) and can drop one as a duplicate of
+  the other (`ideas.duplicate_of`; no merge, `raw` untouched), rating is one
   none/some/solid control on the profile and the idea page
   (`lib/rating.js`), and errors reach the page through `lib/errors.js`.
+  Round two (2026-11-10) added pure modules, each with a test in
+  `web/test/`: `lib/keys.js` the list's shortcuts, `lib/help.js` the
+  `#/help` copy, `lib/group.js` group leverage and claims, `lib/wait.js`
+  the extraction wait (Realtime raced against a poll) and the batch answer,
+  `lib/extracted.js` the wording of `assumption` and the iteration tag.
   The capture box can be dictated as well as
   typed (`lib/speech.js`, 2026-09-25); it says in a line under the mic that
   the browser's own vendor does the transcribing, which is the honest
