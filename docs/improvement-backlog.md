@@ -189,7 +189,7 @@ Both are already written down; neither has been run.
   **Reading:** the direction held and the margin did not. A CAD skill is
   still first, and the three together touch 7 of 16 clear ideas, more than
   any other family. But the lead went from 6-against-4 to 4-against-3 with
-  eight skills tied one idea behind, and one idea is inside run-to-run
+  nine skills tied one idea behind, and one idea is inside run-to-run
   wobble: against the baseline, with CAD merged back, skill overlap was
   0.84 and the crux was the same on 13 of 16 — the same-prompt figures are
   0.89 and 16 of 19. So "CAD is the highest-leverage skill" was mostly the

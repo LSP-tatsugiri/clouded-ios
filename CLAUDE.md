@@ -141,7 +141,7 @@ while out. Capture is the only phone-first part.
   loosely, so broad skills pick up more ideas and win by construction. Tested
   2026-11-10 by splitting `parametric-cad` in three and re-running (local
   only, not committed): a CAD skill still ranks first, but 6-against-4 became
-  4-against-3 with eight skills tied one idea behind, which is inside
+  4-against-3 with nine skills tied one idea behind, which is inside
   run-to-run wobble. Treat any lead of one or two ideas in the leverage list
   as a tie. Whether to adopt the split is open; numbers in
   `docs/improvement-backlog.md` §5.
