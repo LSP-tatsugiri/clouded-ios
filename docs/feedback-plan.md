@@ -177,7 +177,9 @@ Verify (Phase A done-check):
 Needs its own "proceed" (mass operation: ~24 issues) — **given 2026-09-19.** The
 runnable copy is `docs/feedback-migrate.sh` (`bash docs/feedback-migrate.sh`
 from the repo root with `gh` signed in; creates the labels too, skips titles
-that already exist; delete the file afterwards). What it does:
+that already exist; delete the file afterwards). The script was reconciled
+against the backlog on 2026-11-10 and no longer files what has shipped; the
+list below is as written on 2026-09-19. What it did then:
 
 ```
 B="docs/improvement-backlog.md"

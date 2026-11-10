@@ -9,6 +9,11 @@
 // Two field spellings are accepted because the same capability arrives under
 // two names: the committed baseline in out/ writes `proposed_name` and
 // `is_crux`, the database writes `proposed_key` and `crux_rank`.
+//
+// Each capability also carries `iteration` ("tutorial" | "iteration", since
+// 2026-11-10). Nothing here reads it on purpose: whether an "iteration"
+// capability should weigh more in distance, sortKey or leverage is a later
+// product decision, not a refactor. Until then it is display only.
 
 /** @param {Map<string,string>|Record<string,string>|undefined} held */
 const levelOf = (held, id) =>

@@ -9,6 +9,10 @@
   --line: #dde1ec;
   --flow: #3461e6; --crux: #c93a30; --held: #1a7d4a; --partial: #8f5f08;
   --crux-wash: #c93a3012; --flow-wash: #3461e610;
+  /* what a filled button is painted with. Not --flow: dark mode lifts --flow
+     to #5b84ff so links and marks read on a dark page, and white text on that
+     is 3.4:1. This stays the light blue in both modes: white on it is 5.3:1. */
+  --fill: #3461e6;
   --lift: 0 10px 30px -12px rgba(15, 20, 34, 0.25);
   --scrim: rgba(15, 20, 34, 0.45);
   --display: "Bricolage Grotesque", system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -68,7 +72,19 @@ button[disabled] { opacity: 0.55; cursor: default; }
 h1 { font-size: 1.35rem; margin: 0; letter-spacing: -0.01em; }
 .muted { color: var(--ink-3); font-size: 0.9rem; }
 .error { color: var(--crux); font-size: 0.9rem; }
+.notice { color: var(--flow); font-size: 0.9rem; }
 .cost { font-size: 0.75rem; white-space: nowrap; align-self: center; }
+/* on the page for a screen reader only: the list's h1, the live region */
+.sr-only {
+  position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0;
+  overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0;
+}
+/* the error line (errorLine() in app.js): the sentence, then "Check again"
+   or a way back when there is one, then the raw message under Details */
+div.error { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 0.75rem; margin: 0.9rem 0; }
+div.error details { flex: 1 1 100%; color: var(--ink-3); }
+div.error summary { cursor: pointer; font-size: 0.8rem; width: fit-content; }
+div.error code { display: block; margin-top: 0.25rem; font: 0.78rem var(--mono); overflow-wrap: anywhere; }
 
 /* everything but the waifu scene: `:where()` keeps the specificity at the
    bare element, so a class on the element still wins */
@@ -78,7 +94,7 @@ h1 { font-size: 1.35rem; margin: 0; letter-spacing: -0.01em; }
 
 /* ---------------------------------------------------------------- header
    The waifu scene reuses header() and waifu.css styles it through
-   `.waifu header h1`, `.waifu .tab` and `.waifu button.link`, so the plain
+   `.waifu header h1` (elsewhere the wordmark is p.brand, not a heading), `.waifu .tab` and `.waifu button.link`, so the plain
    rules here are what that page has always had. The redesigned header only
    applies outside .waifu, so #/waifu keeps its overlaid underline tabs. */
 
@@ -120,7 +136,8 @@ button.link.danger { color: var(--crux); }
   padding: 1.5rem 0 1.25rem;
   border-bottom: 1px solid var(--line);
 }
-:not(.waifu) > header h1 {
+:not(.waifu) > header .brand {
+  margin: 0;
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -128,7 +145,7 @@ button.link.danger { color: var(--crux); }
   font-weight: 800;
   letter-spacing: -0.04em;
 }
-:not(.waifu) > header h1 svg { width: 2.4rem; height: 1.6rem; }
+:not(.waifu) > header .brand svg { width: 2.4rem; height: 1.6rem; }
 :not(.waifu) > header nav { align-items: center; flex-wrap: wrap; gap: 0.25rem; }
 :not(.waifu) > header .tab {
   padding: 0.45rem 0.9rem;
@@ -185,7 +202,7 @@ aside > p { margin: 0.2rem 0 1rem; color: var(--ink-3); font-size: 0.9rem; }
 aside ol { list-style: none; margin: 0; padding: 0; }
 aside ol li {
   display: grid;
-  grid-template-columns: 2.3rem 1fr;
+  grid-template-columns: 2.6rem 1fr;
   gap: 0.5rem;
   padding: 0.55rem 0;
   border-top: 1px solid var(--line);
@@ -193,7 +210,49 @@ aside ol li {
   line-height: 1.35;
 }
 aside .k { font: 500 1.05rem var(--mono); color: var(--flow); }
+/* the unit under the count: "3 ideas" */
+aside .k small { display: block; font: 0.68rem/1.2 var(--mono); color: var(--ink-3); }
 aside ol li:first-child .k { font-size: 1.35rem; }
+/* the leverage rows are buttons that filter the list (leveragePanel()),
+   classed .link so the buttons' grow-on-hover leaves them alone */
+.leverage .lev-body > p { margin: 0.2rem 0 1rem; color: var(--ink-3); font-size: 0.9rem; }
+:where(#app > :not(.waifu)) .leverage button.lev-row {
+  display: grid;
+  grid-template-columns: 2.6rem 1fr;
+  gap: 0.5rem;
+  width: calc(100% + 1rem);
+  height: auto;
+  margin: -0.3rem -0.5rem;
+  padding: 0.3rem 0.5rem;
+  border-radius: 8px;
+  background: none;
+  color: var(--ink);
+  font-size: 0.9rem;
+  font-weight: 400;
+  line-height: 1.35;
+  text-align: left;
+  text-decoration: none;
+}
+.leverage ol li { display: block; }
+.leverage .lev-row:hover { background: var(--flow-wash); }
+.leverage .lev-row:hover > span:last-child { color: var(--flow); }
+.leverage .lev-row[aria-pressed="true"] { background: var(--flow-wash); box-shadow: inset 0 0 0 1px var(--flow); }
+.leverage .lev-toggle { display: none; }
+/* narrow: above the list, folded to its toggle; wide: beside it, as it was */
+@media (max-width: 900px) {
+  .layout > .leverage { order: -1; padding: 0.35rem 1rem; }
+  .leverage > h2 { display: none; }
+  :where(#app > :not(.waifu)) .leverage .lev-toggle {
+    display: flex; align-items: center; justify-content: space-between; width: 100%;
+    height: 2.75rem; padding: 0; background: none; color: var(--ink);
+    font-size: 1.05rem; font-weight: 800; border-radius: 0; text-decoration: none;
+  }
+  .leverage .lev-toggle::after { content: "+"; font: 500 1.2rem var(--mono); color: var(--ink-3); }
+  .leverage.open .lev-toggle::after { content: "−"; }
+  .leverage:not(.open) .lev-body { display: none; }
+  .leverage.open .lev-body { padding-bottom: 0.65rem; }
+  .leverage .lev-body > p { margin: 0 0 0.75rem; }
+}
 aside a { color: inherit; text-decoration: none; }
 aside a:hover { color: var(--flow); }
 
@@ -203,7 +262,9 @@ aside a:hover { color: var(--flow); }
   border-radius: 18px;
   padding: 1.2rem 1.35rem 1.1rem;
 }
-.cards { display: grid; gap: 0.9rem; }
+/* minmax(0, …): an auto column grows to its widest card's min-content, and
+   the vague card's answer row made that 397px in a 358px phone column */
+.cards { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.9rem; }
 
 /* status marks keep their bracket text and gain a colour */
 .mark { font: 500 0.85rem var(--mono); white-space: pre; color: var(--ink-3); }
@@ -225,13 +286,14 @@ aside a:hover { color: var(--flow); }
 .tag.hard { color: var(--crux); border-color: var(--crux); }
 .tag.level-solid { color: var(--held); border-color: var(--held); }
 .tag.level-some { color: var(--partial); border-color: var(--partial); }
+.drop-reason { font-size: 0.8rem; color: var(--ink-3); font-style: italic; overflow-wrap: anywhere; min-width: 0; }
 
 :where(#app > :not(.waifu)) button, .btn {
   height: 3.25rem;
   padding: 0 1.4rem;
   border-radius: 14px;
   border: 0;
-  background: var(--flow);
+  background: var(--fill);
   color: #fff;
   font-weight: 700;
   cursor: pointer;
@@ -243,15 +305,19 @@ aside a:hover { color: var(--flow); }
 /* two-way toggle */
 .seg {
   display: inline-flex;
-  padding: 3px;
+  padding: 1px;
   border-radius: 999px;
   background: var(--bg-2);
   border: 1px solid var(--line);
 }
+/* as tall as the search box and the Filter button it sits beside (2.3rem,
+   less the track's padding and border), not the 3.25rem of a main button;
+   the track's padding is 1px so the button itself stays over 32px */
 .seg button {
+  height: calc(2.3rem - 4px);
   border: 0;
   background: none;
-  padding: 0.35rem 0.95rem;
+  padding: 0 0.95rem;
   border-radius: 999px;
   cursor: pointer;
   color: var(--ink-2);
@@ -348,7 +414,10 @@ input.txt, .fld input, .row input, :where(#app > :not(.waifu)) textarea {
   border: 1px solid var(--line);
 }
 .capture .mic:hover { color: var(--ink); }
+/* white on light --crux is 5.1:1; on dark --crux (#ff6a5c) it is 2.8:1, so
+   the dark page colour draws the glyph there instead: 6.8:1 */
 .capture .mic.on { background: var(--crux); border-color: var(--crux); color: #fff; }
+@media (prefers-color-scheme: dark) { .capture .mic.on { color: var(--bg); } }
 .mic-glyph { width: 1.4rem; height: 1.4rem; }
 /* its own row under the box: the disclosure has to be readable before the first
    press, and at phone width it would not share a line with anything */
@@ -360,13 +429,108 @@ input.txt, .fld input, .row input, :where(#app > :not(.waifu)) textarea {
 }
 
 .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem 1rem; padding-bottom: 1.25rem; }
-.controls select { max-width: 16rem; }
+/* two groups that each stay on one line: what to show and in what order,
+   then search, the Filter button and the count. Side by side when there is
+   room, one above the other on a phone; never more than that. */
+.controls .views, .controls .find { display: flex; align-items: center; gap: 0.6rem; min-width: 0; }
+.controls .find { flex: 1 1 22rem; }
+.controls select { max-width: 16rem; min-width: 0; }
 .controls .search {
-  width: 12rem; height: 2.3rem; padding: 0 0.75rem; border-radius: 10px;
+  flex: 0 1 12rem; width: 12rem; min-width: 4rem; height: 2.3rem; padding: 0 0.75rem; border-radius: 10px;
   border: 1px solid var(--line); background: var(--bg-2);
 }
-.count { margin-left: auto; font: 0.85rem var(--mono); color: var(--ink-3); }
-.controls + .muted { margin: -0.5rem 0 1.25rem; }
+button.filter-toggle { height: 2.3rem; padding: 0 0.9rem; border-radius: 10px; white-space: nowrap; flex-shrink: 0; }
+button.filter-toggle.on { color: var(--flow); border-color: var(--flow); }
+button.filter-toggle[aria-expanded="true"] { background: var(--flow-wash); }
+.controls .find .link { flex-shrink: 0; height: 2.3rem; }
+.count { margin-left: auto; font: 0.85rem var(--mono); color: var(--ink-3); white-space: nowrap; flex-shrink: 0; }
+/* the folded-away filters, a row of their own under the bar when open */
+.filter-panel {
+  flex: 1 1 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem 1rem;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--bg-2);
+}
+/* the phone's stand-in for both toggles, see filterBar() */
+.controls .show-pick { display: none; }
+/* the skill filter the leverage panel set: one removable chip */
+.chips { flex: 1 1 100%; display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: -0.25rem; }
+:where(#app > :not(.waifu)) button.chip {
+  height: 2rem;
+  padding: 0 0.8rem;
+  border-radius: 999px;
+  border: 1px solid var(--flow);
+  background: var(--flow-wash);
+  color: var(--ink);
+  font-weight: 500;
+  font-size: 0.88rem;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.chip b { font-weight: 700; }
+/* One row on a phone: the show select, search, Filter (and clear), with the
+   count on a line of its own under them. Measured at 390px: the select
+   takes 8.2rem and search keeps at least 4rem with "Filter (4)" and clear
+   both showing; every control stays 2.3rem tall. */
+@media (max-width: 640px) {
+  .controls { gap: 0.6rem; }
+  .controls .views { display: none; }
+  .controls .find { flex: 1 1 100%; flex-wrap: wrap; gap: 0.4rem; row-gap: 0.35rem; }
+  .controls .show-pick { display: block; flex: 0 0 8.2rem; width: 8.2rem; padding: 0 0.5rem; }
+  .controls .search { flex: 1 1 4rem; padding: 0 0.5rem; }
+  button.filter-toggle { padding: 0 0.7rem; }
+  .count { flex: 1 1 100%; order: 9; margin: 0; font-size: 0.78rem; }
+  .filter-panel select { flex: 1 1 100%; max-width: none; }
+}
+
+/* nothing rated yet: the list leads with this, see rateFirst() */
+.rate-first {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1.5rem;
+  margin: 0 0 1.25rem;
+  padding: 0.9rem 1.1rem;
+  border: 1px solid var(--flow);
+  border-radius: 14px;
+  background: var(--flow-wash);
+  font-weight: 500;
+}
+.rate-first span { flex: 1 1 16rem; }
+
+/* what the last rating moved (movedBanner() in app.js): the loudest thing
+   on the list, once, after a rating changed something */
+.moved-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  margin: 1.5rem 0 0;
+  padding: 1rem 1.1rem 1rem 1.25rem;
+  border-radius: 14px;
+  background: var(--bg-2);
+  border: 1px solid var(--held);
+  box-shadow: var(--lift);
+}
+.moved-banner p { flex: 1; margin: 0; font-size: 1.15rem; line-height: 1.4; font-weight: 500; overflow-wrap: anywhere; }
+.moved-banner b { color: var(--held); font-weight: 800; }
+:where(#app > :not(.waifu)) .moved-banner button.link {
+  width: 2rem; height: 2rem; flex-shrink: 0; margin: -0.3rem -0.4rem 0 0;
+  font-size: 1.35rem; line-height: 1; text-decoration: none;
+}
+.moved-banner + .capture { margin-top: 1.25rem; }
+@media (prefers-reduced-motion: no-preference) { .moved-banner { animation: fade 0.5s ease both; } }
+.rate-first .btn { display: inline-flex; align-items: center; text-decoration: none; white-space: nowrap; }
+
+/* a click anywhere on an idea card opens it (cardProps() in app.js) */
+.card.idea[data-idea] { cursor: pointer; }
+.card.idea[data-idea] form { cursor: auto; }
 
 .band { margin: 0 0 2.25rem; }
 .band-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0.75rem; margin: 0 0 0.9rem; }
@@ -438,6 +602,24 @@ input.txt, .fld input, .row input, :where(#app > :not(.waifu)) textarea {
 .friend-line { color: var(--flow); display: inline-flex; gap: 0.4rem; align-items: center; }
 .friend-line.dim { color: var(--ink-3); }
 
+/* delete from the list (cardDelete() in app.js): small, the foot's last
+   item. Where there is a pointer it shows only while the card is hovered or
+   holds focus, so a list of cards is not a list of red words; opacity, not
+   display, so it stays in the tab order and appears when tabbed to. */
+:where(#app > :not(.waifu)) button.card-del {
+  height: 2rem;
+  padding: 0 0.3rem;
+  font-size: 0.82rem;
+  text-decoration: none;
+}
+:where(#app > :not(.waifu)) button.card-del:hover { color: var(--crux); text-decoration: underline; }
+@media (hover: hover) and (pointer: fine) {
+  .card .card-del { opacity: 0; }
+  .card:hover .card-del, .card:focus-within .card-del { opacity: 1; }
+}
+.card-confirm { margin-top: 0.8rem; padding-top: 0.75rem; border-top: 1px dashed var(--crux); cursor: auto; }
+.card-confirm .hint { margin: 0 0 0.5rem; color: var(--ink); }
+
 /* extracting: the sweep is indeterminate on purpose, see extractingRow() */
 .card.busy .progress {
   margin: 1rem 0 0.2rem;
@@ -468,9 +650,26 @@ input.txt, .fld input, .row input, :where(#app > :not(.waifu)) textarea {
 .ask p b { color: var(--partial); font-weight: 700; }
 .ask .hint { margin: 0.5rem 0 0; }
 .ask .row input { flex: 1; }
+/* no result yet: nothing to answer, so not the vague colour (waitingRow) */
+.card.waiting .ask { border-color: var(--line); }
+.card.waiting .ask .row { align-items: center; flex-wrap: wrap; }
+.card.waiting .ask .row .hint { margin: 0; }
+/* every vague idea on one form (vagueBatch) */
+.batch-open { margin: 0 0 0.9rem; }
+.batch { margin: 0 0 1.25rem; }
+.batch h2 { margin: 0 0 0.6rem; font-size: 1rem; }
+.batch ol { margin: 0; padding: 0; list-style: none; display: grid; gap: 1rem; }
+.batch li { min-width: 0; }
+.batch li .raw { margin: 0 0 0.3rem; color: var(--ink-2); overflow-wrap: anywhere; }
+.batch li p { margin: 0 0 0.35rem; }
+.batch .fld { margin: 0.35rem 0 0; }
+.batch textarea { width: 100%; box-sizing: border-box; }
+.batch .row { align-items: center; margin-top: 0.6rem; }
 
 /* split-flap: mono tiles that settle into the plain crux text */
 .flap { display: inline-flex; flex-wrap: wrap; row-gap: 2px; }
+/* one word's tiles never wrap apart; the row breaks only at the space tiles */
+.flap .w { display: inline-flex; }
 .flap .ch {
   display: inline-block;
   min-width: 0.56em;
@@ -502,6 +701,25 @@ input.txt, .fld input, .row input, :where(#app > :not(.waifu)) textarea {
   .bar i { animation: none; width: 100%; opacity: 0.5; }
   .flap.done .ch { transition: none; }
 }
+
+/* the list's "?" help (keysDialog in app.js), a child of body, not #app */
+dialog.keys { border: 0; padding: 0; background: none; color: var(--ink); max-width: calc(100vw - 2rem); }
+dialog.keys::backdrop { background: var(--scrim); }
+.keys-card {
+  width: 22rem; max-width: 100%;
+  padding: 1.25rem 1.4rem;
+  border-radius: 18px; border: 1px solid var(--line);
+  background: var(--bg-2); box-shadow: var(--lift);
+}
+.keys-card h2 { margin: 0 0 0.75rem; font-size: 1.15rem; font-weight: 800; }
+.keys-card dl { display: grid; grid-template-columns: auto 1fr; gap: 0.45rem 1rem; margin: 0; align-items: baseline; }
+.keys-card dd { margin: 0; color: var(--ink-2); }
+.keys-card kbd {
+  font: 500 0.82rem var(--mono); padding: 0.1rem 0.45rem; white-space: nowrap;
+  border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 6px; background: var(--bg);
+}
+.keys-card .hint { margin: 0.9rem 0; }
+.keys-card form { margin: 0; }
 
 /* ---------------------------------------------------------------- group */
 
@@ -545,11 +763,69 @@ a.owner:hover { color: var(--flow); }
 .manage .fld:first-of-type { margin-top: 0; }
 .manage .invite { margin-top: 0.75rem; }
 .manage .status { display: block; margin-top: 0.4rem; }
+/* "Remove X?" and its two buttons, stacked: side by side in the 19rem panel
+   the buttons broke into two lines each */
+.manage .plain li.confirm { flex-direction: column; align-items: stretch; gap: 0.4rem; }
+.manage .plain li.confirm .hint { margin: 0; }
+.manage .confirm .row button, .group-actions .row button { white-space: nowrap; }
 .group-actions { margin-top: 1rem; }
 .group-actions .row { margin-top: 0.5rem; }
 
+/* what the group is missing between them (groupLeverage() in app.js): a
+   plain list with a count per skill, deliberately no rank numbers */
+.missing { list-style: none; margin: 0; padding: 0; }
+.missing li {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.75rem;
+  padding: 0.5rem 0;
+  border-top: 1px solid var(--line);
+  font-size: 0.92rem;
+  line-height: 1.35;
+}
+.missing li > span:first-child { min-width: 0; overflow-wrap: anywhere; }
+.missing .k { font: 0.78rem var(--mono); color: var(--ink-3); white-space: nowrap; }
+.group-leverage .hint { margin-top: 0.75rem; }
+
+/* "I can do a hard part" and who said so, under a feed card's footer and on
+   the idea page (claimRow() in app.js) */
+.claim { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 0.9rem; margin-top: 0.8rem; font-size: 0.88rem; }
+.claim .friend-line { min-width: 0; overflow-wrap: anywhere; }
+.claim .btn.sm { height: 2.5rem; }
+.claim button.link { min-height: 2rem; padding: 0 0.25rem; }
+.detail > .claim { margin: 1rem 0; }
+
+/* the Group tab on a phone (390px is the target): one column, nothing wider
+   than the screen, every control at least 32px tall and the main buttons
+   44px. Rows of name + action keep the action on the line and let the name
+   wrap, rather than breaking into a row per word. */
+@media (max-width: 640px) {
+  .group .page-head { margin: 1.5rem 0 1rem; }
+  .group .page-head h1 { font-size: 1.8rem; overflow-wrap: anywhere; }
+  .group .page-head .seg { width: 100%; }
+  .group .page-head .seg button { flex: 1 1 0; height: 2.5rem; padding: 0 0.5rem; }
+  .group .card { padding: 1rem 1rem 0.9rem; }
+  .group .card-head { flex-direction: column; gap: 0.6rem; }
+  .group .card-foot .friend-line { min-width: 0; overflow-wrap: anywhere; }
+  .group aside { padding: 1rem; }
+  .group .people li { min-height: 2.75rem; }
+  /* inline links whose text is shorter than a finger: taller hit area, same line */
+  .group .people a, .group .card-foot a.owner, .group .card h3 a { padding: 0.35rem 0; }
+  .group .manage summary { padding: 0.6rem 0; }
+  .group .plain li > span { min-width: 0; overflow-wrap: anywhere; }
+  .group .plain li > button.link, .group .group-actions button.link { flex-shrink: 0; min-height: 2.75rem; padding: 0 0.25rem; }
+  .group .fld .row input { height: 2.75rem; }
+  .group .fld .row .btn.sm, .group .fld .row button.sm, .group .group-actions .btn.sm, .group .confirm .btn.sm { height: 2.75rem; flex-shrink: 0; }
+  .group .group-actions .row, .group .plain .row { flex-wrap: wrap; }
+  .group .claim .btn.sm { height: 2.75rem; }
+  .group-create .row { flex-wrap: wrap; }
+  .group-create .row input { flex: 1 1 100%; height: 2.75rem; }
+  .group-create .row .btn { height: 2.75rem; }
+}
+
 .group-create { max-width: 32rem; margin-top: 2rem; }
-.group-create h2 { margin: 0 0 0.5rem; font-size: 1.3rem; font-weight: 800; letter-spacing: -0.02em; }
+.group-create h1 { margin: 0 0 0.5rem; font-size: 1.3rem; font-weight: 800; letter-spacing: -0.02em; }
 .group-create p { margin: 0 0 0.5rem; color: var(--ink-2); }
 
 /* ---------------------------------------------------------------- profile */
@@ -582,18 +858,41 @@ a.owner:hover { color: var(--flow); }
 .skill .nm { font-weight: 500; }
 .skill .nm .tag { margin-left: 0.4rem; vertical-align: 2px; }
 .skill code { display: block; font: 0.78rem var(--mono); color: var(--ink-3); }
+/* "Your ideas need these": the profile's lead section, and how many ideas
+   need each skill under its name */
+.skill .needs { font: 0.78rem var(--mono); color: var(--ink-3); }
+.need { border-color: var(--partial); }
+.need-note { margin: 0 0 0.5rem; color: var(--ink-2); font-size: 0.9rem; }
+/* the quiet "what do these marks mean?" link, on the profile and idea page */
+.help-link { font-size: 0.85rem; color: var(--ink-3); white-space: nowrap; }
+.help-link:hover { color: var(--flow); }
 @media (max-width: 640px) {
   .skill { grid-template-columns: minmax(0, 1fr); gap: 0.5rem; }
 }
 
-/* three-state control: radios, so the keyboard works; nothing checked
-   means unrated, which reads as a dashed control and a "not rated" tag */
+/* the rating control (levelControl() in app.js), the same on the profile and
+   on each capability of the idea page: radios, so the keyboard works.
+   Nothing checked means unrated, which reads as a dashed control and a
+   "not rated" tag — real text, hidden once a level is chosen. Each option is
+   at least 2rem (32px) tall and wider than that. */
+.rating { display: inline-flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 0.35rem 0.6rem; }
+.rating .unrated {
+  font: 0.72rem var(--mono);
+  color: var(--partial);
+  border: 1px dashed var(--partial);
+  padding: 0.05rem 0.45rem;
+}
+.rating:has(input:checked) .unrated { display: none; }
+.rating:not(:has(input:checked)) .lvl { border-style: dashed; }
 .lvl { display: inline-flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--bg-2); }
 .lvl label { position: relative; display: block; }
 .lvl label + label { border-left: 1px solid var(--line); }
 .lvl input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
 .lvl span {
-  display: block;
+  display: grid;
+  place-items: center;
+  min-height: 2rem;
+  min-width: 2.75rem;
   padding: 0.38rem 0.85rem;
   font-size: 0.88rem;
   color: var(--ink-2);
@@ -605,18 +904,14 @@ a.owner:hover { color: var(--flow); }
 .lvl [data-l="none"] input:checked + span { background: var(--ink-3); color: var(--bg-2); }
 .lvl [data-l="some"] input:checked + span { background: var(--partial); color: var(--bg-2); }
 .lvl [data-l="solid"] input:checked + span { background: var(--held); color: var(--bg-2); }
-
-.profile .skill:not(:has(input:checked)) .lvl { border-style: dashed; }
-.profile .skill:not(:has(input:checked)) .nm::after {
-  content: "not rated";
-  margin-left: 0.6rem;
-  vertical-align: 2px;
-  white-space: nowrap;
-  font: 0.72rem var(--mono);
-  color: var(--partial);
-  border: 1px dashed var(--partial);
-  border-radius: 999px;
-  padding: 0.05rem 0.45rem;
+/* a profile row on a phone: the name above (the 640px .skill rule), the
+   control under it across the row, three equal options 44px tall. The
+   "not rated" tag keeps its line beside the control when there is room. */
+@media (max-width: 640px) {
+  .profile .skill .rating { display: flex; justify-content: flex-start; }
+  .profile .skill .lvl { flex: 1 1 13rem; }
+  .profile .skill .lvl label { flex: 1 1 0; }
+  .profile .skill .lvl span { min-height: 2.75rem; min-width: 0; padding: 0.38rem 0.5rem; }
 }
 
 /* "Show only unrated": the side panel's checkbox hides rated rows, then
@@ -672,15 +967,16 @@ aside .domains li { display: block; padding: 0; border-top: 1px solid var(--line
 .queue .key { font: 0.85rem var(--mono); }
 
 /* ---------------------------------------------------------------- motion
-   Chosen from docs/redesign/motion-options (2026-09-16): springy controls,
-   and one card at a time in focus. Every rule here is scoped away from the
+   Chosen from docs/redesign/motion-options (2026-09-16): controls that grow
+   a little under the pointer (a plain ease-out since 2026-11-10; the spring
+   overshot), and one card at a time in focus. Every rule here is scoped away from the
    waifu scene and switched off under reduced motion. */
 
 @media (prefers-reduced-motion: no-preference) {
   :not(.waifu) > header .tab, .seg button, .btn, .lvl label span, button.link,
   :where(#app > :not(.waifu)) button {
     transition: background-color 0.15s, color 0.15s, border-color 0.15s, opacity 0.15s,
-      transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s;
+      transform 0.2s ease-out, box-shadow 0.2s;
   }
   :not(.waifu) > header .tab:hover, .btn:hover, :where(#app > :not(.waifu)) button:not(.link):not(.seg button):hover { transform: scale(1.04); }
   .btn:hover, :where(#app > :not(.waifu)) button:not(.link):not(.seg button):not(.ghost):not(.secondary):hover { box-shadow: 0 6px 14px -8px rgba(52, 97, 230, 0.5); }
@@ -689,27 +985,18 @@ aside .domains li { display: block; padding: 0; border-top: 1px solid var(--line
   :where(#app > :not(.waifu)) :is(input, textarea, select) { transition: border-color 0.15s, box-shadow 0.2s; }
 }
 
-/* the card under the pointer, tabbed to or being typed in steps forward;
-   the rest of its list steps back. The delay keeps a sweep down the list
-   from flickering. Blur only when motion is welcome. */
-:root { --frost-delay: 120ms; }
+/* the card under the pointer or holding focus lifts a little; the rest of
+   the list stays exactly as it was, readable (2026-11-10: the old fade and
+   blur of the siblings cost legibility, and blurred them for keyboard users
+   too). The rise is motion, so reduced motion keeps only the shadow. */
 .cards > .card:not(.busy):hover, .cards > .card:not(.busy):focus-within {
   position: relative;
   z-index: 1;
-  transform: scale(1.02);
   box-shadow: var(--lift);
 }
-.cards:has(> .card:not(.busy):hover, > .card:not(.busy):focus-within) > .card:not(:hover):not(:focus-within):not(.busy) {
-  opacity: 0.55;
-  transform: scale(0.985);
-}
 @media (prefers-reduced-motion: no-preference) {
-  .cards > .card {
-    transition: filter 0.28s ease var(--frost-delay), opacity 0.28s ease var(--frost-delay),
-      transform 0.28s cubic-bezier(0.2, 0.8, 0.2, 1) var(--frost-delay), box-shadow 0.28s ease var(--frost-delay);
-  }
-  .cards > .card:hover, .cards > .card:focus-within { transition-delay: 0ms; }
-  .cards:has(> .card:not(.busy):hover, > .card:not(.busy):focus-within) > .card:not(:hover):not(:focus-within):not(.busy) { filter: blur(3px); }
+  .cards > .card { transition: transform 0.2s ease-out, box-shadow 0.2s ease-out; }
+  .cards > .card:not(.busy):hover { transform: translateY(-2px); }
 }
 
 /* page switch and card glide, through the View Transitions API. render()
@@ -747,11 +1034,11 @@ aside .domains li { display: block; padding: 0; border-top: 1px solid var(--line
 :where(#app > :not(.waifu)) .foot a { color: var(--ink-3); text-decoration: none; }
 :where(#app > :not(.waifu)) .foot a:hover { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
 
-.report h2 { margin: 1.5rem 0 0; font-size: 1.3rem; font-weight: 800; letter-spacing: -0.02em; }
+.report h1 { margin: 1.5rem 0 0; font-size: 1.3rem; font-weight: 800; letter-spacing: -0.02em; }
 .report > .muted { margin: 0.35rem 0 1.25rem; max-width: 48rem; }
 .report-form { display: grid; gap: 0.75rem; max-width: 40rem; }
 .report-form .seg { justify-self: start; }
-.report-form .seg button { height: auto; }
+.report-form .seg button { height: 2.2rem; }
 .report-form .fld { margin: 0; }
 .report-form input[type="file"] { height: auto; padding: 0.5rem 0.8rem; font-size: 0.85rem; }
 .report-form .hint { margin: 0; max-width: 60ch; }
@@ -817,14 +1104,14 @@ dialog.auth .auth-close:hover { background: var(--flow-wash); color: var(--ink);
   @keyframes auth-in { from { opacity: 0; transform: translateY(16px); } }
 }
 @media (prefers-reduced-motion: reduce) { dialog.auth[open] { animation: none; } }
-.signin h1 { display: flex; align-items: center; gap: 0.5rem; font-size: 1.75rem; font-weight: 800; letter-spacing: -0.04em; }
-.signin h1 svg { width: 2.4rem; height: 1.6rem; }
+.signin h2 { margin: 0; display: flex; align-items: center; gap: 0.5rem; font-size: 1.75rem; font-weight: 800; letter-spacing: -0.04em; }
+.signin h2 svg { width: 2.4rem; height: 1.6rem; }
 .signin .muted { margin: -0.4rem 0 0.5rem; color: var(--ink-2); }
 .signin .fld { margin: 0; }
 .signin .btn { margin-top: 0.25rem; }
 .signin .switch { margin: 0.9rem 0 0; text-align: center; }
 .signin .auth-seg { align-self: center; margin: 0.25rem 0 0; }
-.signin .auth-seg button { height: auto; }
+.signin .auth-seg button { height: 2.2rem; }
 .signin .how { margin: 0; font-size: 0.88rem; line-height: 1.5; color: var(--ink-2); }
 
 /* ---------------------------------------------------------------- idea page
@@ -837,6 +1124,20 @@ dialog.auth .auth-close:hover { background: var(--flow-wash); color: var(--ink);
 .detail { margin-top: 1rem; }
 .detail-title { font-size: 1.5rem; font-weight: 800; letter-spacing: -0.02em; margin: 0 0 0.25rem; line-height: 1.25; }
 .idea-raw { color: var(--ink-3); font-size: 0.9rem; margin: 0.15rem 0 0; overflow-wrap: anywhere; }
+/* other ideas of yours this one resembles: links and the reason, kept quiet */
+.looks-like { color: var(--ink-3); font-size: 0.9rem; margin: 0.5rem 0 0; overflow-wrap: anywhere; }
+.looks-like .why { font: 0.78rem var(--mono); }
+/* inline in the sentence, so not the 3.25rem every other button gets */
+.looks-like button.link { height: auto; padding: 0.15rem 0; margin-left: 0.15rem; vertical-align: baseline; }
+.dup-confirm { margin: 0.5rem 0 0; }
+.dup-confirm .hint { margin: 0 0 0.5rem; overflow-wrap: anywhere; }
+.life-banner .dup-of { font-weight: 400; overflow-wrap: anywhere; min-width: 0; }
+/* the reading extraction took, marked as a guess; "not right?" is the only
+   control on it, and sits inline with the sentence it questions */
+.assumed { color: var(--ink-2); font-size: 0.9rem; margin: 0.5rem 0 0; overflow-wrap: anywhere; }
+.assumed .lbl { font-weight: 600; color: var(--ink-3); }
+/* every #app button is 3.25rem tall; inside a sentence that splits the line */
+.assumed button.link { height: auto; padding: 0.15rem 0; vertical-align: baseline; }
 .meta { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; margin-top: 0.75rem; }
 
 /* the picture that came with an idea */
@@ -850,7 +1151,7 @@ dialog.auth .auth-close:hover { background: var(--flow-wash); color: var(--ink);
 .answer .hint { margin: 0; }
 .answer .btn { justify-self: start; }
 
-.detail h3 { margin: 1.5rem 0 0.25rem; font-size: 1.05rem; font-weight: 800; }
+.detail h2 { margin: 1.5rem 0 0.25rem; font-size: 1.05rem; font-weight: 800; }
 .capdetails { list-style: none; margin: 0.5rem 0 0; padding: 0; }
 .capdetail { padding: 0.7rem 0; border-top: 1px solid var(--line); }
 .capdetail.is-crux {
@@ -861,22 +1162,32 @@ dialog.auth .auth-close:hover { background: var(--flow-wash); color: var(--ink);
   background: var(--crux-wash);
 }
 .capdetail.is-crux + .capdetail { border-top: 0; }
-.capdetail-head { display: flex; align-items: baseline; gap: 0.55rem; }
-.capdetail-name { flex: 1; overflow-wrap: anywhere; }
+/* mark, name and tag on one line; the rating control beside them when
+   there is room and on a line of its own, under the name, when there is not */
+.capdetail-head { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 0.55rem; }
+.capdetail-name { flex: 1 1 12rem; min-width: 0; overflow-wrap: anywhere; }
+.capdetail-head .rating { margin-left: auto; }
+@media (max-width: 640px) {
+  .capdetail-name { flex-basis: 0; }   /* the tag stays beside the name */
+  /* the second, quieter tag goes under the name rather than squeeze it */
+  .capdetail-head .iter-tag { flex-basis: 100%; margin-left: 1.9rem; }
+  .capdetail-head .rating { flex: 1 1 100%; justify-content: flex-start; margin-left: 1.9rem; }
+}
 .capdetail.is-crux .capdetail-name { font-weight: 700; }
 .capdetail.proposed .capdetail-name { font-style: italic; color: var(--ink-3); }
 .crux-tag { font: 0.78rem var(--mono); color: var(--crux); white-space: nowrap; }
+/* quieter than the hard-part tag: grey, no colour of its own */
+.iter-tag { font: 0.78rem var(--mono); color: var(--ink-3); white-space: nowrap; }
 .capdetail-reason { margin: 0.25rem 0 0 1.9rem; color: var(--ink-2); font-size: 0.9rem; }
-:where(#app > :not(.waifu)) button.rate {
-  height: auto; padding: 0 0.15rem; margin: 0 -0.15rem; border: 0; border-radius: 4px;
-  background: none; font-weight: 500; cursor: pointer;
-}
-:where(#app > :not(.waifu)) button.rate:hover { background: var(--line); color: var(--ink); }
 .rate-hint { margin: 0.6rem 0 0; font-size: 0.8rem; color: var(--ink-3); }
 .moved { margin: 0.35rem 0 0; font: 500 0.85rem var(--mono); color: var(--ink-2); }
 
-.resolution { margin: 0.3rem 0 0 1.9rem; }
-.resolution summary { font: 0.78rem var(--mono); color: var(--ink-3); cursor: pointer; }
+.taken-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 0.25rem 1rem; }
+.taken-head h2 { margin-bottom: 0.25rem; }
+/* inside the page's closed Details: how each capability was matched */
+.runs h3 { margin: 0.9rem 0 0.25rem; font-size: 0.9rem; font-weight: 700; color: var(--ink-2); }
+.resolutions { list-style: none; margin: 0; padding: 0; }
+.resolution { padding: 0.4rem 0; border-top: 1px solid var(--line); font-size: 0.88rem; overflow-wrap: anywhere; }
 .resolution dl { margin: 0.4rem 0 0; font-size: 0.85rem; display: grid; grid-template-columns: auto 1fr; gap: 0.15rem 0.6rem; }
 .resolution dt { color: var(--ink-3); }
 .resolution dd { margin: 0; overflow-wrap: anywhere; }
@@ -887,11 +1198,35 @@ dialog.auth .auth-close:hover { background: var(--flow-wash); color: var(--ink);
 .share .muted { margin: 0.6rem 0 0; }
 .delete { margin: 1rem 0 0; }
 .delete .row { margin-top: 0.5rem; }
+.lifecycle { margin: 1rem 0 0; }
+.lifecycle.row { align-items: center; gap: 1rem; }
+.lifecycle .hint { margin: 0 0 0.5rem; }
+.build-list { list-style: none; margin: 0 0 0.75rem; padding: 0; display: grid; gap: 0.35rem; }
+.drop-form .fld { margin-bottom: 0.6rem; }
+.life-banner {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.25rem 0.5rem;
+  margin: 0 0 1rem; padding: 0.55rem 0.8rem;
+  border-radius: 10px; border: 1px solid var(--line); background: var(--bg);
+  font-weight: 600; color: var(--ink-2);
+}
+.life-banner.built { color: var(--held); border-color: var(--held); }
 
 .runs { margin-top: 1.5rem; }
 .runs summary { font-size: 0.88rem; color: var(--ink-3); cursor: pointer; }
 .runs-list { list-style: none; margin: 0.5rem 0 0; padding: 0; }
 .runs-list li { display: flex; gap: 0.55rem; font: 0.8rem var(--mono); color: var(--ink-2); padding: 0.15rem 0; overflow-wrap: anywhere; }
+
+/* #/help: the marks as a definition list, then one card per section */
+.help .card { margin: 0 0 1rem; max-width: 48rem; }
+.help h2 { margin: 0 0 0.4rem; font-size: 1.15rem; font-weight: 800; }
+.help .card p { margin: 0.4rem 0 0; color: var(--ink-2); }
+.help-marks { margin: 0; display: grid; grid-template-columns: max-content 1fr; gap: 0.6rem 1rem; }
+.help-marks dt { display: flex; gap: 0.5rem; align-items: baseline; font-weight: 600; }
+.help-marks dd { margin: 0; color: var(--ink-2); }
+@media (max-width: 640px) {
+  .help-marks { grid-template-columns: 1fr; gap: 0.15rem; }
+  .help-marks dd { margin-bottom: 0.6rem; }
+}
 
 /* ---------------------------------------------------------------- landing
    The signed-out front door (index.html, static markup). Same container as
@@ -908,11 +1243,15 @@ html.signed-in .landing { display: none; }
 }
 @media (max-width: 900px) { .landing { padding: 0 1rem; } }
 
+/* The landing's own type scale, each level at least 1.25 times the one
+   below: body 1rem, h3 and the hero's lede 1.25rem, h2 1.6rem, the hero
+   heading 2.2rem and up. The signed-in app keeps its sizes. */
 .landing h2 {
   margin: 0 0 1.25rem;
-  font-size: 1.3rem;
+  font-size: 1.6rem;
   font-weight: 800;
-  letter-spacing: -0.02em;
+  line-height: 1.2;
+  letter-spacing: -0.025em;
 }
 
 /* top bar: the mark, and the two doors */
@@ -920,7 +1259,18 @@ html.signed-in .landing { display: none; }
 .land-logo { display: inline-flex; align-items: center; gap: 0.5rem; color: var(--ink); text-decoration: none; font-size: 1.35rem; font-weight: 800; letter-spacing: -0.04em; }
 .land-logo svg { width: 2rem; height: 1.35rem; }
 .land-nav-actions { display: flex; gap: 0.6rem; }
-@media (max-width: 480px) { .land-nav-actions .btn.ghost { display: none; } }
+/* a phone gets one door up here. It is "Sign in": accounts are invite-only,
+   so most visitors already have one, and "Create account" is the hero's
+   button a few lines down. The wordmark goes too: the hero's split-flap one
+   is right below, and two in the first 100px is one too many. */
+@media (max-width: 480px) {
+  .land-nav-actions .btn:not(.ghost), .land-logo { display: none; }
+  .land-nav { justify-content: flex-end; }
+}
+/* no last line of one short word. Short blocks are balanced: `pretty` leaves
+   a two-line paragraph alone, which is where "fine." sat by itself. */
+.landing p { text-wrap: pretty; }
+.landing :is(h2, h3, .card-title, .land-sub, .land-steps p) { text-wrap: balance; }
 
 /* hero: copy left, three stacked example cards right, both top-aligned */
 .land-hero {
@@ -933,7 +1283,7 @@ html.signed-in .landing { display: none; }
 .land-copy { min-width: 0; padding-top: 1rem; }
 .land-h {
   margin: 1.5rem 0 0;
-  font-size: clamp(1.9rem, 3.6vw, 2.8rem);
+  font-size: clamp(2.2rem, 4.4vw, 3.4rem);
   font-weight: 800;
   line-height: 1.05;
   letter-spacing: -0.03em;
@@ -942,12 +1292,14 @@ html.signed-in .landing { display: none; }
 }
 .land-sub {
   margin: 1rem 0 0;
-  font-size: 1.15rem;
+  font-size: 1.25rem;
   line-height: 1.5;
   color: var(--ink-2);
   max-width: 40ch;
 }
 .land-cta { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem 1.5rem; margin-top: 2rem; }
+/* who the doors open for, said under them rather than only in the dialog */
+.land-list { margin: 1rem 0 0; color: var(--ink-2); max-width: 56ch; }
 .landing .btn { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; }
 .land-invite { color: var(--ink-2); text-decoration: underline; text-underline-offset: 3px; }
 .land-invite:hover { color: var(--ink); }
@@ -1101,8 +1453,8 @@ html.signed-in .landing { display: none; }
    whole landing scrolled sideways: 430px of document in a 381px phone. The
    fragment shrinks to fit once the card is allowed to. */
 .land-steps li.card { min-width: 0; }
-.land-steps h3 { margin: 0; font-size: 1.15rem; font-weight: 700; letter-spacing: -0.01em; }
-.land-steps p { margin: 0.4rem 0 0; color: var(--ink-2); font-size: 0.95rem; }
+.land-steps h3 { margin: 0; font-size: 1.25rem; font-weight: 700; line-height: 1.25; letter-spacing: -0.015em; }
+.land-steps p { margin: 0.4rem 0 0; color: var(--ink-2); }
 .land-frag {
   margin: 0 0 1.1rem;
   padding: 0.85rem;
@@ -1144,4 +1496,9 @@ html.signed-in .landing { display: none; }
 .land-shared { max-width: 48rem; }
 .land-private { margin: 1.25rem 0 0; color: var(--ink-2); max-width: 60ch; }
 @media (max-width: 640px) { .land-shared .card-head { flex-direction: column; gap: 0.6rem; } }
+
+/* the close: the hero's two doors again, after the last section */
+.land-close { padding: 3rem 0 1rem; border-top: 1px solid var(--line); }
+.land-close h2 { margin-bottom: 0; }
+.land-close .land-cta { margin-top: 1.5rem; }
 

@@ -11,7 +11,7 @@ const API = "https://api.anthropic.com/v1/messages";
 export type ToolCall = {
   model: string;
   system: string;
-  tool: { name: string; description: string; input_schema: unknown };
+  tool: { name: string; description: string; strict?: boolean; input_schema: unknown };
   user: string;
   maxTokens: number;
 };

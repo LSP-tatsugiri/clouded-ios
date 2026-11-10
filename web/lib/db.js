@@ -31,10 +31,11 @@ export async function signIn(email, password) {
 }
 
 // Self-serve, gated server-side: a trigger on auth.users refuses any email
-// not in allowed_emails (docs/hosting.md). Email confirmation is off, so a
-// successful sign-up is also a sign-in.
+// not in allowed_emails (docs/hosting.md). Email confirmation is on (decided
+// 2026-09-16), so a sign-up returns no session until the link in the email is
+// opened; the return value says which case this was.
 export async function signUp(email, password) {
-  const { error } = await db.auth.signUp({ email, password });
+  const { data, error } = await db.auth.signUp({ email, password });
   if (error) {
     // The trigger raises "this address is not invited yet", but under the auth
     // API version supabase-js sends, GoTrue hides database errors behind
@@ -45,6 +46,7 @@ export async function signUp(email, password) {
     }
     throw new Error(error.message);
   }
+  return { confirm: !data.session };
 }
 
 export const signOut = () => db.auth.signOut();
@@ -60,20 +62,31 @@ export async function session() {
 // a group they belong to; the filter is the product's two-view split
 // (docs/step-7-plan.md, decision 12), not a security measure. Friends' shared
 // ideas come through sharedIdeas() on the Group tab.
+//
+// Both lists come back as { ideas, caps }: the capability rows are embedded in
+// the same request and limited to the ideas returned, where they used to be a
+// separate unfiltered read of every row the user could see.
 export async function ideas(userId) {
-  return ok(await db.from("ideas")
-    .select("id, user_id, raw, objective, domain, is_clear, clarifying_question, status, shared_to, image_path, created_at")
+  return withCaps(ok(await db.from("ideas")
+    .select(`${IDEA_COLS}, ${CAPS}`)
     .eq("user_id", userId)
-    .order("created_at", { ascending: true }), "ideas");
+    .order("created_at", { ascending: true }), "ideas"));
 }
 
 // The feed: every shared idea the user can see, theirs included, newest
 // first. RLS limits "shared" to groups they belong to.
 export async function sharedIdeas() {
-  return ok(await db.from("ideas")
-    .select("id, user_id, raw, objective, domain, is_clear, clarifying_question, status, shared_to, image_path, created_at")
+  return withCaps(ok(await db.from("ideas")
+    .select(`${IDEA_COLS}, ${CAPS}`)
     .not("shared_to", "is", null)
-    .order("created_at", { ascending: false }), "sharedIdeas");
+    .order("created_at", { ascending: false }), "sharedIdeas"));
+}
+
+const IDEA_COLS = "id, user_id, raw, objective, domain, is_clear, clarifying_question, status, shared_to, image_path, created_at, built_at, dropped_at, drop_reason";
+const CAPS = "caps:idea_capabilities(idea_id, skill_id, proposed_key, reason, crux_rank, resolved)";
+
+function withCaps(rows) {
+  return { ideas: rows.map(({ caps: _, ...idea }) => idea), caps: rows.flatMap((r) => r.caps) };
 }
 
 // A friend's levels, for their profile page. RLS returns rows only for a
@@ -101,17 +114,18 @@ export async function groupSkills(userId) {
   return pool;
 }
 
-export async function capabilities() {
-  return ok(await db.from("idea_capabilities")
-    .select("idea_id, skill_id, proposed_key, reason, crux_rank, resolved"), "capabilities");
-}
-
 // RLS hides rows rather than refusing them, so a stranger's link and a
 // mistyped id both come back as no row, not an error.
+// assumption (and iteration below) are read only on the idea page, the one
+// place that shows them; the list's IDEA_COLS and CAPS leave them out. Before
+// migration 20261110161336 is pushed they are dropped from the select (lacksColumn).
 export async function idea(id) {
-  const row = ok(await db.from("ideas")
-    .select("id, user_id, raw, clarification, objective, domain, is_clear, clarifying_question, status, shared_to, image_path, source_url, created_at")
-    .eq("id", id).maybeSingle(), "idea");
+  const cols = "id, user_id, raw, clarification, objective, domain, is_clear, clarifying_question, status, shared_to, image_path, source_url, created_at, built_at, dropped_at, drop_reason";
+  const read = () => db.from("ideas").select([cols, ...newCols("duplicate_of", "assumption")].join(", ")).eq("id", id).maybeSingle();
+  let res = await read();
+  // one retry per column the hosted database does not have yet
+  while (lacksColumn(res.error)) res = await read();
+  const row = ok(res, "idea");
   if (!row) throw new Error("No such idea, or it is not shared with you.");
   return row;
 }
@@ -119,9 +133,12 @@ export async function idea(id) {
 // resolved_from and resolve_why are only fetched here, on the one page that
 // shows how a capability got its skill id.
 export async function capabilitiesFor(ideaId) {
-  return ok(await db.from("idea_capabilities")
-    .select("id, skill_id, proposed_key, reason, crux_rank, resolved, resolved_from, resolve_why")
-    .eq("idea_id", ideaId), "capabilitiesFor");
+  const read = () => db.from("idea_capabilities")
+    .select(["id, skill_id, proposed_key, reason, crux_rank, resolved, resolved_from, resolve_why", ...newCols("iteration")].join(", "))
+    .eq("idea_id", ideaId);
+  let res = await read();
+  while (lacksColumn(res.error)) res = await read();
+  return ok(res, "capabilitiesFor");
 }
 
 // Every attempt ever, newest first. `since` finds the run an answer triggered:
@@ -134,6 +151,39 @@ export async function runsFor(ideaId, since) {
     .eq("idea_id", ideaId).order("created_at", { ascending: false });
   if (since) q = q.gt("created_at", since);
   return ok(await q, "runsFor");
+}
+
+// The same signal as runsFor(ideaId, since), pushed: a Realtime channel on
+// extraction_runs for one idea (migration 20261110153527). onRow gets the run
+// in runsFor's shape; every row is terminal (output or error), and anything
+// older than `since` is dropped, as the poll's filter would. onStatus gets
+// "SUBSCRIBED", "CHANNEL_ERROR", "TIMED_OUT" or "CLOSED". RLS decides what
+// arrives, so a stranger's idea id hears nothing rather than an error. Read
+// only. Returns the unsubscribe; calling it twice is harmless.
+let channels = 0;
+export function watchRuns(ideaId, since, { onRow, onStatus }) {
+  let ch = null;
+  try {
+    ch = db.channel(`runs:${ideaId}:${++channels}`);
+    ch.on("postgres_changes",
+        // INSERT only: runs are never updated, and Realtime does not apply RLS
+        // to DELETE events, so "*" would also hear other users' deletions
+        { event: "INSERT", schema: "public", table: "extraction_runs", filter: `idea_id=eq.${ideaId}` },
+        ({ new: r }) => {
+          if (!r?.id || (since && !(Date.parse(r.created_at) > Date.parse(since)))) return;
+          onRow({ id: r.id, created_at: r.created_at, model: r.model, prompt_hash: r.prompt_hash,
+                  error: r.error, clear: r.output?.clear ?? null });
+        })
+      .subscribe((status) => onStatus(status));
+  } catch {
+    // no websocket at all: say so, and the caller's poll carries the wait
+    queueMicrotask(() => onStatus("CHANNEL_ERROR"));
+  }
+  return () => {
+    if (!ch) return;
+    const c = ch; ch = null;
+    db.removeChannel(c).catch(() => {});
+  };
 }
 
 // A short-lived URL for an idea's picture. The bucket is private and its
@@ -220,6 +270,34 @@ export async function revokeInvite(groupId, email) {
   if (error) throw new Error(error.message);
 }
 
+// ---------------------------------------------------------------- claims
+
+// Who said "I can do a hard part" of these ideas, oldest first. RLS returns a
+// claim only where the idea itself is visible. Callers must treat a throw as
+// "no claims feature", not as a failed page: until the idea_claims migration
+// is pushed the table does not exist and this is a 404.
+export async function claimsFor(ideaIds) {
+  if (!ideaIds.length) return [];
+  return ok(await db.from("idea_claims")
+    .select("idea_id, user_id, created_at")
+    .in("idea_id", ideaIds)
+    .order("created_at"), "claimsFor");
+}
+
+// user_id defaults to auth.uid() and the policy refuses anything else, an
+// idea of your own, and one that is not shared to a group you are in. Saying
+// it twice is not an error: the row is already there (23505).
+export async function addClaim(ideaId) {
+  const { error } = await db.from("idea_claims").insert({ idea_id: ideaId });
+  if (error && error.code !== "23505") throw new Error(`addClaim: ${error.message}`);
+}
+
+// No user filter: the delete policy reaches your own row and no other.
+export async function removeClaim(ideaId) {
+  const { error } = await db.from("idea_claims").delete().eq("idea_id", ideaId);
+  if (error) throw new Error(`removeClaim: ${error.message}`);
+}
+
 export async function skills() {
   return ok(await db.from("skills")
     .select("id, name, domain, aliases, hazard, sort_order")
@@ -254,6 +332,45 @@ export async function setClarification(id, clarification) {
 export async function setShare(id, groupId) {
   return ok(await db.from("ideas").update({ shared_to: groupId }).eq("id", id).select("id").single(),
     "setShare");
+}
+
+// Built and dropped exclude each other (a check constraint says so too), so
+// each write clears the other state. setBuilt(id, false) is "Back to live"
+// from either state: it leaves all three columns null.
+export async function setBuilt(id, on) {
+  return ok(await db.from("ideas")
+    .update({ built_at: on ? new Date().toISOString() : null, dropped_at: null, drop_reason: null })
+    .eq("id", id).select("id").single(), "setBuilt");
+}
+
+// `duplicateOf` is the other idea's id when this one is dropped as its
+// duplicate. The database clears the pointer itself whenever the idea stops
+// being dropped, so setBuilt never sends it. Until the column exists the drop
+// still lands, with the reason alone.
+export async function setDropped(id, reason, duplicateOf = null) {
+  const row = { built_at: null, dropped_at: new Date().toISOString(), drop_reason: reason };
+  const write = (r) => db.from("ideas").update(r).eq("id", id).select("id").single();
+  if (duplicateOf && !absent.has("duplicate_of")) {
+    const res = await write({ ...row, duplicate_of: duplicateOf });
+    if (!lacksColumn(res.error)) return ok(res, "setDropped");
+  }
+  return ok(await write(row), "setDropped");
+}
+
+// Three columns arrive with migrations the owner pushes by hand:
+// ideas.duplicate_of (20261110161103), ideas.assumption and
+// idea_capabilities.iteration (20261110161336). Until then the hosted database
+// refuses any read or write that names one: Postgres says undefined column
+// (42703) on a select, PostgREST says not in the schema cache (PGRST204) on an
+// update. Both mean "retry without it"; nothing was written. A refusal is
+// remembered so later calls leave that column out from the start.
+const absent = new Set();
+const newCols = (...names) => names.filter((n) => !absent.has(n));
+function lacksColumn(error) {
+  if (!error || (error.code !== "42703" && error.code !== "PGRST204")) return false;
+  const col = ["duplicate_of", "assumption", "iteration"].find((n) => !absent.has(n) && (error.message ?? "").includes(n));
+  if (col) absent.add(col);
+  return !!col;
 }
 
 // The row goes first; capabilities and extraction_runs cascade with it. The

@@ -20,6 +20,9 @@ export type Capability = {
   skill_id: string | null;
   proposed_name: string | null;
   reason: string;
+  // what kind of work, from the model (2026-11-10). Optional because runs
+  // stored before then do not have it; capabilityRows writes null for those.
+  iteration?: "tutorial" | "iteration" | null;
   is_crux: boolean;
   resolved?: string;
   resolved_from?: string;
@@ -30,6 +33,7 @@ export type Capability = {
 export type Extraction = {
   clear: boolean;
   clarifying_question: string | null;
+  assumption?: string | null;   // optional for the same reason as Capability.iteration
   objective: string | null;
   domain: string | null;
   capabilities: Capability[];
@@ -107,9 +111,12 @@ export function record(reg: Registry, key: string, name: string, reason: string,
 
 // ---------- semantic ----------
 
-const RESOLVE_TOOL = {
+// strict: true, same as the Node copy in extraction/src/resolve.js (and the
+// reason is there). resolve_test.ts asserts the two are equal.
+export const RESOLVE_TOOL = {
   name: "resolve_skill",
   description: "Decide what a proposed capability actually is.",
+  strict: true,
   input_schema: {
     type: "object",
     properties: {
@@ -117,7 +124,8 @@ const RESOLVE_TOOL = {
       id: { type: ["string", "null"], description: "the canonical skill id or the previous proposal slug; null when new" },
       why: { type: "string", description: "one clause" }
     },
-    required: ["match", "id", "why"]
+    required: ["match", "id", "why"],
+    additionalProperties: false
   }
 };
 
@@ -168,6 +176,9 @@ ${prev}`;
 // the array itself, or the whole record wrapped in it (then the outer object
 // may be missing every other field). Both decode cleanly. Returns the repaired
 // record and a note for _meta, or the input untouched and null.
+// With strict: true on TOOL (2026-11-10) a string in capabilities no longer
+// matches the schema, so this should be unreachable; it stays as a defensive
+// decode until extraction_runs show _meta.repaired never set.
 export function repairExtraction(o: unknown): { record: unknown; repaired: string | null } {
   if (!o || typeof o !== "object") return { record: o, repaired: null };
   const outer = o as Record<string, unknown>;
@@ -246,13 +257,15 @@ export async function resolveExtraction(
       const e = record(reg, key, name, cap.reason, idea.id, runId); if (cap.is_crux) { e.crux_count++; e.dirty = true; }
     }
   }
-  // two capabilities that resolved to the same skill collapse into one (keep crux)
+  // two capabilities that resolved to the same skill collapse into one (keep
+  // crux, and keep "iteration" if either half needed it)
   const seen = new Map<string, Capability>();
   extraction.capabilities = extraction.capabilities.filter((cap) => {
     if (!cap.skill_id) return true;
     const prev = seen.get(cap.skill_id);
     if (!prev) { seen.set(cap.skill_id, cap); return true; }
     if (cap.is_crux) prev.is_crux = true;
+    if (cap.iteration === "iteration") prev.iteration = "iteration";
     prev.merged_from = [...(prev.merged_from || []), cap.resolved_from || cap.proposed_name].filter((x): x is string => Boolean(x));
     return false;
   });
@@ -267,6 +280,7 @@ export type CapabilityRow = {
   skill_id: string | null;
   proposed_key: string | null;
   reason: string;
+  iteration: "tutorial" | "iteration" | null;
   crux_rank: 1 | null;
   resolved: string;
   resolved_from: string | null;
@@ -294,6 +308,10 @@ export function capabilityRows(ideaId: string, runId: string, caps: Capability[]
       skill_id: cap.skill_id,
       proposed_key: proposedKey,
       reason: cap.reason,
+      // anything but the two values becomes null, which the check constraint allows
+      // strict mode should keep the enum exact; lower-case anyway so a stray
+      // "Tutorial" is kept rather than dropped to null by the check constraint
+      iteration: ((v) => (v === "tutorial" || v === "iteration" ? v : null))(String(cap.iteration ?? "").toLowerCase()),
       crux_rank: crux ? 1 : null,
       resolved: cap.resolved ?? (cap.skill_id ? "direct" : "new"),
       resolved_from: cap.resolved_from ?? null,

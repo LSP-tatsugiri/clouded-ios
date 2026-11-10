@@ -122,6 +122,27 @@ Deno.test("capabilityRows: one crux, no duplicate proposed keys, nulls filled", 
   assertEquals(rows[0].resolved_from, null);
 });
 
+Deno.test("capabilityRows: iteration is written through, and null for anything else", () => {
+  const rows = capabilityRows("idea-1", "run-1", [
+    { skill_id: "parametric-cad", proposed_name: null, reason: "a", iteration: "iteration", is_crux: true },
+    { skill_id: "bldc-foc", proposed_name: null, reason: "b", iteration: "tutorial", is_crux: false },
+    // a run stored before 2026-11-10 has no iteration at all
+    { skill_id: "pcb-layout", proposed_name: null, reason: "c", is_crux: false },
+    { skill_id: "soldering", proposed_name: null, reason: "d", iteration: "weekend" as never, is_crux: false }
+  ]);
+  assertEquals(rows.map((r) => r.iteration), ["iteration", "tutorial", null, null]);
+});
+
+Deno.test("resolve: collapsing two capabilities keeps iteration if either needed it", async () => {
+  const ex = extraction([
+    { skill_id: "parametric-cad", iteration: "tutorial" },
+    { proposed_name: "fusion 360 modeling", iteration: "iteration" }   // lexical -> parametric-cad
+  ]);
+  await resolveExtraction(ex, idea, new Map(), "run-1", { skills, semantic: never, log: () => {} });
+  assertEquals(ex.capabilities.length, 1);
+  assertEquals(ex.capabilities[0].iteration, "iteration");
+});
+
 Deno.test("invalidExtraction: accepts a good record, rejects the shapes Sonnet 5 has produced", () => {
   const cap = { skill_id: "parametric-cad", proposed_name: null, reason: "r", is_crux: true };
   assertEquals(invalidExtraction({ clear: true, clarifying_question: null, objective: "o", domain: "d", capabilities: [cap] }), null);

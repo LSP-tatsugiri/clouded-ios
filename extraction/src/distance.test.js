@@ -149,14 +149,14 @@ test("the committed baseline still classifies the way the report prints it", () 
   const all = load("../out/extractions.json");
 
   assert.equal(Object.keys(all).length, 19);
-  assert.equal(Object.values(all).filter((e) => !e.clear).length, 3, "three ideas too vague to extract");
+  assert.equal(Object.values(all).filter((e) => !e.clear).length, 4, "four ideas too vague to extract (anime90s since 2026-11-10)");
 
   assert.deepEqual(distanceOf(all.birds, held), { gap: 1, partial: 0, have: 0, score: 1 });
   assert.equal(cruxOf(all.birds).skill_id, "illustration-fundamentals");
 
   const ledger = distanceOf(all.ledger, held);
-  assert.equal(ledger.gap, 2);
-  assert.equal(ledger.have, 3);
+  assert.equal(ledger.gap, 4);
+  assert.equal(ledger.have, 2);
   assert.equal(cruxOf(all.ledger).skill_id, "third-party-api");
 
   // CLAUDE.md says exactly one capability per idea is the crux. The model does
@@ -172,14 +172,21 @@ test("the committed baseline still classifies the way the report prints it", () 
     if (marked.length > 1) doubles.push(id);
     assert.equal(cruxOf(e), marked[0], `${id}: cruxOf must resolve to the first marked crux`);
   }
-  assert.deepEqual(doubles, ["dryer"], "known double-marked ideas in the committed baseline");
+  // none in the 2026-11-10 strict-mode baseline; "dryer" did it before
+  assert.deepEqual(doubles, [], "known double-marked ideas in the committed baseline");
 });
 
-test("the highest-leverage skill in the baseline is parametric CAD", () => {
+// CLAUDE.md: a lead of one or two ideas is a tie. So this pins that CAD is in
+// the leading tie, not that it is strictly first (since 2026-11-10 it shares
+// first place with print-tolerancing, 5 ideas each).
+test("parametric CAD is in the baseline's leading leverage tie", () => {
   const held = load("../data/profile.json").skills;
   const all = load("../out/extractions.json");
   const items = Object.entries(all).map(([id, extraction]) => ({ id, extraction }));
-  const top = leverage(items, held)[0];
-  assert.equal(top.key, "parametric-cad");
-  assert.ok(top.ideaIds.length >= 5, `expected 5+ ideas, got ${top.ideaIds.length}`);
+  const ranked = leverage(items, held);
+  const lead = ranked[0].ideaIds.length;
+  const cad = ranked.find((r) => r.key === "parametric-cad");
+  assert.ok(cad, "parametric-cad is ranked");
+  assert.equal(cad.ideaIds.length, lead, `parametric-cad has ${cad.ideaIds.length} ideas, the lead has ${lead}`);
+  assert.ok(lead >= 5, `expected 5+ ideas, got ${lead}`);
 });

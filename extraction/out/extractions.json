@@ -1,746 +1,798 @@
 {
   "blender-any": {
     "clear": false,
-    "clarifying_question": "What do you want to animate — a character, an object, or a specific scene or story?",
+    "clarifying_question": "What do you want to animate — a character, an object, a short scene?",
+    "assumption": null,
     "objective": null,
     "domain": null,
     "capabilities": [],
-    "_prompt": "e3446a126ffc"
+    "_prompt": "57810805f527"
   },
   "todo": {
     "clear": true,
     "clarifying_question": null,
-    "objective": "A personal to-do list mobile app where a user can create, edit, complete, and organize tasks, with data persisting locally on their device.",
+    "assumption": "Read as a basic personal to-do list mobile app (single user, iOS) with task entry, editing and local persistence, no collaboration or sync features specified.",
+    "objective": "A mobile app that lets a single user create, edit, complete and organize personal to-do tasks, with data persisted across sessions.",
     "domain": "mobile app development",
     "capabilities": [
       {
         "skill_id": "swiftui-app",
         "proposed_name": null,
-        "reason": "build and ship the core to-do list app to a device",
-        "is_crux": true,
+        "reason": "build and ship the core task list app on iOS",
+        "iteration": "tutorial",
+        "is_crux": false,
+        "resolved": "direct"
+      },
+      {
+        "skill_id": "ui-mockup",
+        "proposed_name": null,
+        "reason": "design the task list, add/edit and detail screens before building",
+        "iteration": "tutorial",
+        "is_crux": false,
         "resolved": "direct"
       },
       {
         "skill_id": "offline-sync",
         "proposed_name": null,
-        "reason": "persist tasks locally and keep them reliable across app launches",
-        "is_crux": false,
+        "reason": "persist tasks locally so they survive app restarts and device reboots",
+        "iteration": "tutorial",
+        "is_crux": true,
         "resolved": "direct"
       },
       {
         "skill_id": "ios-extensions",
         "proposed_name": null,
-        "reason": "optionally add a widget for quick task viewing/adding",
+        "reason": "add a widget for quickly viewing or adding todos from the home screen",
+        "iteration": "tutorial",
         "is_crux": false,
         "resolved": "direct"
       }
     ],
-    "_prompt": "e3446a126ffc"
+    "_prompt": "57810805f527"
   },
   "rc-truck": {
     "clear": false,
-    "clarifying_question": "Do you mean building/modifying a physical RC truck (chassis, electronics), or something else like a 3D model or game version of an RC truck?",
+    "clarifying_question": "What about the RC truck do you want to build — a custom chassis/body to print, a modification to an existing one, or the full electronics from scratch?",
+    "assumption": null,
     "objective": null,
     "domain": null,
     "capabilities": [],
-    "_prompt": "e3446a126ffc"
+    "_prompt": "57810805f527"
   },
   "screws": {
-    "objective": "Build an automated screw dispenser that counts screws as they are dispensed and syncs inventory counts to an online database of the user's parts.",
-    "domain": "embedded hardware / IoT with inventory software",
     "clear": true,
     "clarifying_question": null,
+    "assumption": "Read as a mechanical hopper that singulates and dispenses screws one at a time, counts them via sensor, and syncs inventory counts to a cloud-hosted parts database with an API, rather than just a manual counting app.",
+    "objective": "A device that dispenses screws one at a time, counts how many were dispensed, and updates an online inventory database of parts on hand.",
+    "domain": "embedded hardware / inventory management",
     "capabilities": [
       {
         "skill_id": "part-singulation",
         "proposed_name": null,
-        "reason": "must mechanically release one screw at a time from a bulk hopper",
+        "reason": "must mechanically separate one screw at a time from a bulk hopper",
+        "iteration": "iteration",
         "is_crux": true,
         "resolved": "direct"
       },
       {
         "skill_id": "load-cell",
         "proposed_name": null,
-        "reason": "counting dispensed screws likely via weight sensing to confirm quantity",
+        "reason": "needs to confirm a screw was dispensed and count it, likely via weight or sensor counting",
+        "iteration": "iteration",
         "is_crux": false,
         "resolved": "direct"
       },
       {
         "skill_id": "mcu-firmware",
         "proposed_name": null,
-        "reason": "microcontroller firmware to control dispensing mechanism and read sensors",
+        "reason": "microcontroller must drive the dispensing mechanism and read the counting sensor",
+        "iteration": "tutorial",
         "is_crux": false,
         "resolved": "direct"
       },
       {
         "skill_id": "device-server-protocol",
         "proposed_name": null,
-        "reason": "device needs to send counts to an online database over the network",
-        "is_crux": false,
-        "resolved": "direct"
-      },
-      {
-        "skill_id": "rest-api-auth",
-        "proposed_name": null,
-        "reason": "backend API to store and serve the parts inventory database",
+        "reason": "device needs to talk to the online database server over network to report counts",
+        "iteration": "tutorial",
         "is_crux": false,
         "resolved": "direct"
       },
       {
         "skill_id": "relational-schema",
         "proposed_name": null,
-        "reason": "design schema for tracking parts inventory and counts",
+        "reason": "parts inventory database needs a sane schema for tracking screw types and quantities",
+        "iteration": "tutorial",
         "is_crux": false,
         "resolved": "direct"
       },
       {
-        "skill_id": "frontend-spa",
+        "skill_id": "rest-api-auth",
         "proposed_name": null,
-        "reason": "web interface to view and manage the online parts database",
+        "reason": "online database needs an API with auth for the device and any client to read/write part counts",
+        "iteration": "tutorial",
+        "is_crux": false,
+        "resolved": "direct"
+      },
+      {
+        "skill_id": "print-tolerancing",
+        "proposed_name": null,
+        "reason": "hopper and chute geometry must be designed and fitted to the specific screw sizes being dispensed",
+        "iteration": "iteration",
         "is_crux": false,
         "resolved": "direct"
       }
     ],
-    "_prompt": "e3446a126ffc"
+    "_prompt": "57810805f527"
   },
   "knob": {
+    "clear": true,
+    "clarifying_question": null,
+    "assumption": "Read as a physical rotary knob device (magnetic encoder + motor/brake) that can be reprogrammed per-application to simulate different detents and resistance, not a software-only UI knob.",
+    "objective": "A single rotary knob hardware device that reads its own rotation precisely and uses motorized/magnetic resistance to simulate different configurable feel profiles (detents, end-stops, free spin) depending on which application or mode it's programmed for.",
+    "domain": "embedded hardware / haptics",
     "capabilities": [
       {
         "skill_id": "magnetic-encoder",
         "proposed_name": null,
-        "reason": "need absolute rotary position to know knob angle for haptic effects",
+        "reason": "needs to read absolute rotary position precisely to know where the knob is and detect motion",
+        "iteration": "tutorial",
         "is_crux": false,
         "resolved": "direct"
       },
       {
         "skill_id": "bldc-foc",
         "proposed_name": null,
-        "reason": "a dynamic haptic knob needs closed-loop motor torque control to create resistance/detents",
-        "is_crux": true,
+        "reason": "a motor must apply torque against the user's hand to create resistance and detents, requiring closed-loop torque control",
+        "iteration": "iteration",
+        "is_crux": false,
         "resolved": "direct"
       },
       {
         "skill_id": "haptic-profiles",
         "proposed_name": null,
-        "reason": "designing and tuning the detent/spring/friction feel is the core programmable behavior",
+        "reason": "must design and tune the actual feel of virtual detents, springs and end-stops so they feel right when turning",
+        "iteration": "iteration",
+        "is_crux": true,
         "resolved": "direct"
       },
       {
         "skill_id": "pid-tuning",
         "proposed_name": null,
-        "reason": "control loop must be tuned against encoder feedback to feel stable and responsive",
+        "reason": "the torque/position control loop must be tuned against real encoder feedback to stay stable without oscillation",
+        "iteration": "iteration",
+        "is_crux": false,
         "resolved": "direct"
       },
       {
         "skill_id": "mcu-firmware",
         "proposed_name": null,
-        "reason": "firmware runs the control loop and exposes programmability",
-        "resolved": "direct"
-      },
-      {
-        "skill_id": "pcb-schematic",
-        "proposed_name": null,
-        "reason": "custom board needed to combine motor driver, encoder and MCU",
-        "resolved": "direct"
-      },
-      {
-        "skill_id": "parametric-cad",
-        "proposed_name": null,
-        "reason": "knob housing and shaft coupling need to be modeled and fit",
-        "resolved": "direct"
-      }
-    ],
-    "clarifying_question": null,
-    "clear": true,
-    "domain": "embedded hardware / haptics",
-    "objective": "Build a standalone rotary knob that uses a motor and encoder to generate programmable haptic feedback (detents, springs, end-stops) controllable via firmware.",
-    "_prompt": "e3446a126ffc"
-  },
-  "coaster": {
-    "objective": "Build a PCB-based smart coaster that uses a load cell to detect a drink's weight/presence on it.",
-    "domain": "embedded electronics / IoT hardware",
-    "clear": true,
-    "clarifying_question": null,
-    "capabilities": [
-      {
-        "skill_id": "load-cell",
-        "proposed_name": null,
-        "reason": "sense drink weight via a load cell and convert to usable readings",
-        "is_crux": true,
-        "resolved": "direct"
-      },
-      {
-        "skill_id": "pcb-schematic",
-        "proposed_name": null,
-        "reason": "capture the coaster circuit including load cell amp and MCU",
-        "resolved": "direct"
-      },
-      {
-        "skill_id": "pcb-layout",
-        "proposed_name": null,
-        "reason": "route a compact round PCB shaped like a coaster and fabricate it",
-        "resolved": "direct"
-      },
-      {
-        "skill_id": "solder-smd",
-        "proposed_name": null,
-        "reason": "assemble small SMD components onto the coaster PCB",
-        "resolved": "direct"
-      },
-      {
-        "skill_id": "mcu-firmware",
-        "proposed_name": null,
-        "reason": "write firmware to read load cell data and act on weight changes",
+        "reason": "firmware must run on a microcontroller to tie encoder reading, motor control and programmable profile switching together",
+        "iteration": "tutorial",
+        "is_crux": false,
         "resolved": "direct"
       },
       {
         "skill_id": "power-budgeting",
         "proposed_name": null,
-        "reason": "design battery/power supply for a compact standalone coaster device",
+        "reason": "motor driver and logic rails need to be sized and isolated so the motor doesn't disrupt the MCU/sensor",
+        "iteration": "tutorial",
+        "is_crux": false,
         "resolved": "direct"
       }
     ],
-    "_prompt": "e3446a126ffc"
+    "_prompt": "57810805f527"
+  },
+  "coaster": {
+    "clear": true,
+    "clarifying_question": null,
+    "assumption": "Read as a load-sensing coaster that detects drink presence/weight via a built-in scale, not a PCB art piece; assumed to show status via LEDs rather than a screen.",
+    "objective": "A coaster that weighs the drink placed on it and indicates something (e.g. presence, remaining amount) using an embedded load sensor and electronics.",
+    "domain": "embedded hardware / electronics",
+    "capabilities": [
+      {
+        "skill_id": "load-cell",
+        "proposed_name": null,
+        "reason": "needs to calibrate a load cell under the coaster and convert readings to weight",
+        "iteration": "iteration",
+        "is_crux": true,
+        "resolved": "direct"
+      },
+      {
+        "skill_id": "pcb-schematic",
+        "proposed_name": null,
+        "reason": "needs a schematic for the load cell amp, MCU and LEDs",
+        "iteration": "tutorial",
+        "is_crux": false,
+        "resolved": "direct"
+      },
+      {
+        "skill_id": "pcb-layout",
+        "proposed_name": null,
+        "reason": "needs a round PCB laid out to fit inside a coaster form factor",
+        "iteration": "tutorial",
+        "is_crux": false,
+        "resolved": "direct"
+      },
+      {
+        "skill_id": "solder-smd",
+        "proposed_name": null,
+        "reason": "small coaster-sized board likely needs SMD components",
+        "iteration": "tutorial",
+        "is_crux": false,
+        "resolved": "direct"
+      },
+      {
+        "skill_id": "mcu-firmware",
+        "proposed_name": null,
+        "reason": "needs firmware to read the load cell and drive outputs",
+        "iteration": "tutorial",
+        "is_crux": false,
+        "resolved": "direct"
+      },
+      {
+        "skill_id": "print-tolerancing",
+        "proposed_name": null,
+        "reason": "needs a printed or molded coaster body sized to hold the PCB and load cell with a drink resting on top",
+        "iteration": "iteration",
+        "is_crux": false,
+        "resolved": "direct"
+      }
+    ],
+    "_prompt": "57810805f527"
   },
   "birds": {
     "clear": true,
     "clarifying_question": null,
-    "objective": "Create an illustration of a row of birds standing lined up along a beach shoreline.",
+    "assumption": "read as a single traditional/digital illustration of shorebirds lined up along a beach, not an animation or 3D scene",
+    "objective": "Create a drawn illustration depicting a row of birds standing along a beach",
     "domain": "illustration",
     "capabilities": [
       {
         "skill_id": "illustration-fundamentals",
         "proposed_name": null,
-        "reason": "requires drawing bird anatomy, gesture and composition arranged along a beach scene",
+        "reason": "needs correct bird anatomy, gesture, and perspective to read convincingly in a composed scene",
+        "iteration": "iteration",
         "is_crux": true,
         "resolved": "direct"
       }
     ],
-    "_prompt": "e3446a126ffc"
+    "_prompt": "57810805f527"
   },
-  "printed": {
+  "anime90s": {
     "clear": false,
-    "clarifying_question": "What object or thing do you want to 3D print?",
+    "clarifying_question": "What should this be — a short animated scene/character done in a 90s anime style, or something else like a still image or title sequence?",
+    "assumption": null,
     "objective": null,
     "domain": null,
     "capabilities": [],
-    "_prompt": "e3446a126ffc"
+    "_prompt": "57810805f527"
+  },
+  "printed": {
+    "clear": false,
+    "clarifying_question": "What object do you want to design and 3D print?",
+    "assumption": null,
+    "objective": null,
+    "domain": null,
+    "capabilities": [],
+    "_prompt": "57810805f527"
   },
   "apothecary": {
+    "clear": true,
+    "clarifying_question": null,
+    "assumption": "Read as fan art of Apothecary Diaries characters, made via a drawing-plus-AI-image workflow (hand sketch/composition refined or stylized with an AI image model), not pure hand illustration or pure AI prompting alone.",
+    "objective": "Produce a consistent, on-model piece of fan art of Apothecary Diaries characters using a combined hand-drawing and AI image generation workflow.",
+    "domain": "AI-assisted illustration / fan art",
     "capabilities": [
       {
         "skill_id": "illustration-fundamentals",
         "proposed_name": null,
-        "reason": "produce well-composed fan art poses/anatomy of characters if drawing traditionally or as a base for AI workflow",
+        "reason": "need a working sketch with correct anatomy, perspective and composition as the base",
+        "iteration": "tutorial",
         "is_crux": false,
         "resolved": "direct"
       },
       {
         "skill_id": "ai-image-workflow",
         "proposed_name": null,
-        "reason": "drive an image generation model to render Apothecary Diaries characters in a specific art style",
+        "reason": "drive an AI image model (img2img or similar) to achieve the intended anime look from the sketch",
+        "iteration": "iteration",
         "is_crux": true,
         "resolved": "direct"
       },
       {
         "skill_id": "character-consistency",
         "proposed_name": null,
-        "reason": "keep the show's characters (e.g. Maomao) visually consistent across multiple generated images",
-        "is_crux": false,
-        "resolved": "direct"
-      }
-    ],
-    "clarifying_question": null,
-    "clear": true,
-    "objective": "Create AI-generated fan art of characters from the anime/manga 'The Apothecary Diaries' in a consistent illustrated style.",
-    "domain": "AI art / illustration",
-    "_prompt": "e3446a126ffc"
-  },
-  "fishtank": {
-    "objective": "A short Blender animation depicting the point-of-view of a fish looking out through a fishtank into a Chinese restaurant scene.",
-    "domain": "blender-animation",
-    "clear": true,
-    "clarifying_question": null,
-    "capabilities": [
-      {
-        "skill_id": "blender-modeling",
-        "proposed_name": null,
-        "reason": "model the fishtank, fish, and restaurant interior props",
-        "is_crux": false,
-        "resolved": "direct"
-      },
-      {
-        "skill_id": "blender-shading",
-        "proposed_name": null,
-        "reason": "create underwater glass/water refraction and restaurant lighting materials",
-        "is_crux": true,
-        "resolved": "direct"
-      },
-      {
-        "skill_id": "blender-rigging",
-        "proposed_name": null,
-        "reason": "rig the fish for swimming motion",
-        "is_crux": false,
-        "resolved": "direct"
-      },
-      {
-        "skill_id": "animation-principles",
-        "proposed_name": null,
-        "reason": "animate the fish's swimming and looking behavior with believable timing",
-        "is_crux": false,
-        "resolved": "direct"
-      },
-      {
-        "skill_id": "camera-work",
-        "proposed_name": null,
-        "reason": "block a POV camera looking out through the tank glass into the restaurant",
-        "is_crux": false,
-        "resolved": "direct"
-      },
-      {
-        "skill_id": "render-compositing",
-        "proposed_name": null,
-        "reason": "render and composite the underwater distortion look with the restaurant background",
-        "is_crux": false,
-        "resolved": "direct"
-      }
-    ],
-    "_prompt": "e3446a126ffc"
-  },
-  "anime90s": {
-    "objective": "Create a short 3D-animated scene in Blender that emulates the visual style of 1990s cel-animated anime (flat cel shading, painterly backgrounds, film-grain look).",
-    "domain": "3D animation / Blender",
-    "clear": true,
-    "clarifying_question": null,
-    "capabilities": [
-      {
-        "skill_id": "blender-modeling",
-        "proposed_name": null,
-        "reason": "need a clean character/prop mesh to shade and animate",
+        "reason": "keep the specific Apothecary Diaries characters visually on-model and recognizable across generations",
+        "iteration": "iteration",
         "is_crux": false,
         "resolved": "direct"
       },
       {
         "skill_id": "npr-shading",
         "proposed_name": null,
-        "reason": "recreating the flat cel-shaded 90s anime look is the core visual challenge",
-        "is_crux": true,
-        "resolved": "direct"
-      },
-      {
-        "skill_id": "blender-rigging",
-        "proposed_name": null,
-        "reason": "character needs an armature to pose and animate",
-        "is_crux": false,
-        "resolved": "direct"
-      },
-      {
-        "skill_id": "animation-principles",
-        "proposed_name": null,
-        "reason": "anime-style motion needs correct timing, spacing and held poses (e.g. limited animation feel)",
-        "is_crux": false,
-        "resolved": "direct"
-      },
-      {
-        "skill_id": "camera-work",
-        "proposed_name": null,
-        "reason": "shots need to be blocked and animated like classic anime cinematography",
-        "is_crux": false,
-        "resolved": "direct"
-      },
-      {
-        "skill_id": "render-compositing",
-        "proposed_name": null,
-        "reason": "final look needs grain, color grading and compositing passes to sell the era-accurate look",
+        "reason": "final look needs anime/cel-shaded rendering style consistent with the source material",
+        "iteration": "tutorial",
         "is_crux": false,
         "resolved": "direct"
       }
     ],
-    "_prompt": "e3446a126ffc"
+    "_prompt": "57810805f527"
   },
-  "gacha": {
+  "fishtank": {
     "clear": true,
     "clarifying_question": null,
-    "objective": "A mobile gacha game where players collect anime-style character cards (waifus) who cook, with gacha pulls for characters/recipes and a progression system built around cooking-themed activities.",
-    "domain": "mobile game development",
-    "capabilities": [
-      {
-        "skill_id": "game-loop",
-        "proposed_name": null,
-        "reason": "needs a core game loop and scene flow tying together gacha pulls, cooking activities and menus",
-        "is_crux": false,
-        "resolved": "direct",
-        "merged_from": [
-          "cooking-minigame-design"
-        ]
-      },
-      {
-        "skill_id": "gacha-systems",
-        "proposed_name": null,
-        "reason": "needs drop rates, pity system and progression design for character pulls",
-        "is_crux": true,
-        "resolved": "direct"
-      },
-      {
-        "skill_id": "game-ui",
-        "proposed_name": null,
-        "reason": "needs touch UI for gacha pulls, cooking minigame and character collection screens",
-        "is_crux": false,
-        "resolved": "direct"
-      },
-      {
-        "skill_id": "save-persistence",
-        "proposed_name": null,
-        "reason": "needs to save collected characters, currency and progression across sessions",
-        "is_crux": false,
-        "resolved": "direct"
-      },
-      {
-        "skill_id": "character-consistency",
-        "proposed_name": null,
-        "reason": "needs consistent anime character art across many cards and outfits",
-        "is_crux": false,
-        "resolved": "direct"
-      },
-      {
-        "skill_id": "ai-image-workflow",
-        "proposed_name": null,
-        "reason": "needs a pipeline to generate the volume of character art required for a gacha roster",
-        "is_crux": false,
-        "resolved": "direct"
-      }
-    ],
-    "_prompt": "e3446a126ffc"
-  },
-  "golf-mount": {
-    "capabilities": [
-      {
-        "skill_id": "print-tolerancing",
-        "proposed_name": null,
-        "reason": "must measure iPhone dimensions and golf bag strap/tube to design a snug fitting mount",
-        "is_crux": true,
-        "resolved": "direct"
-      },
-      {
-        "skill_id": "vibration-mount",
-        "proposed_name": null,
-        "reason": "mount must hold phone rigid and steady while walking/carrying the bag so recorded swings aren't shaky",
-        "is_crux": false,
-        "resolved": "direct"
-      },
-      {
-        "skill_id": "parametric-cad",
-        "proposed_name": null,
-        "reason": "design the mount body parametrically in CAD before printing",
-        "is_crux": false,
-        "resolved": "direct"
-      },
-      {
-        "skill_id": "print-material-choice",
-        "proposed_name": null,
-        "reason": "select filament and orientation suited to outdoor sun/heat exposure on a golf course",
-        "is_crux": false,
-        "resolved": "direct"
-      },
-      {
-        "skill_id": "print-joinery",
-        "proposed_name": null,
-        "reason": "mount likely needs a clamp/strap mechanism with interlocking printed parts to attach to bag tubing",
-        "is_crux": false,
-        "resolved": "direct"
-      }
-    ],
-    "clarifying_question": null,
-    "clear": true,
-    "objective": "A 3D-printed mount that clamps onto a golf bag and holds an iPhone at an angle to record golf swings.",
-    "domain": "3D printing / physical product design",
-    "_prompt": "e3446a126ffc"
-  },
-  "pokemon-bin": {
-    "clear": true,
-    "clarifying_question": null,
-    "objective": "A set of 3D-printed storage bins/boxes for bulk Pokemon cards, color-coded and shaped to match each energy type, that stack or organize together.",
-    "domain": "3D printing / physical product design",
-    "capabilities": [
-      {
-        "skill_id": "parametric-cad",
-        "proposed_name": null,
-        "reason": "model a family of bins sized to card dimensions with consistent parametric variants per type",
-        "is_crux": false,
-        "resolved": "direct"
-      },
-      {
-        "skill_id": "print-joinery",
-        "proposed_name": null,
-        "reason": "design stacking or interlocking features so bins for different types connect modularly",
-        "is_crux": true,
-        "resolved": "direct"
-      },
-      {
-        "skill_id": "print-tolerancing",
-        "proposed_name": null,
-        "reason": "fit bins snugly to standard card sleeve/box dimensions for bulk storage",
-        "is_crux": false,
-        "resolved": "direct"
-      },
-      {
-        "skill_id": "print-material-choice",
-        "proposed_name": null,
-        "reason": "pick filament colors and print orientation to achieve clean color-coded finish per type",
-        "is_crux": false,
-        "resolved": "direct"
-      },
-      {
-        "skill_id": null,
-        "proposed_name": "label-design",
-        "reason": "map each Pokemon energy type to a distinct color/label scheme applied across the bin set",
-        "is_crux": false,
-        "resolved": "semantic:previous",
-        "resolved_from": "type-color-labeling",
-        "resolve_why": "same underlying color/label scheme concept previously rejected as not a skill"
-      }
-    ],
-    "_prompt": "e3446a126ffc"
-  },
-  "gridfinity": {
-    "objective": "Design a Gridfinity-compatible organizer with tool-shaped cutouts (foam-style recesses in a printed bin) sized to a specific set of hand tools.",
-    "domain": "3D printing / CAD",
-    "clear": true,
-    "clarifying_question": null,
-    "capabilities": [
-      {
-        "skill_id": "print-tolerancing",
-        "proposed_name": null,
-        "reason": "trace and fit cutout profiles to the measured tools so they sit snugly",
-        "is_crux": true,
-        "resolved": "direct"
-      },
-      {
-        "skill_id": "parametric-cad",
-        "proposed_name": null,
-        "reason": "model the Gridfinity base grid and bin body parametrically",
-        "is_crux": false,
-        "resolved": "direct"
-      },
-      {
-        "skill_id": "print-joinery",
-        "proposed_name": null,
-        "reason": "ensure bin base mates correctly with standard Gridfinity baseplate spacing/tabs",
-        "is_crux": false,
-        "resolved": "direct"
-      },
-      {
-        "skill_id": "print-material-choice",
-        "proposed_name": null,
-        "reason": "pick filament and orientation so thin cutout walls print cleanly and hold up to daily tool use",
-        "is_crux": false,
-        "resolved": "direct"
-      }
-    ],
-    "_prompt": "e3446a126ffc"
-  },
-  "ledger": {
-    "objective": "A mobile/web app called \"Ledger\" that tracks a user's stock portfolio: lets them log holdings and transactions, pulls live prices, and shows performance over time.",
-    "domain": "software",
-    "clear": true,
-    "clarifying_question": null,
-    "capabilities": [
-      {
-        "skill_id": "relational-schema",
-        "proposed_name": null,
-        "reason": "need a normalized schema for holdings, transactions and price history",
-        "is_crux": false,
-        "resolved": "direct"
-      },
-      {
-        "skill_id": "rest-api-auth",
-        "proposed_name": null,
-        "reason": "need an authenticated API for user accounts and portfolio data",
-        "is_crux": false,
-        "resolved": "direct"
-      },
-      {
-        "skill_id": "third-party-api",
-        "proposed_name": null,
-        "reason": "must integrate a stock price API with keys and rate limits",
-        "is_crux": true,
-        "resolved": "direct"
-      },
-      {
-        "skill_id": "frontend-spa",
-        "proposed_name": null,
-        "reason": "need a frontend to display portfolio and performance charts",
-        "is_crux": false,
-        "resolved": "direct"
-      },
-      {
-        "skill_id": "swiftui-app",
-        "proposed_name": null,
-        "reason": "assumed to ship as a native mobile app for tracking on the go",
-        "is_crux": false,
-        "resolved": "direct"
-      }
-    ],
-    "_prompt": "e3446a126ffc"
-  },
-  "verstappen": {
-    "objective": "A short 3D animation of a race car, styled after Max Verstappen's F1 car, driving/racing on a track",
-    "domain": "3D animation / motorsport",
-    "clear": true,
-    "clarifying_question": null,
+    "assumption": "Read as a short stylized 3D animation: a fish (the \"dish\" fish/pet) in a tank looking out at a Chinese restaurant interior, not a literal food dish; focus is a single character shot with environment, not a full narrative short.",
+    "objective": "A short Blender animation depicting a fish inside a restaurant fishtank watching the Chinese restaurant scene outside the glass.",
+    "domain": "3D animation / Blender",
     "capabilities": [
       {
         "skill_id": "blender-modeling",
         "proposed_name": null,
-        "reason": "model the race car and track environment",
+        "reason": "need to model the fish character and restaurant environment/tank set",
+        "iteration": "iteration",
         "is_crux": false,
         "resolved": "direct"
       },
       {
         "skill_id": "blender-shading",
         "proposed_name": null,
-        "reason": "build car paint, livery and track materials with lighting",
+        "reason": "need materials for water, glass tank, fish scales and restaurant set under Chinese-restaurant lighting",
+        "iteration": "iteration",
         "is_crux": false,
         "resolved": "direct"
       },
       {
         "skill_id": "blender-rigging",
         "proposed_name": null,
-        "reason": "rig wheels and suspension for movement",
+        "reason": "fish needs an armature to swim and react believably",
+        "iteration": "tutorial",
         "is_crux": false,
         "resolved": "direct"
       },
       {
         "skill_id": "animation-principles",
         "proposed_name": null,
-        "reason": "animate the car's speed, weight and motion realistically",
+        "reason": "animating the fish's gaze and swimming with convincing timing and weight is the heart of the shot",
+        "iteration": "iteration",
         "is_crux": true,
         "resolved": "direct"
       },
       {
         "skill_id": "camera-work",
         "proposed_name": null,
-        "reason": "block and animate a dynamic racing camera following the car",
+        "reason": "camera must be blocked to read as looking out from inside the tank toward the restaurant",
+        "iteration": "tutorial",
         "is_crux": false,
         "resolved": "direct"
       },
       {
         "skill_id": "render-compositing",
         "proposed_name": null,
-        "reason": "render passes and composite final shot with motion blur/speed effects",
+        "reason": "need to render and composite the underwater-looking-out distortion and restaurant background",
+        "iteration": "iteration",
         "is_crux": false,
         "resolved": "direct"
       }
     ],
-    "_prompt": "e3446a126ffc"
+    "_prompt": "57810805f527"
   },
-  "dryer": {
+  "golf-mount": {
     "clear": true,
     "clarifying_question": null,
-    "objective": "A wall-mounted shower attachment that blows warm air over the body after showering to dry it without a towel, using a blower and heating element with a sealed control enclosure.",
-    "domain": "hardware/mechanical + embedded",
+    "assumption": "Read as a clamp that mounts to a golf bag strap/frame tube and holds an iPhone at an angle to film swings, not a motorized tracking mount.",
+    "objective": "A 3D-printed mount that clamps onto a golf bag and holds an iPhone steady at a useful angle to record golf swings.",
+    "domain": "3D printing / product design",
     "capabilities": [
       {
-        "skill_id": "airflow-thermal",
+        "skill_id": "print-tolerancing",
         "proposed_name": null,
-        "reason": "must size blower CFM and heating element to actually dry a wet body in reasonable time",
+        "reason": "mount must clamp securely around the measured diameter of the golf bag frame/strap",
+        "iteration": "iteration",
         "is_crux": true,
-        "resolved": "direct"
-      },
-      {
-        "skill_id": "mains-safety",
-        "proposed_name": null,
-        "reason": "device combines mains-powered heating element with a wet bathroom environment",
-        "is_crux": true,
-        "resolved": "direct"
-      },
-      {
-        "skill_id": "wet-enclosure",
-        "proposed_name": null,
-        "reason": "unit is mounted inside or near a shower and must survive constant water exposure",
-        "is_crux": false,
         "resolved": "direct"
       },
       {
         "skill_id": "parametric-cad",
         "proposed_name": null,
-        "reason": "housing, vents and mount need to be modeled to fit fixtures and ducting",
+        "reason": "design the mount body and phone cradle parametrically so dimensions can be adjusted",
+        "iteration": "tutorial",
         "is_crux": false,
         "resolved": "direct"
       },
       {
-        "skill_id": "mcu-firmware",
+        "skill_id": "vibration-mount",
         "proposed_name": null,
-        "reason": "controls fan speed, heater cycling and timed shutoff",
+        "reason": "mount must hold the phone steady despite bag movement and swing impact vibration without blurring video",
+        "iteration": "iteration",
+        "is_crux": false,
+        "resolved": "direct"
+      },
+      {
+        "skill_id": "print-material-choice",
+        "proposed_name": null,
+        "reason": "choose filament and print orientation so clamp arms withstand repeated flexing and outdoor use",
+        "iteration": "tutorial",
+        "is_crux": false,
+        "resolved": "direct"
+      }
+    ],
+    "_prompt": "57810805f527"
+  },
+  "gacha": {
+    "clear": true,
+    "clarifying_question": null,
+    "assumption": "Read as a mobile game where players collect anime-style character cards (gacha) who cook/produce dishes, with drop-rate gacha mechanics, progression, and touch UI, not a physical cooking simulation.",
+    "objective": "A mobile gacha game where players pull anime-style character cards and use them to cook/produce dishes, progressing through collection and upgrade systems.",
+    "domain": "game development",
+    "capabilities": [
+      {
+        "skill_id": "game-loop",
+        "proposed_name": null,
+        "reason": "needs a working game loop and scene flow (menus, cooking stages, gacha pull screen, results)",
+        "iteration": "tutorial",
+        "is_crux": false,
+        "resolved": "direct"
+      },
+      {
+        "skill_id": "gacha-systems",
+        "proposed_name": null,
+        "reason": "needs drop rates, pity system and progression design for character pulls",
+        "iteration": "iteration",
+        "is_crux": true,
+        "resolved": "direct"
+      },
+      {
+        "skill_id": "save-persistence",
+        "proposed_name": null,
+        "reason": "player collection, currency and progress must be saved and restored reliably",
+        "iteration": "tutorial",
+        "is_crux": false,
+        "resolved": "direct"
+      },
+      {
+        "skill_id": "game-ui",
+        "proposed_name": null,
+        "reason": "touch UI for gacha pulls, cooking interactions, inventory and character screens",
+        "iteration": "tutorial",
+        "is_crux": false,
+        "resolved": "direct"
+      },
+      {
+        "skill_id": "character-consistency",
+        "proposed_name": null,
+        "reason": "waifu characters need consistent visual design across many cards and art pieces",
+        "iteration": "iteration",
+        "is_crux": false,
+        "resolved": "direct"
+      },
+      {
+        "skill_id": "illustration-fundamentals",
+        "proposed_name": null,
+        "reason": "character card art needs solid drawing fundamentals to look appealing",
+        "iteration": "iteration",
+        "is_crux": false,
+        "resolved": "direct"
+      }
+    ],
+    "_prompt": "57810805f527"
+  },
+  "pokemon-bin": {
+    "clear": true,
+    "clarifying_question": null,
+    "assumption": "Read as a modular stackable storage system for bulk Pokemon cards, with bins or dividers color-coded/labeled by card type (fire, water, grass, etc.), not an automated sorting machine.",
+    "objective": "A set of 3D printed modular bins/dividers that let someone store and organize bulk Pokemon cards separated by energy type, identifiable by color coding.",
+    "domain": "3D printing / physical organization design",
+    "capabilities": [
+      {
+        "skill_id": "parametric-cad",
+        "proposed_name": null,
+        "reason": "model the bins, dividers and labels parametrically so sizes scale across the full set of type categories",
+        "iteration": "tutorial",
         "is_crux": false,
         "resolved": "direct"
       },
       {
         "skill_id": "print-tolerancing",
         "proposed_name": null,
-        "reason": "mounting bracket must clamp or fit to existing shower pipe/fixture dimensions",
-        "is_crux": false,
-        "resolved": "direct"
-      }
-    ],
-    "_prompt": "e3446a126ffc"
-  },
-  "gundam": {
-    "objective": "Build a Gundam-style robot head that mechanically transforms and tracks a person's movement, panning/tilting to follow them as they walk into view.",
-    "domain": "robotics",
-    "clear": true,
-    "clarifying_question": null,
-    "capabilities": [
-      {
-        "skill_id": "mechanism-design",
-        "proposed_name": null,
-        "reason": "the head needs a transformation mechanism that shifts shape/pose without binding",
+        "reason": "dividers and card slots must be measured and fitted to standard card sleeve/box dimensions for a snug but removable fit",
+        "iteration": "iteration",
         "is_crux": true,
         "resolved": "direct"
       },
       {
-        "skill_id": "servo-control",
+        "skill_id": "print-joinery",
         "proposed_name": null,
-        "reason": "actuating pan/tilt and transformation joints requires sequenced servo control",
+        "reason": "bins need to stack or interlock into a modular bulk storage system without separate fasteners",
+        "iteration": "iteration",
         "is_crux": false,
         "resolved": "direct"
       },
       {
-        "skill_id": "on-device-vision",
+        "skill_id": "print-material-choice",
         "proposed_name": null,
-        "reason": "detecting a person entering the scene requires real-time person detection",
+        "reason": "choosing filament and orientation so bins print cleanly and hold up to repeated handling",
+        "iteration": "tutorial",
         "is_crux": false,
         "resolved": "direct"
       },
       {
-        "skill_id": "tracking-smoothing",
+        "skill_id": null,
+        "proposed_name": "label-design",
+        "reason": "design a consistent color/label scheme per Pokemon type so bins are visually distinguishable at a glance",
+        "iteration": "tutorial",
+        "is_crux": false,
+        "resolved": "semantic:previous",
+        "resolved_from": "color-coded-labeling",
+        "resolve_why": "same underlying concept of designing a color/type label scheme for storage bins, previously proposed and rejected"
+      }
+    ],
+    "_prompt": "57810805f527"
+  },
+  "gridfinity": {
+    "clear": true,
+    "clarifying_question": null,
+    "assumption": "Read as custom gridfinity-compatible bins with cutouts profiled to fit a specific set of measured tools, rather than generic grid bins.",
+    "objective": "A 3D-printed gridfinity-compatible organizer with tool-shaped cutouts sized to hold a specific set of hand tools in a drawer.",
+    "domain": "3D printing / parametric CAD",
+    "capabilities": [
+      {
+        "skill_id": "parametric-cad",
         "proposed_name": null,
-        "reason": "raw detections must be smoothed into stable pan/tilt targets for the head",
+        "reason": "model gridfinity base units and bin bodies parametrically so sizes stay compatible with the grid standard",
+        "iteration": "tutorial",
         "is_crux": false,
         "resolved": "direct"
       },
       {
-        "skill_id": "mcu-firmware",
+        "skill_id": "print-tolerancing",
         "proposed_name": null,
-        "reason": "firmware is needed to tie vision detection output to servo actuation",
+        "reason": "measure each tool's profile and design cutout pockets that hold it with the right friction fit",
+        "iteration": "iteration",
+        "is_crux": true,
+        "resolved": "direct"
+      },
+      {
+        "skill_id": "print-joinery",
+        "proposed_name": null,
+        "reason": "gridfinity base uses standardized interlocking/stacking features between bins and baseplate",
+        "iteration": "tutorial",
+        "is_crux": false,
+        "resolved": "direct"
+      },
+      {
+        "skill_id": "print-material-choice",
+        "proposed_name": null,
+        "reason": "pick filament and print orientation so cutout walls and lips hold up to repeated tool insertion/removal",
+        "iteration": "tutorial",
+        "is_crux": false,
+        "resolved": "direct"
+      }
+    ],
+    "_prompt": "57810805f527"
+  },
+  "ledger": {
+    "clear": true,
+    "clarifying_question": null,
+    "assumption": "Read as a mobile app (\"Ledger\") that tracks a user's stock portfolio with real-time prices, manual trade entry, and persistent accounts, not a blockchain/crypto ledger.",
+    "objective": "A mobile app where a user logs their stock holdings/trades and sees live portfolio value, gains/losses, and performance over time.",
+    "domain": "mobile app development / personal finance",
+    "capabilities": [
+      {
+        "skill_id": "swiftui-app",
+        "proposed_name": null,
+        "reason": "build and ship the portfolio tracker as a mobile app",
+        "iteration": "tutorial",
+        "is_crux": false,
+        "resolved": "direct"
+      },
+      {
+        "skill_id": "third-party-api",
+        "proposed_name": null,
+        "reason": "pull live stock prices from an external market data API with keys and rate limits",
+        "iteration": "iteration",
+        "is_crux": true,
+        "resolved": "direct"
+      },
+      {
+        "skill_id": "relational-schema",
+        "proposed_name": null,
+        "reason": "design schema for holdings, trades, and historical valuations",
+        "iteration": "tutorial",
+        "is_crux": false,
+        "resolved": "direct"
+      },
+      {
+        "skill_id": "rest-api-auth",
+        "proposed_name": null,
+        "reason": "backend API with user authentication to store portfolio data per user",
+        "iteration": "tutorial",
+        "is_crux": false,
+        "resolved": "direct"
+      },
+      {
+        "skill_id": "offline-sync",
+        "proposed_name": null,
+        "reason": "let user view/edit portfolio offline and sync when back online",
+        "iteration": "iteration",
+        "is_crux": false,
+        "resolved": "direct"
+      },
+      {
+        "skill_id": "ui-mockup",
+        "proposed_name": null,
+        "reason": "design the portfolio dashboard and trade entry screens",
+        "iteration": "tutorial",
+        "is_crux": false,
+        "resolved": "direct"
+      }
+    ],
+    "_prompt": "57810805f527"
+  },
+  "dryer": {
+    "clear": true,
+    "clarifying_question": null,
+    "assumption": "Read as a wall-mounted inline device that blows heated air over a user standing in the shower, built around a blower and heating element with a waterproof enclosure, not a standalone bathroom appliance outside the shower stall.",
+    "objective": "A wall-mounted shower fixture that blows heated air to dry the user's body after showering, without needing a towel.",
+    "domain": "home appliance / mechatronics",
+    "capabilities": [
+      {
+        "skill_id": "wet-enclosure",
+        "proposed_name": null,
+        "reason": "device is mounted inside an active shower stall and must survive direct water exposure",
+        "iteration": "iteration",
+        "is_crux": true,
+        "resolved": "direct"
+      },
+      {
+        "skill_id": "mains-safety",
+        "proposed_name": null,
+        "reason": "device uses a mains-powered heating element and blower in a wet environment, requiring GFCI and isolation design",
+        "iteration": "iteration",
+        "is_crux": false,
+        "resolved": "direct"
+      },
+      {
+        "skill_id": "airflow-thermal",
+        "proposed_name": null,
+        "reason": "blower and heater must be sized to produce enough warm airflow to dry a body in reasonable time",
+        "iteration": "iteration",
         "is_crux": false,
         "resolved": "direct"
       },
       {
         "skill_id": "parametric-cad",
         "proposed_name": null,
-        "reason": "the head shell and transformation parts must be modeled to fit the mechanism and electronics",
+        "reason": "enclosure and nozzle housing need to be modeled to fit mounting location and airflow path",
+        "iteration": "tutorial",
         "is_crux": false,
         "resolved": "direct"
       },
       {
-        "skill_id": "print-joinery",
+        "skill_id": "mcu-firmware",
         "proposed_name": null,
-        "reason": "transforming panels need interlocking/snap-fit printed joints to move and stay assembled",
+        "reason": "controls button input, timing, and heater/blower sequencing logic",
+        "iteration": "tutorial",
         "is_crux": false,
         "resolved": "direct"
       }
     ],
-    "_prompt": "e3446a126ffc"
+    "_prompt": "57810805f527"
+  },
+  "verstappen": {
+    "clear": true,
+    "clarifying_question": null,
+    "assumption": "Read as a short 3D animated clip of a Max Verstappen-style F1 race car driving/racing, modeled and animated in Blender, not a licensed/accurate likeness or a game.",
+    "objective": "Produce a short 3D animated video of an F1-style race car racing/driving, evoking Max Verstappen's car.",
+    "domain": "3D animation / Blender",
+    "capabilities": [
+      {
+        "skill_id": "blender-modeling",
+        "proposed_name": null,
+        "reason": "Model the race car body and track environment",
+        "iteration": "iteration",
+        "is_crux": false,
+        "resolved": "direct"
+      },
+      {
+        "skill_id": "blender-shading",
+        "proposed_name": null,
+        "reason": "Build livery materials, tire, carbon fiber and metallic paint shaders and light the scene",
+        "iteration": "iteration",
+        "is_crux": false,
+        "resolved": "direct"
+      },
+      {
+        "skill_id": "blender-rigging",
+        "proposed_name": null,
+        "reason": "Rig wheels, suspension and steering for the car so it can be posed and animated",
+        "iteration": "tutorial",
+        "is_crux": false,
+        "resolved": "direct"
+      },
+      {
+        "skill_id": "animation-principles",
+        "proposed_name": null,
+        "reason": "Animate the car's motion, speed, weight transfer and wheel spin so it reads as racing",
+        "iteration": "iteration",
+        "is_crux": true,
+        "resolved": "direct"
+      },
+      {
+        "skill_id": "camera-work",
+        "proposed_name": null,
+        "reason": "Block and animate a dynamic chase/track camera to sell speed and drama",
+        "iteration": "iteration",
+        "is_crux": false,
+        "resolved": "direct"
+      },
+      {
+        "skill_id": "render-compositing",
+        "proposed_name": null,
+        "reason": "Render passes (motion blur, speed lines) and composite final color grade",
+        "iteration": "tutorial",
+        "is_crux": false,
+        "resolved": "direct"
+      }
+    ],
+    "_prompt": "57810805f527"
+  },
+  "gundam": {
+    "clear": true,
+    "clarifying_question": null,
+    "assumption": "Read as a desk robot resembling a Gundam head with a transforming mechanism (e.g. opening visor/panels) and pan/tilt tracking that follows a detected person with a camera, not a full humanoid robot",
+    "objective": "A desktop robot shaped like a Gundam head that physically transforms (moving panels/visor) and pans/tilts to track and face a person who walks into view",
+    "domain": "robotics",
+    "capabilities": [
+      {
+        "skill_id": "parametric-cad",
+        "proposed_name": null,
+        "reason": "model the Gundam head shell and internal mechanism mounts from measurements/reference",
+        "iteration": "iteration",
+        "is_crux": false,
+        "resolved": "direct"
+      },
+      {
+        "skill_id": "mechanism-design",
+        "proposed_name": null,
+        "reason": "design the transformation linkage so panels/visor move without binding inside the head",
+        "iteration": "iteration",
+        "is_crux": true,
+        "resolved": "direct"
+      },
+      {
+        "skill_id": "servo-control",
+        "proposed_name": null,
+        "reason": "drive multiple servos for transformation and pan/tilt motion in sequence",
+        "iteration": "tutorial",
+        "is_crux": false,
+        "resolved": "direct"
+      },
+      {
+        "skill_id": "on-device-vision",
+        "proposed_name": null,
+        "reason": "detect a person entering the frame from an onboard or attached camera",
+        "iteration": "tutorial",
+        "is_crux": false,
+        "resolved": "direct"
+      },
+      {
+        "skill_id": "tracking-smoothing",
+        "proposed_name": null,
+        "reason": "convert noisy person detections into smooth pan/tilt targets so head tracking doesn't jitter",
+        "iteration": "iteration",
+        "is_crux": false,
+        "resolved": "direct"
+      },
+      {
+        "skill_id": "mcu-firmware",
+        "proposed_name": null,
+        "reason": "firmware to coordinate camera input, tracking logic and servo sequencing",
+        "iteration": "tutorial",
+        "is_crux": false,
+        "resolved": "direct"
+      }
+    ],
+    "_prompt": "57810805f527"
   }
 }

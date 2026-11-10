@@ -54,7 +54,7 @@ struct IdeaDetailView: View {
                                     Text(status.mark).monospaced()
                                     Text(model.name(of: cap))
                                     if cap.cruxRank == 1 {
-                                        Text("the hard part").font(.caption).foregroundStyle(.secondary)
+                                        Text("a hard part").font(.caption).foregroundStyle(.secondary)
                                     }
                                 }
                                 if let reason = cap.reason {

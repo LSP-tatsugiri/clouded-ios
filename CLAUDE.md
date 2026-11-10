@@ -10,6 +10,8 @@ what each phase decided and verified — read it before touching `web/`.
 `docs/step-6-plan.md` is the iOS capture app (built on the Mac; read it
 before touching `ios/`); `docs/step-7-plan.md` is sharing and the friend
 skill pool (built on the PC). Both are done and merged.
+`docs/superpowers/plans/2026-11-10-backlog-sweep.md` is the plan for the
+2026-11-10 pass over the backlog and the design critique.
 
 Audience: the author plus ~10 friends. No growth, revenue, or public users.
 Optimise for low friction and few moving parts, not for scale.
@@ -43,8 +45,9 @@ These are load-bearing. Changing one is a product decision, not a refactor.
   tool schema; `src/resolve.js` matches proposed capabilities to the table and
   keeps the proposal registry; `src/distance.js` turns capabilities plus profile
   into gaps; `src/stability.js` measures run-to-run wobble; `data/skills.json`
-  is the canonical table (52 entries; `design` added 2026-09-15 for `ui-mockup`); `schema.sql` is the starting point for
-  the Supabase migration; `out/` is committed on purpose.
+  is the canonical table (52 entries; `design` added 2026-09-15 for `ui-mockup`); `schema.sql` is where the
+  Supabase migrations started — superseded by `supabase/migrations/`, kept
+  for history, not to be applied; `out/` is committed on purpose.
 - `supabase/` — `migrations/` is the schema, `functions/extract/` is the
   pipeline as a Deno edge function with its tests in `functions/_shared/`,
   `scripts/` holds the seed and acceptance drivers. Keys live in gitignored
@@ -52,7 +55,25 @@ These are load-bearing. Changing one is a product decision, not a refactor.
 - `web/` — the web client: list, idea page, profile, curator review, the
   Group tab (feed, members, invites) and friend pages, plus the unlisted
   `#/waifu` capture scene (`waifu.css`, `lib/waifu.js`, `assets/` — see
-  `docs/waifu-view-plan.md`). The capture box can be dictated as well as
+  `docs/waifu-view-plan.md`). An idea can be marked built or dropped from
+  its page (2026-10-22,
+  `docs/superpowers/specs/2026-10-22-idea-lifecycle-design.md`):
+  `ideas.built_at`, `dropped_at`, `drop_reason`, rules in
+  `lib/lifecycle.js` (tests: `node --test web/test/*.test.mjs`). The list
+  opens on live ideas; distance, leverage and "what moved" count live
+  ideas only. The Group feed hides dropped ideas and tags built ones;
+  dropping never unshares. Since 2026-11-10 the list's filters and sort
+  live in the hash query (`lib/filters.js`), your own idea pages link
+  near-duplicates (`lib/similar.js`) and can drop one as a duplicate of
+  the other (`ideas.duplicate_of`; no merge, `raw` untouched), rating is one
+  none/some/solid control on the profile and the idea page
+  (`lib/rating.js`), and errors reach the page through `lib/errors.js`.
+  Round two (2026-11-10) added pure modules, each with a test in
+  `web/test/`: `lib/keys.js` the list's shortcuts, `lib/help.js` the
+  `#/help` copy, `lib/group.js` group leverage and claims, `lib/wait.js`
+  the extraction wait (Realtime raced against a poll) and the batch answer,
+  `lib/extracted.js` the wording of `assumption` and the iteration tag.
+  The capture box can be dictated as well as
   typed (`lib/speech.js`, 2026-09-25); it says in a line under the mic that
   the browser's own vendor does the transcribing, which is the honest
   reading of "ideas are private by default". Plain ES
@@ -89,6 +110,9 @@ Run: `cd extraction && npm start` (uses cached output) or `npm run fresh`
 (re-extracts everything after a prompt change). Needs `ANTHROPIC_API_KEY` in
 `extraction/.env`. The web client is `node web/serve.mjs`; the Deno tests are
 `deno test --allow-read --allow-env supabase/functions/_shared/`.
+`.github/workflows/test.yml` runs the offline suites on every push and pull
+request: the Node tests in `extraction/src/` and `web/test/`, and the Deno
+tests. None of them calls the Anthropic API or Supabase.
 
 ## Build order
 
@@ -120,9 +144,13 @@ while out. Capture is the only phone-first part.
   "needs real iteration".
 - **The leverage ranking is biased by how the taxonomy is split.** `skills.json`
   has 16 embedded skills but 8 fabrication ones, and the prompt says to map
-  loosely, so broad skills pick up more ideas and win by construction. Before
-  trusting the CAD result, split `parametric-cad` into 2–3 skills and see whether
-  the ranking changes.
+  loosely, so broad skills pick up more ideas and win by construction. Tested
+  2026-11-10 by splitting `parametric-cad` in three and re-running (local
+  only, not committed): a CAD skill still ranks first, but 6-against-4 became
+  4-against-3 with nine skills tied one idea behind, which is inside
+  run-to-run wobble. Treat any lead of one or two ideas in the leverage list
+  as a tie. Whether to adopt the split is open; numbers in
+  `docs/improvement-backlog.md` §5.
 - **A low `proposed` rate is not evidence the table is good.** The prompt forces
   reuse. The real risk is unrelated capabilities being merged, which is silent.
 - **Media is context, not input.** The README once called screenshots "the
@@ -142,25 +170,35 @@ while out. Capture is the only phone-first part.
   edge function and `extraction/src/` (the Node default matched the edge
   function's only from 2026-09-16; before that `npm start` without `MODEL=`
   hashed a sonnet-4-5 prompt). The committed baseline in `out/` is from
-  sonnet-5 (2026-09-13, prompt `e3446a126ffc`). Same-prompt wobble on it:
-  crux identical 16/19, verdict 19/19, skill overlap 0.89. **The baseline
-  is stale**: promoting `ui-mockup` on 2026-09-15 changed the skill list
-  and so the hash (now `b6a035830560`), and `npm start` re-extracts any
-  idea whose cached hash differs — a plain `npm start` is now a full
-  re-run, ~$0.30, not a cache hit. Re-baseline on purpose or not at all.
+  sonnet-5, re-baselined 2026-11-10 at prompt `57810805f527` (adds
+  `assumption`, per-capability `iteration` and `strict: true`): 15 of 19
+  clear, every crux single. Same-prompt wobble was last measured on the
+  2026-09-13 baseline (`e3446a126ffc`): crux identical 16/19, verdict 19/19,
+  skill overlap 0.89 — not re-measured since. `npm start` re-extracts any
+  idea whose cached hash differs, so any change to the prompt or the skill
+  list makes it a full re-run, ~$0.25. Re-baseline on purpose or not at all.
+- **`assumption` is filled for every clear idea**, 15 of 15 in the
+  2026-11-10 baseline, though the prompt asks for null when the idea is
+  unambiguous (the to-do app gets one). So the idea page shows "Assumed: …"
+  everywhere. Tightening it is a prompt change and a re-baseline.
+- **`iteration` does not weigh distance.** It is shown as a tag only;
+  `distance.js` ignores it on purpose. 14 of 15 cruxes are "iteration", so
+  as a signal it says more about the other capabilities than about the crux.
 - **The model sometimes marks two cruxes**, despite the invariant saying
-  exactly one. It happened 5 times across 4 committed runs of 19 ideas, about
-  1 idea in 10; `dryer` does it in the committed baseline. The database is
+  exactly one. It happened 5 times across 4 runs of 19 ideas before
+  2026-11-10, about 1 idea in 10, and not at all in the strict-mode baseline
+  of 2026-11-10 — one run, so not proof it is gone. The database is
   safe (a partial unique index enforces one `crux_rank = 1`, and
   `capabilityRows()` keeps the first), but anything reading the JSON must pick
   deterministically: use `cruxOf()` from `distance.js`, never an ad-hoc loop.
   Reading the last on one side and the first on the other invented a false
   disagreement in the Phase D numbers once already.
-- **Sonnet 5 sometimes returns the tool input double-encoded** — the whole
-  record as a JSON string inside `capabilities`, about 1 call in 4. Both
-  `extract.js` and the edge function decode it (`repairExtraction`) and
-  reject anything still malformed. The proper fix, `strict: true` on the
-  tool, changes the schema and so the prompt hash; parked.
+- **Sonnet 5 used to return the tool input double-encoded** — the whole
+  record as a JSON string inside `capabilities`, about 1 call in 4. Since
+  2026-11-10 both tools send `strict: true`, which constrains the output to
+  the schema; `repairExtraction` stays as a defensive decode. Strict mode
+  limits the schema: `additionalProperties: false` everywhere, every
+  property required, no length or range keywords (the Deno tests check this).
 - **Both API calls send `thinking: {type: "disabled"}`.** Sonnet 5 thinks by
   default and thinking counts against `max_tokens`; the baseline was never
   produced with thinking. Keep `extract.js`/`resolve.js` and
@@ -172,15 +210,15 @@ while out. Capture is the only phone-first part.
   the whole audience — so trust, deliberately. If that ever stops holding,
   a daily per-user cap in the edge function is a ten-line change.
 
-## Schema fixes needed before the schema is used
+## Schema
 
-In `extraction/schema.sql`:
-
-- `shared ideas are readable` has no role restriction and there is no
-  friend-group table. With the anon key shipped in the client, anyone can read
-  every shared idea. Add `to authenticated` and a groups/membership table.
-- `user_skills` is readable with `using (true)`, making every profile public.
-- `skills` has no RLS enabled, so it is writable through the API.
+`supabase/migrations/` is the schema. `extraction/schema.sql` is the draft
+it started from; do not apply it. The three RLS holes that draft
+had were closed in `20260912215850_init.sql`: shared ideas are readable
+only by `authenticated` members of the group they were shared to
+(`groups`, `group_members`), `user_skills` is visible to group mates
+rather than `using (true)`, and `skills` has RLS on with a select policy
+and no write policy.
 
 ## Working rules for the agent
 
@@ -192,8 +230,16 @@ Learned the hard way; keep them true on every machine.
   credit, and the balance has hit zero once (2026-09-13). Before running
   such a thing, state the per-call and total estimate in dollars and how
   many calls it makes. One extraction is about $0.01 (system prompt ~2,600
-  tokens for the 51-skill list, ~450 out; Sonnet 5 at $2/M in, $10/M out)
+  tokens for the 52-skill list, ~450 out; Sonnet 5 at $2/M in, $10/M out)
   plus ~$0.006 per semantic resolve call.
+- **The Anthropic API key expires on 2027-02-01.** The owner renewed it on
+  2026-11-10 after the previous one lapsed. It lives in two places that do
+  not sync: `extraction/.env` on the PC (the local testbed) and the
+  `ANTHROPIC_API_KEY` secret of the Supabase project (the `extract` edge
+  function — check with `supabase secrets list`, which shows names and
+  digests only). An expired key fails every extraction with a 401, which
+  the web client shows as an idea stuck on "extracting"; if that happens
+  near the date, renew the key before debugging anything else.
 - **Some Supabase CLI steps are the owner's to run**, in a real terminal:
   `supabase login` (needs a TTY), `supabase db push` (the real apply) and
   `supabase functions deploy`. From the agent: write the migration file

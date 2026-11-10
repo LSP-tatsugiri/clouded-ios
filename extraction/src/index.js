@@ -1,6 +1,6 @@
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { extract, skills, promptHash } from "./extract.js";
-import { distanceOf, classify } from "./distance.js";
+import { distanceOf, classify, leverage } from "./distance.js";
 import { resolveExtraction, loadRegistry, saveRegistry, dueForReview } from "./resolve.js";
 
 const ideas = JSON.parse(readFileSync(new URL("../data/ideas.json", import.meta.url)));
@@ -78,13 +78,14 @@ for (const r of clear) {
   const d = distanceOf(r.ex, held);
   console.log(`\n${"=".repeat(72)}`);
   console.log(`${r.raw}`);
+  if (r.ex.assumption) console.log(`assumed: ${r.ex.assumption}`);
   console.log(`${d.gap} short${d.partial ? ` · ${d.partial} partial` : ""}${d.have ? ` · ${d.have} held` : ""}`);
   console.log("-".repeat(72));
   for (const cap of r.ex.capabilities) {
     const c = classify(cap, held);
     const mark = { have: "[x]", partial: "[~]", gap: "[ ]", proposed: "[?]" }[c];
     const label = cap.skill_id ? skillName[cap.skill_id] || cap.skill_id : `${cap.proposed_name}  (proposed)`;
-    console.log(`  ${mark} ${label}${cap.is_crux ? "   <-- crux" : ""}`);
+    console.log(`  ${mark} ${label}${cap.iteration === "iteration" ? "  (iteration)" : ""}${cap.is_crux ? "   <-- crux" : ""}`);
   }
 }
 
@@ -97,24 +98,17 @@ if (vague.length) {
 
 // ---------- the payoff: which skill unlocks the most ----------
 
-const unlocks = {};
-for (const r of clear) {
-  for (const cap of r.ex.capabilities) {
-    if (classify(cap, held) === "have") continue;
-    const key = cap.skill_id || `proposed:${cap.proposed_name}`;
-    (unlocks[key] ||= []).push(r.id);
-  }
-}
-
-const ranked = Object.entries(unlocks).sort((a, b) => b[1].length - a[1].length).slice(0, 12);
+// The same leverage() the web list uses, so the number tuned against here is
+// the number the app shows. An idea needing a skill twice counts once.
+const ranked = leverage(clear.map((r) => ({ id: r.id, extraction: r.ex })), held).slice(0, 12);
 
 console.log(`\n${"=".repeat(72)}`);
 console.log("HIGHEST LEVERAGE — learn this, and this many ideas move");
 console.log("-".repeat(72));
-for (const [key, ids] of ranked) {
-  const label = key.startsWith("proposed:") ? `${key.slice(9)} (proposed)` : skillName[key] || key;
-  console.log(`  ${String(ids.length).padStart(2)}  ${label}`);
-  console.log(`      ${ids.join(", ")}`);
+for (const { skillId, proposedName, ideaIds } of ranked) {
+  const label = skillId ? skillName[skillId] || skillId : `${proposedName} (proposed)`;
+  console.log(`  ${String(ideaIds.length).padStart(2)}  ${label}`);
+  console.log(`      ${ideaIds.join(", ")}`);
 }
 
 // ---------- resolution summary ----------
