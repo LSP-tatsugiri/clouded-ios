@@ -30,6 +30,23 @@ export function skillsNeeded(ideas, caps) {
   return new Set(caps.filter((c) => c.skill_id && live.has(c.idea_id)).map((c) => c.skill_id)).size;
 }
 
+// The same skills as a list, each with how many live ideas need it:
+// [{ skill_id, ideas }], most-needed first, ties by id so the order holds
+// still between loads. Two capabilities of one idea on the same skill count
+// that idea once. The profile leads with the ones not rated yet.
+export function skillsNeededList(ideas, caps) {
+  const live = new Set(ideas.filter(isLive).map((i) => i.id));
+  const by = new Map();   // skill id -> Set of idea ids
+  for (const c of caps) {
+    if (!c.skill_id || !live.has(c.idea_id)) continue;
+    if (!by.has(c.skill_id)) by.set(c.skill_id, new Set());
+    by.get(c.skill_id).add(c.idea_id);
+  }
+  return [...by]
+    .map(([skill_id, set]) => ({ skill_id, ideas: set.size }))
+    .sort((a, b) => b.ideas - a.ideas || (a.skill_id < b.skill_id ? -1 : 1));
+}
+
 // The reason as it will be stored, or null when the check constraint would
 // refuse it — so the form can refuse first, in words.
 export function cleanReason(text) {

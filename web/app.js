@@ -27,6 +27,10 @@ import { UNRATED, levelChoices } from "./lib/rating.js";
 import { similarIdeas } from "./lib/similar.js";
 import { canDictate, dictation } from "./lib/speech.js";
 import { TICK_MS, WINDOW_MS, costLine, filledAnswers, resultOf, startWait, step } from "./lib/wait.js";
+// separate lines for the help page, run errors and the profile's lead section
+import { explainRun } from "./lib/errors.js";
+import { MARKS, SECTIONS } from "./lib/help.js";
+import { skillsNeededList } from "./lib/lifecycle.js";
 // build.mjs writes COMMIT into config.js on the host; the hand-written local
 // config.js has no such export, and a named import of a missing export fails
 // at link time, so read it off the namespace
@@ -49,7 +53,7 @@ const fmtDate = (iso) => new Date(iso).toLocaleDateString(undefined, { month: "s
 // Declared before `state`, because state's initialiser calls currentRoute(),
 // which reads this. A const declared further down would still be in its
 // temporal dead zone at that point and throw on load.
-const ROUTES = new Set(["profile", "review", "group", "waifu", "report"]);
+const ROUTES = new Set(["profile", "review", "group", "waifu", "report", "help"]);
 
 const app = document.getElementById("app");
 
@@ -83,6 +87,7 @@ const state = {
   proposals: [],
   detail: null,        // { idea, caps, runs, groups } for the idea page
   profile: null,       // { user_id, display_name } — yours
+  needFirst: [],       // profile: [{ skill_id, ideas }] your live ideas need and you had not rated at load
   groups: [],          // { id, name, created_by, members: [{ user_id, display_name, added_at }], invites: [{ email }] }
   confirmDelete: null, // group id whose delete (creator) or leave (member) button is waiting for a second click
   confirmRemove: null, // "<group id>/<user id>" whose Remove button is waiting for a second click
@@ -213,7 +218,7 @@ function dropAuthHash() {
 // the browser's own close). The close handler stays as the catch-all.
 function closeAuth() { dropAuthHash(); if (authDialog.open) authDialog.close(); }
 const authDialog = el("dialog", {
-  class: "auth", "aria-label": "Sign in or create an account",
+  class: "auth", "aria-labelledby": "auth-title",
   onclose: dropAuthHash,
   oncancel: dropAuthHash,
   // the dialog box is exactly the card, so a click whose target is the
@@ -259,7 +264,8 @@ function signInView() {
       });
     }
   },
-    el("h1", {}, brandMark(), "clouded"),
+    // the landing behind the dialog owns the page's h1; this names the dialog
+    el("h2", { id: "auth-title" }, brandMark(), "clouded"),
     el("p", { class: "muted" },
       "How far each idea is from something you could actually build."),
     // the two modes as a switch, so which one you are in is never a guess
@@ -1074,6 +1080,7 @@ function save(skillId, level, control) {
   flight.n++;
   saving.set(skillId, flight);
   state.levels.set(skillId, level);
+  syncRows(skillId, control);
   refreshTally();
   setStatus("saving…");
   setSkillLevel(state.session.user.id, skillId, level)
@@ -1095,13 +1102,24 @@ function save(skillId, level, control) {
         const was = flight.was;
         if (was) state.levels.set(skillId, was); else state.levels.delete(skillId);
         refreshTally();
-        for (const r of control.querySelectorAll("input[type=radio]")) r.checked = r.value === was;
-        control.querySelector(".lvl").setAttribute("aria-label", was ? skillName(skillId) : `${skillName(skillId)}, ${UNRATED}`);
+        syncRows(skillId, null);
       }
       const { text, detail } = explain(err);
       setStatus(text, detail, true);
     })
     .finally(() => { if (--flight.n === 0) saving.delete(skillId); });
+}
+
+// A skill your ideas need has two rows on the profile, one under "Your ideas
+// need these" and one in its domain. Whatever state.levels now says goes
+// into every row for the skill but `skip`, the control being used.
+function syncRows(skillId, skip) {
+  const at = state.levels.get(skillId) ?? null;
+  for (const control of document.querySelectorAll(`.skill[data-skill="${CSS.escape(skillId)}"] .rating`)) {
+    if (control === skip) continue;
+    for (const r of control.querySelectorAll("input[type=radio]")) r.checked = r.value === at;
+    control.querySelector(".lvl").setAttribute("aria-label", at ? skillName(skillId) : `${skillName(skillId)}, ${UNRATED}`);
+  }
 }
 
 // The list loads ideas and capabilities; the profile and the idea page do
@@ -1169,16 +1187,38 @@ function levelControl(skillId, name, label, onPick) {
   );
 }
 
-function skillRow(skill) {
-  return el("div", { class: "skill" },
+// The row shows the skill's name; its id is the row's tooltip, for whoever is
+// matching it against the table. `ideas` is set on a row under "Your ideas
+// need these": how many live ideas need the skill. Those rows get a radio
+// group of their own, since the same skill has a row in its domain too.
+function skillRow(skill, ideas = 0) {
+  return el("div", { class: "skill", "data-skill": skill.id, title: skill.id },
     el("div", {},
       el("div", { class: "nm" },
         skill.name,
         skill.hazard && el("span", { class: "tag warn", title: "involves a real hazard" }, "hazard")
       ),
-      el("code", {}, skill.id)
+      ideas > 0 && el("div", { class: "needs" }, `needed by ${ideas} ${ideas === 1 ? "idea" : "ideas"} of yours`)
     ),
-    levelControl(skill.id, `lvl-${skill.id}`, skill.name, (level, control) => save(skill.id, level, control))
+    levelControl(skill.id, `${ideas ? "need" : "lvl"}-${skill.id}`, skill.name, (level, control) => save(skill.id, level, control))
+  );
+}
+
+// What the profile leads with while your own live ideas need skills you have
+// not rated: those skills only, most-needed first, so a first visit is a
+// handful of rows and not the whole table. The list is fixed when the route
+// loads (loadRoute), so a row does not vanish from under the radio that was
+// just used; the section goes once every skill in it is rated, at the next
+// build of the page.
+function needFirst() {
+  const rows = state.needFirst
+    .map((n) => ({ skill: state.skills.find((s) => s.id === n.skill_id), ideas: n.ideas }))
+    .filter((r) => r.skill);
+  if (!rows.some((r) => !state.levels.has(r.skill.id))) return null;
+  return el("section", { class: "dom card need" },
+    el("h2", {}, "Your ideas need these"),
+    el("p", { class: "need-note" }, "Not rated yet, and needed by ideas you have not built or dropped. Most-needed first; every skill is in the list below."),
+    rows.map((r) => skillRow(r.skill, r.ideas))
   );
 }
 
@@ -1212,16 +1252,17 @@ function profileView() {
     el("div", { class: "page-head" },
       el("div", {},
         el("h1", {}, "Your skills"),
-        el("p", {}, "Be honest. An inflated profile makes every distance wrong.")),
+        el("p", {}, "Be honest. An inflated profile makes every distance wrong. ", helpLink())),
       nameForm()
     ),
     errorLine(),
     el("div", { class: "rated" }, ratedBar, el("div", { class: "rated-row" }, tally, status)),
     el("div", { class: "layout" },
       el("div", {},
+        needFirst(),
         [...byDomain].map(([domain, list]) => el("section", { class: "dom card", id: `d-${slug(domain)}` },
           el("h2", {}, domain),
-          list.map(skillRow)
+          list.map((s) => skillRow(s))
         )),
         el("p", { class: "card all-rated" }, "Every skill is rated.")
       ),
@@ -1891,16 +1932,48 @@ function capabilityDetail(cap, n) {
       cap.skill_id && levelControl(cap.skill_id, name, `Your level: ${capLabel(cap)}`,
         (level) => rate(cap.skill_id, level, name))
     ),
-    cap.reason && el("p", { class: "capdetail-reason" }, cap.reason),
-    el("details", { class: "resolution" },
-      el("summary", {}, `resolved: ${cap.resolved}`),
-      el("dl", {},
-        cap.resolved_from && [el("dt", {}, "proposed as"), el("dd", {}, cap.resolved_from)],
-        cap.resolve_why && [el("dt", {}, "because"), el("dd", {}, cap.resolve_why)],
-        el("dt", {}, "skill id"), el("dd", {}, cap.skill_id ?? `${cap.proposed_key} (not in the table)`)
-      )
-    )
+    cap.reason && el("p", { class: "capdetail-reason" }, cap.reason)
   );
+}
+
+// How one capability was matched to the skill table: prompt-work data, shown
+// only inside the page's closed "Details" (pageDetails).
+function resolution(cap) {
+  return el("li", { class: "resolution" },
+    el("span", {}, capLabel(cap)),
+    el("dl", {},
+      el("dt", {}, "resolved"), el("dd", {}, cap.resolved),
+      cap.resolved_from && [el("dt", {}, "proposed as"), el("dd", {}, cap.resolved_from)],
+      cap.resolve_why && [el("dt", {}, "because"), el("dd", {}, cap.resolve_why)],
+      el("dt", {}, "skill id"), el("dd", {}, cap.skill_id ?? `${cap.proposed_key} (not in the table)`)
+    ));
+}
+
+// Everything on the idea page that only means something to whoever works on
+// the prompt: how each capability was resolved, and the extraction runs with
+// their model and prompt hash. One closed disclosure at the foot of the page,
+// so the page above it is what a friend would understand.
+// extraction_runs are readable by the owner only, so a friend would see none.
+function pageDetails(caps, runs, mine) {
+  if (!caps.length && !(mine && runs.length)) return null;
+  return el("details", { class: "runs" },
+    el("summary", {}, "Details"),
+    caps.length > 0 && [
+      el("h3", {}, "How each capability was matched"),
+      el("ul", { class: "resolutions" }, caps.map(resolution))],
+    mine && [
+      el("h3", {}, `Extraction history (${runs.length})`),
+      el("ul", { class: "runs-list" }, runs.map((r) => el("li", {},
+        el("span", { class: "mark" }, r.error ? "✕" : "·"),
+        el("span", {}, `${new Date(r.created_at).toLocaleString()} · ${r.model} · ${r.prompt_hash}` +
+          (r.error ? ` · ${r.error.slice(0, 80)}` : ""))
+      )))]
+  );
+}
+
+// The quiet way to the help page, beside whatever shows the marks.
+function helpLink() {
+  return el("a", { href: "#/help", class: "help-link" }, "What do these marks mean?");
 }
 
 // Buttons, not a checkbox (2026-09-19): one "Share with <group>" per group
@@ -2043,7 +2116,7 @@ async function pollRerun(ideaId, since) {
     if (got === CANCELLED) return;
     state.rerun.delete(ideaId);
     if (!got) stall(ideaId, since, "The re-run has not landed yet. It may still be running.");
-    else if (got.error) { state.error = `Extraction failed: ${got.error}`; announce(state.error); }
+    else if (got.error) failRun(got.error);
     else announce("Extraction finished.");
   } finally {
     if (got !== CANCELLED) state.waiting = "";
@@ -2170,7 +2243,7 @@ function ideaView() {
     ),
 
     caps.length > 0 && el("section", {},
-      el("h2", {}, "What it would take"),
+      el("div", { class: "taken-head" }, el("h2", {}, "What it would take"), helpLink()),
       el("ul", { class: "capdetails" }, ordered.map(capabilityDetail)),
       ordered.some((c) => c.skill_id) && el("p", { class: "rate-hint" },
         "Rate yourself on each skill here. It is the same rating as on your profile."),
@@ -2181,15 +2254,7 @@ function ideaView() {
     mine && lifecycleControl(idea, caps),
     mine && deleteControl(idea),
 
-    // extraction_runs are readable by the owner only, so a friend would see 0
-    mine && el("details", { class: "runs" },
-      el("summary", {}, `Extraction history (${runs.length})`),
-      el("ul", { class: "runs-list" }, runs.map((r) => el("li", {},
-        el("span", { class: "mark" }, r.error ? "✕" : "·"),
-        el("span", {}, `${new Date(r.created_at).toLocaleString()} · ${r.model} · ${r.prompt_hash}` +
-          (r.error ? ` · ${r.error.slice(0, 80)}` : ""))
-      )))
-    )
+    pageDetails(ordered, runs, mine)
     )
   );
 }
@@ -2446,6 +2511,27 @@ function footer() {
   );
 }
 
+// ---------------------------------------------------------------- help
+
+// What the marks, "a hard part" and distance mean. The words are in
+// lib/help.js; this only lays them out.
+function helpView() {
+  return el("div", { class: "help" },
+    header(),
+    el("div", { class: "page-head" },
+      el("div", {},
+        el("h1", {}, "What the marks mean"),
+        el("p", {}, "Every idea is a list of things you would have to be able to do. Each line carries one of these."))),
+    el("section", { class: "card" },
+      el("dl", { class: "help-marks" }, MARKS.map((m) => [
+        el("dt", {}, mark(m.kind), el("span", {}, m.name)),
+        el("dd", {}, m.text)]))),
+    SECTIONS.map((s) => el("section", { class: "card" },
+      el("h2", {}, s.title),
+      s.body.map((p) => el("p", {}, p))))
+  );
+}
+
 // ---------------------------------------------------------------- plumbing
 
 function viewFor() {
@@ -2455,6 +2541,7 @@ function viewFor() {
   if (state.route === "group") return groupView();
   if (state.route === "friend") return friendView();
   if (state.route === "waifu") return waifuView();
+  if (state.route === "help") return helpView();
   return state.route === "profile" ? profileView() : listView();
 }
 
@@ -2464,7 +2551,7 @@ function viewFor() {
 // each named after its idea, glide to their new places. Anything else, an
 // extraction tick or a save, paints plainly. Nothing animates without the
 // API, under reduced motion, or into or out of the waifu scene.
-const ROUTE_ORDER = { list: 0, idea: 0.5, group: 1, friend: 1.5, profile: 2, review: 3, report: 4 };
+const ROUTE_ORDER = { list: 0, idea: 0.5, group: 1, friend: 1.5, profile: 2, review: 3, report: 4, help: 5 };
 let paintedRoute = null;
 let latest = null;   // a transition's callback paints whatever was built last
 
@@ -2542,6 +2629,16 @@ function fail(err) {
   state.errorDetail = detail ? { for: text, raw: detail } : null;
   announce(text);
   return text;
+}
+
+// An extraction run that failed: the same shape as fail(), from the run's
+// stored error (lib/errors.js, explainRun). It offers nothing to press —
+// an extraction is a paid call, and only an answer or a new idea starts one.
+function failRun(raw) {
+  const { text, detail } = explainRun(raw);
+  state.error = text;
+  state.errorDetail = detail ? { for: text, raw: detail } : null;
+  announce(text);
 }
 
 // A wait for extraction that ran out. The idea and the moment the wait began
@@ -2635,7 +2732,11 @@ async function loadRoute() {
   } else if (state.route === "report") {
     state.reports = await myFeedback();
   } else if (state.route === "profile") {
-    state.profile = await myProfile(state.session.user.id);
+    // your ideas are read here once, not per render, for "Your ideas need
+    // these"; without them the profile is the plain table
+    const [profile] = await Promise.all([myProfile(state.session.user.id), ensureIdeas().catch(() => { state.ideas = []; state.caps = []; })]);
+    state.profile = profile;
+    state.needFirst = skillsNeededList(state.ideas, state.caps).filter((n) => !state.levels.has(n.skill_id));
   } else if (state.route === "group") {
     const me = state.session.user.id;
     const [profile, groups, { ideas: feed, caps: feedCaps }, pool] = await Promise.all([

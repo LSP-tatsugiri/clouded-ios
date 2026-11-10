@@ -413,7 +413,10 @@ input.txt, .fld input, .row input, :where(#app > :not(.waifu)) textarea {
   border: 1px solid var(--line);
 }
 .capture .mic:hover { color: var(--ink); }
+/* white on light --crux is 5.1:1; on dark --crux (#ff6a5c) it is 2.8:1, so
+   the dark page colour draws the glyph there instead: 6.8:1 */
 .capture .mic.on { background: var(--crux); border-color: var(--crux); color: #fff; }
+@media (prefers-color-scheme: dark) { .capture .mic.on { color: var(--bg); } }
 .mic-glyph { width: 1.4rem; height: 1.4rem; }
 /* its own row under the box: the disclosure has to be readable before the first
    press, and at phone width it would not share a line with anything */
@@ -797,6 +800,14 @@ a.owner:hover { color: var(--flow); }
 .skill .nm { font-weight: 500; }
 .skill .nm .tag { margin-left: 0.4rem; vertical-align: 2px; }
 .skill code { display: block; font: 0.78rem var(--mono); color: var(--ink-3); }
+/* "Your ideas need these": the profile's lead section, and how many ideas
+   need each skill under its name */
+.skill .needs { font: 0.78rem var(--mono); color: var(--ink-3); }
+.need { border-color: var(--partial); }
+.need-note { margin: 0 0 0.5rem; color: var(--ink-2); font-size: 0.9rem; }
+/* the quiet "what do these marks mean?" link, on the profile and idea page */
+.help-link { font-size: 0.85rem; color: var(--ink-3); white-space: nowrap; }
+.help-link:hover { color: var(--flow); }
 @media (max-width: 640px) {
   .skill { grid-template-columns: minmax(0, 1fr); gap: 0.5rem; }
 }
@@ -1026,8 +1037,8 @@ dialog.auth .auth-close:hover { background: var(--flow-wash); color: var(--ink);
   @keyframes auth-in { from { opacity: 0; transform: translateY(16px); } }
 }
 @media (prefers-reduced-motion: reduce) { dialog.auth[open] { animation: none; } }
-.signin h1 { display: flex; align-items: center; gap: 0.5rem; font-size: 1.75rem; font-weight: 800; letter-spacing: -0.04em; }
-.signin h1 svg { width: 2.4rem; height: 1.6rem; }
+.signin h2 { margin: 0; display: flex; align-items: center; gap: 0.5rem; font-size: 1.75rem; font-weight: 800; letter-spacing: -0.04em; }
+.signin h2 svg { width: 2.4rem; height: 1.6rem; }
 .signin .muted { margin: -0.4rem 0 0.5rem; color: var(--ink-2); }
 .signin .fld { margin: 0; }
 .signin .btn { margin-top: 0.25rem; }
@@ -1089,8 +1100,12 @@ dialog.auth .auth-close:hover { background: var(--flow-wash); color: var(--ink);
 .rate-hint { margin: 0.6rem 0 0; font-size: 0.8rem; color: var(--ink-3); }
 .moved { margin: 0.35rem 0 0; font: 500 0.85rem var(--mono); color: var(--ink-2); }
 
-.resolution { margin: 0.3rem 0 0 1.9rem; }
-.resolution summary { font: 0.78rem var(--mono); color: var(--ink-3); cursor: pointer; }
+.taken-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 0.25rem 1rem; }
+.taken-head h2 { margin-bottom: 0.25rem; }
+/* inside the page's closed Details: how each capability was matched */
+.runs h3 { margin: 0.9rem 0 0.25rem; font-size: 0.9rem; font-weight: 700; color: var(--ink-2); }
+.resolutions { list-style: none; margin: 0; padding: 0; }
+.resolution { padding: 0.4rem 0; border-top: 1px solid var(--line); font-size: 0.88rem; overflow-wrap: anywhere; }
 .resolution dl { margin: 0.4rem 0 0; font-size: 0.85rem; display: grid; grid-template-columns: auto 1fr; gap: 0.15rem 0.6rem; }
 .resolution dt { color: var(--ink-3); }
 .resolution dd { margin: 0; overflow-wrap: anywhere; }
@@ -1118,6 +1133,18 @@ dialog.auth .auth-close:hover { background: var(--flow-wash); color: var(--ink);
 .runs summary { font-size: 0.88rem; color: var(--ink-3); cursor: pointer; }
 .runs-list { list-style: none; margin: 0.5rem 0 0; padding: 0; }
 .runs-list li { display: flex; gap: 0.55rem; font: 0.8rem var(--mono); color: var(--ink-2); padding: 0.15rem 0; overflow-wrap: anywhere; }
+
+/* #/help: the marks as a definition list, then one card per section */
+.help .card { margin: 0 0 1rem; max-width: 48rem; }
+.help h2 { margin: 0 0 0.4rem; font-size: 1.15rem; font-weight: 800; }
+.help .card p { margin: 0.4rem 0 0; color: var(--ink-2); }
+.help-marks { margin: 0; display: grid; grid-template-columns: max-content 1fr; gap: 0.6rem 1rem; }
+.help-marks dt { display: flex; gap: 0.5rem; align-items: baseline; font-weight: 600; }
+.help-marks dd { margin: 0; color: var(--ink-2); }
+@media (max-width: 640px) {
+  .help-marks { grid-template-columns: 1fr; gap: 0.15rem; }
+  .help-marks dd { margin-bottom: 0.6rem; }
+}
 
 /* ---------------------------------------------------------------- landing
    The signed-out front door (index.html, static markup). Same container as

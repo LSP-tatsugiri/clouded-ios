@@ -1,7 +1,7 @@
 // Run: node --test web/test/*.test.mjs
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { DROP_REASON_MAX, buildChoices, cleanReason, isLive, lifecycleOf, movedHeadline, skillsNeeded } from "../lib/lifecycle.js";
+import { DROP_REASON_MAX, buildChoices, cleanReason, isLive, lifecycleOf, movedHeadline, skillsNeeded, skillsNeededList } from "../lib/lifecycle.js";
 
 test("lifecycleOf reads the two timestamps", () => {
   assert.equal(lifecycleOf({ built_at: null, dropped_at: null }), "live");
@@ -44,6 +44,33 @@ test("skillsNeeded counts distinct skills across live ideas", () => {
   assert.equal(skillsNeeded(ideas, caps), 3);
   assert.equal(skillsNeeded(ideas, []), 0);
   assert.equal(skillsNeeded([], caps), 0);
+});
+
+test("skillsNeededList orders the same skills by how many live ideas need each", () => {
+  const ideas = [{ id: "a" }, { id: "b" }, { id: "c" }, { id: "built", built_at: "2026-10-22T10:00:00Z" }];
+  const caps = [
+    { idea_id: "a", skill_id: "soldering" },
+    { idea_id: "a", skill_id: "soldering" },                          // one idea, counted once
+    { idea_id: "a", skill_id: "pcb-layout" },
+    { idea_id: "b", skill_id: "soldering" },
+    { idea_id: "b", skill_id: "parametric-cad" },
+    { idea_id: "c", skill_id: "parametric-cad" },
+    { idea_id: "c", skill_id: "soldering" },
+    { idea_id: "c", skill_id: null, proposed_key: "kiln-firing" },    // nothing to rate
+    { idea_id: "built", skill_id: "welding" },
+    { idea_id: "someone-elses", skill_id: "glassblowing" }
+  ];
+  assert.deepEqual(skillsNeededList(ideas, caps), [
+    { skill_id: "soldering", ideas: 3 },
+    { skill_id: "parametric-cad", ideas: 2 },
+    { skill_id: "pcb-layout", ideas: 1 }
+  ]);
+  // a tie is broken by id, whatever order the rows arrive in
+  const tie = [{ idea_id: "a", skill_id: "welding" }, { idea_id: "a", skill_id: "anodising" }];
+  assert.deepEqual(skillsNeededList(ideas, tie).map((s) => s.skill_id), ["anodising", "welding"]);
+  assert.deepEqual(skillsNeededList(ideas, [...tie].reverse()).map((s) => s.skill_id), ["anodising", "welding"]);
+  assert.equal(skillsNeededList(ideas, caps).length, skillsNeeded(ideas, caps));
+  assert.deepEqual(skillsNeededList([], caps), []);
 });
 
 test("cleanReason trims and refuses empty or over-long reasons", () => {
