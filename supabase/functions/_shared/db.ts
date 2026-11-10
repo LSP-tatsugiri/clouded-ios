@@ -75,7 +75,7 @@ export class Db {
   }
 
   async markIdea(id: string, fields: Partial<{
-    objective: string | null; domain: string | null; is_clear: boolean;
+    objective: string | null; assumption: string | null; domain: string | null; is_clear: boolean;
     clarifying_question: string | null; status: "pending" | "extracted" | "failed";
   }>): Promise<void> {
     this.ok(await this.c.from("ideas").update(fields).eq("id", id), "markIdea");
