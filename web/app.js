@@ -2785,6 +2785,7 @@ const ROUTE_ORDER = { list: 0, idea: 0.5, group: 1, friend: 1.5, profile: 2, rev
 let paintedRoute = null;
 let latest = null;   // a transition's callback paints whatever was built last
 let heldFocus = null;   // holdFocus()'s restore, from before the page was built
+let heldRoute = null;   // the route that focus was on
 
 function render({ animate = false, focus = null } = {}) {
   // the static landing (index.html) shows only while signed out
@@ -2794,7 +2795,8 @@ function render({ animate = false, focus = null } = {}) {
   // before viewFor(): building the page moves the kept fields (captureBox,
   // searchBox, the answers) out of it, which blurs them. A render that comes
   // before a pending transition paints keeps the first one's memory.
-  heldFocus ??= holdFocus(app);
+  if (!heldFocus) { heldFocus = holdFocus(app); heldRoute = paintedRoute; }
+  const route = state.route;
   latest = viewFor();
   if (state.route !== "waifu") latest.append(footer());
   // `focus` is a selector for the control that caused this render: the page
@@ -2802,7 +2804,9 @@ function render({ animate = false, focus = null } = {}) {
   // from the top
   // otherwise; with no `focus`, whatever had it gets it back (holdFocus)
   const paint = () => {
-    const restore = heldFocus;
+    // a repaint of the same page gets its focus back; a page switch does not,
+    // or Back from the list would land on the same idea's card in the feed
+    const restore = heldRoute === route ? heldFocus : null;
     heldFocus = null;
     mount(app, latest);
     const to = focus && app.querySelector(focus);
