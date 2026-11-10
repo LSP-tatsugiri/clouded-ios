@@ -164,25 +164,35 @@ while out. Capture is the only phone-first part.
   edge function and `extraction/src/` (the Node default matched the edge
   function's only from 2026-09-16; before that `npm start` without `MODEL=`
   hashed a sonnet-4-5 prompt). The committed baseline in `out/` is from
-  sonnet-5 (2026-09-13, prompt `e3446a126ffc`). Same-prompt wobble on it:
-  crux identical 16/19, verdict 19/19, skill overlap 0.89. **The baseline
-  is stale**: promoting `ui-mockup` on 2026-09-15 changed the skill list
-  and so the hash (now `b6a035830560`), and `npm start` re-extracts any
-  idea whose cached hash differs — a plain `npm start` is now a full
-  re-run, ~$0.30, not a cache hit. Re-baseline on purpose or not at all.
+  sonnet-5, re-baselined 2026-11-10 at prompt `57810805f527` (adds
+  `assumption`, per-capability `iteration` and `strict: true`): 15 of 19
+  clear, every crux single. Same-prompt wobble was last measured on the
+  2026-09-13 baseline (`e3446a126ffc`): crux identical 16/19, verdict 19/19,
+  skill overlap 0.89 — not re-measured since. `npm start` re-extracts any
+  idea whose cached hash differs, so any change to the prompt or the skill
+  list makes it a full re-run, ~$0.25. Re-baseline on purpose or not at all.
+- **`assumption` is filled for every clear idea**, 15 of 15 in the
+  2026-11-10 baseline, though the prompt asks for null when the idea is
+  unambiguous (the to-do app gets one). So the idea page shows "Assumed: …"
+  everywhere. Tightening it is a prompt change and a re-baseline.
+- **`iteration` does not weigh distance.** It is shown as a tag only;
+  `distance.js` ignores it on purpose. 14 of 15 cruxes are "iteration", so
+  as a signal it says more about the other capabilities than about the crux.
 - **The model sometimes marks two cruxes**, despite the invariant saying
-  exactly one. It happened 5 times across 4 committed runs of 19 ideas, about
-  1 idea in 10; `dryer` does it in the committed baseline. The database is
+  exactly one. It happened 5 times across 4 runs of 19 ideas before
+  2026-11-10, about 1 idea in 10, and not at all in the strict-mode baseline
+  of 2026-11-10 — one run, so not proof it is gone. The database is
   safe (a partial unique index enforces one `crux_rank = 1`, and
   `capabilityRows()` keeps the first), but anything reading the JSON must pick
   deterministically: use `cruxOf()` from `distance.js`, never an ad-hoc loop.
   Reading the last on one side and the first on the other invented a false
   disagreement in the Phase D numbers once already.
-- **Sonnet 5 sometimes returns the tool input double-encoded** — the whole
-  record as a JSON string inside `capabilities`, about 1 call in 4. Both
-  `extract.js` and the edge function decode it (`repairExtraction`) and
-  reject anything still malformed. The proper fix, `strict: true` on the
-  tool, changes the schema and so the prompt hash; parked.
+- **Sonnet 5 used to return the tool input double-encoded** — the whole
+  record as a JSON string inside `capabilities`, about 1 call in 4. Since
+  2026-11-10 both tools send `strict: true`, which constrains the output to
+  the schema; `repairExtraction` stays as a defensive decode. Strict mode
+  limits the schema: `additionalProperties: false` everywhere, every
+  property required, no length or range keywords (the Deno tests check this).
 - **Both API calls send `thinking: {type: "disabled"}`.** Sonnet 5 thinks by
   default and thinking counts against `max_tokens`; the baseline was never
   produced with thinking. Keep `extract.js`/`resolve.js` and
