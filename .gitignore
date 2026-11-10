@@ -59,3 +59,6 @@ ios/Build/
 
 # Build artifact of web/build.mjs (copy of extraction/src/distance.js)
 web/extraction/
+
+# tools/shots output (PNGs, manifest, exported sources, browser profile)
+tools/shots/out/
