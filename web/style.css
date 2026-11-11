@@ -166,10 +166,12 @@ button.link.danger { color: var(--crux); }
   font-size: 0.9rem;
   text-decoration: none;
 }
-/* a phone: one row. The wordmark goes (the mark stays, the word is still
-   read out), and the tabs tighten; every control keeps a 2rem height */
+/* a phone: one row where it fits. The wordmark goes (the mark stays, the
+   word is still read out), and the tabs tighten; every control keeps a 2rem
+   height. The header may still wrap: on a narrow phone with four tabs (a
+   curator) one row does not fit, and a second row beats sideways scrolling */
 @media (max-width: 420px) {
-  :not(.waifu) > header { flex-wrap: nowrap; gap: 0.5rem; }
+  :not(.waifu) > header { flex-wrap: wrap; gap: 0.5rem; }
   :not(.waifu) > header .brand .word {
     position: absolute; width: 1px; height: 1px; overflow: hidden;
     clip-path: inset(50%); white-space: nowrap;
@@ -177,6 +179,10 @@ button.link.danger { color: var(--crux); }
   :not(.waifu) > header nav { flex-wrap: nowrap; gap: 0; }
   :not(.waifu) > header .tab { padding: 0.45rem 0.55rem; font-size: 0.95rem; }
   :not(.waifu) > header button.link { padding: 0 0.4rem; margin: 0 -0.4rem 0 0; font-size: 0.85rem; white-space: nowrap; }
+}
+@media (max-width: 389px) {
+  :not(.waifu) > header .tab { padding: 0.45rem 0.4rem; font-size: 0.9rem; }
+  :not(.waifu) > header button.link { font-size: 0.8rem; }
 }
 
 /* ---------------------------------------------------------------- shared pieces */
