@@ -2514,12 +2514,12 @@ function ideaView() {
           onclick: () => {
             if (state.busy) return;
             run(async () => {
-              const since = new Date().toISOString();
               // the one write here, and what starts the (paid) extraction
               await extractDraft(idea.id);
-              state.rerun.set(idea.id, since);
               await load();   // the page now reads pending, not draft
-
+              // wait from the database's own stamp, not this browser's clock
+              const since = state.detail?.idea.queued_at ?? new Date().toISOString();
+              state.rerun.set(idea.id, since);
               await pollRerun(idea.id, since);
             });
           }

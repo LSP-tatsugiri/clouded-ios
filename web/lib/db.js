@@ -124,7 +124,7 @@ export async function groupSkills(userId) {
 // migration 20261110161336 is pushed they are dropped from the select (lacksColumn).
 export async function idea(id) {
   const cols = "id, user_id, raw, clarification, objective, domain, is_clear, clarifying_question, status, shared_to, image_path, source_url, created_at, built_at, dropped_at, drop_reason";
-  const read = () => db.from("ideas").select([cols, ...newCols("duplicate_of", "assumption")].join(", ")).eq("id", id).maybeSingle();
+  const read = () => db.from("ideas").select([cols, ...newCols("duplicate_of", "assumption", "queued_at")].join(", ")).eq("id", id).maybeSingle();
   let res = await read();
   // one retry per column the hosted database does not have yet
   while (lacksColumn(res.error)) res = await read();
