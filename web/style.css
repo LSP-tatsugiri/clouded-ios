@@ -398,7 +398,8 @@ input.txt, .fld input, .row input, :where(#app > :not(.waifu)) textarea {
   resize: none;
   overflow-y: auto;
 }
-.capture .cost { align-self: flex-start; height: 3.25rem; display: inline-flex; align-items: center; }
+/* two buttons and two prices: the line under them, wrapping on a phone */
+.capture .cost { flex: 1 1 100%; white-space: normal; margin-top: -0.25rem; }
 
 /* dictation: a mic beside Add idea, square and quiet until it is listening,
    then crux red because that is what recording reads as. app.js leaves it out
