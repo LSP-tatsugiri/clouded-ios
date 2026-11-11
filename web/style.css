@@ -177,11 +177,11 @@ button.link.danger { color: var(--crux); }
     clip-path: inset(50%); white-space: nowrap;
   }
   :not(.waifu) > header nav { flex-wrap: nowrap; gap: 0; }
-  :not(.waifu) > header .tab { padding: 0.45rem 0.55rem; font-size: 0.95rem; }
+  :not(.waifu) > header .tab { padding: 0.45rem 0.4rem; font-size: 0.95rem; }
   :not(.waifu) > header button.link { padding: 0 0.4rem; margin: 0 -0.4rem 0 0; font-size: 0.85rem; white-space: nowrap; }
 }
 @media (max-width: 389px) {
-  :not(.waifu) > header .tab { padding: 0.45rem 0.4rem; font-size: 0.9rem; }
+  :not(.waifu) > header .tab { font-size: 0.9rem; }
   :not(.waifu) > header button.link { font-size: 0.8rem; }
 }
 
