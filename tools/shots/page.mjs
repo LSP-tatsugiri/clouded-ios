@@ -56,7 +56,10 @@ const count = (st) => all.filter((g) => status(g) === st).length;
 const toc = all.map((g) => `<a href="#${g.key}" class="toc-${status(g)}">${esc(g.title)}</a>`).join("");
 const made = new Date(m.made).toISOString().slice(0, 10);
 
-const html = `<title>Clouded Before and After</title>
+// named after the head branch, so several pages stay apart in a gallery:
+// agent/review-leftovers -> "Review Leftovers, Before and After"
+const name = m.head.ref.replace(/^.*//, "").split(/[-_]/).filter(Boolean).map((w) => w[0].toUpperCase() + w.slice(1)).join(" ");
+const html = `<title>${esc(name)} Before and After</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600&family=Space+Grotesk:wght@600;700&display=swap">
