@@ -334,6 +334,46 @@
    "dropped_at": null,
    "drop_reason": null,
    "duplicate_of": null
+  },
+  {
+   "id": "c3c3c3c3-0000-4000-8000-000000000015",
+   "user_id": "88976eb5-378e-422c-8676-2bf99a9ac01e",
+   "raw": "rc truck",
+   "clarification": null,
+   "objective": null,
+   "domain": null,
+   "is_clear": false,
+   "clarifying_question": "What about the RC truck do you want to build — a custom chassis/body to print, a modification to an existing one, or the full electronics from scratch?",
+   "assumption": null,
+   "status": "extracted",
+   "shared_to": null,
+   "image_path": null,
+   "source_url": null,
+   "created_at": "2026-11-01T20:14:00.000Z",
+   "built_at": null,
+   "dropped_at": null,
+   "drop_reason": null,
+   "duplicate_of": null
+  },
+  {
+   "id": "c3c3c3c3-0000-4000-8000-000000000016",
+   "user_id": "88976eb5-378e-422c-8676-2bf99a9ac01e",
+   "raw": "drawing birds lining up on beach",
+   "clarification": null,
+   "objective": null,
+   "domain": null,
+   "is_clear": null,
+   "clarifying_question": null,
+   "assumption": null,
+   "status": "failed",
+   "shared_to": null,
+   "image_path": null,
+   "source_url": null,
+   "created_at": "2026-11-03T20:14:00.000Z",
+   "built_at": null,
+   "dropped_at": null,
+   "drop_reason": null,
+   "duplicate_of": null
   }
  ],
  "idea_capabilities": [
@@ -1235,6 +1275,24 @@
    "prompt_hash": "b6a035830560",
    "error": null,
    "clear": true
+  },
+  {
+   "id": "d4d4d4d4-0000-4000-8000-000000000015",
+   "idea_id": "c3c3c3c3-0000-4000-8000-000000000015",
+   "created_at": "2026-11-01T20:14:09.000Z",
+   "model": "claude-sonnet-5",
+   "prompt_hash": "b6a035830560",
+   "error": null,
+   "clear": false
+  },
+  {
+   "id": "d4d4d4d4-0000-4000-8000-000000000016",
+   "idea_id": "c3c3c3c3-0000-4000-8000-000000000016",
+   "created_at": "2026-11-03T20:14:09.000Z",
+   "model": "claude-sonnet-5",
+   "prompt_hash": "b6a035830560",
+   "error": "401 invalid x-api-key",
+   "clear": null
   }
  ],
  "skills": [

@@ -158,9 +158,25 @@ button.link.danger { color: var(--crux); }
 :not(.waifu) > header .tab:hover { color: var(--ink); background: var(--flow-wash); }
 :not(.waifu) > header .tab.on { color: var(--ink); background: var(--bg-2); box-shadow: inset 0 0 0 1px var(--line); }
 :not(.waifu) > header button.link {
-  margin-left: 0.75rem;
+  /* a 2rem hit area; the padding is taken back out of the margins, so the
+     text sits where it always did */
+  min-height: 2rem;
+  padding: 0 0.5rem;
+  margin: 0 -0.5rem 0 0.25rem;
   font-size: 0.9rem;
   text-decoration: none;
+}
+/* a phone: one row. The wordmark goes (the mark stays, the word is still
+   read out), and the tabs tighten; every control keeps a 2rem height */
+@media (max-width: 420px) {
+  :not(.waifu) > header { flex-wrap: nowrap; gap: 0.5rem; }
+  :not(.waifu) > header .brand .word {
+    position: absolute; width: 1px; height: 1px; overflow: hidden;
+    clip-path: inset(50%); white-space: nowrap;
+  }
+  :not(.waifu) > header nav { flex-wrap: nowrap; gap: 0; }
+  :not(.waifu) > header .tab { padding: 0.45rem 0.55rem; font-size: 0.95rem; }
+  :not(.waifu) > header button.link { padding: 0 0.4rem; margin: 0 -0.4rem 0 0; font-size: 0.85rem; white-space: nowrap; }
 }
 
 /* ---------------------------------------------------------------- shared pieces */
@@ -538,6 +554,8 @@ button.filter-toggle[aria-expanded="true"] { background: var(--flow-wash); }
 .band-head p { margin: 0; color: var(--ink-3); font-size: 0.95rem; }
 .band-head .n { font: 500 0.85rem var(--mono); color: var(--ink-3); }
 .band.now .band-head h2 { color: var(--held); }
+/* nothing to answer there: a smaller, quieter heading than the bands above */
+.band.waiting .band-head h2 { font-size: 1rem; font-weight: 700; color: var(--ink-2); }
 .extracting-cards { margin-bottom: 0.9rem; }
 
 /* the idea card: Ideas tab and the group feed */
@@ -1031,7 +1049,9 @@ aside .domains li { display: block; padding: 0; border-top: 1px solid var(--line
   font: 0.8rem var(--mono);
   color: var(--ink-3);
 }
-:where(#app > :not(.waifu)) .foot a { color: var(--ink-3); text-decoration: none; }
+/* a 2rem tap target without moving the footer: the padding is cancelled by
+   an equal negative margin */
+:where(#app > :not(.waifu)) .foot a { display: inline-block; padding: 0.5rem 0; margin: -0.5rem 0; color: var(--ink-3); text-decoration: none; }
 :where(#app > :not(.waifu)) .foot a:hover { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
 
 .report h1 { margin: 1.5rem 0 0; font-size: 1.3rem; font-weight: 800; letter-spacing: -0.02em; }

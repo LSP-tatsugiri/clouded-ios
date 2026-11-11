@@ -53,14 +53,30 @@ export function step(s, ev) {
 //   "pending"  no result yet, inside the wait window: being watched
 //   "stale"    no result and the window is past: the webhook never came
 //   "failed"   extraction ran and errored (a dead key looks like this)
+//   "answering" an answer was sent and no run newer than it has landed: the
+//              question on screen is the old one, already answered
 // `run` is the latest extraction_runs row when the caller has one, else null.
-// Only "vague" may offer an answer box: an answer is a paid re-run, and for
-// the last three it would be answering a question nobody asked.
-export function resultOf(idea, run, now, windowMs = WINDOW_MS) {
+// `answeredAt` is when this session sent an answer (an ISO string), else
+// null. Only "vague" may offer an answer box: an answer is a paid re-run, and
+// for the others it would be answering a question nobody asked, or the same
+// question twice while the first answer may still land.
+export function resultOf(idea, run, now, windowMs = WINDOW_MS, answeredAt = null) {
   if (idea.is_clear === true) return "clear";
+  if (answerPending(answeredAt, run)) return "answering";
   if (idea.is_clear === false) return "vague";
   if (idea.status === "failed" || run?.error) return "failed";
   return now - Date.parse(idea.created_at) < windowMs ? "pending" : "stale";
+}
+
+// Whether an answer sent at `answeredAt` is still waiting on its re-run,
+// given the latest run known (or null). A run created after the answer
+// settles it, whatever it said: a new question, a result or an error.
+// Nothing in the rows records when a clarification was written (ideas has
+// no updated_at, a run does not store its input), so only the session that
+// sent the answer knows; after a reload this is false and the box is back.
+export function answerPending(answeredAt, run) {
+  if (!answeredAt) return false;
+  return !(run && Date.parse(run.created_at) > Date.parse(answeredAt));
 }
 
 // The answers a batch form will send: one per idea, only those filled in,
