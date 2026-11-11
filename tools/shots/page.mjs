@@ -58,7 +58,7 @@ const made = new Date(m.made).toISOString().slice(0, 10);
 
 // named after the head branch, so several pages stay apart in a gallery:
 // agent/review-leftovers -> "Review Leftovers, Before and After"
-const name = m.head.ref.replace(/^.*//, "").split(/[-_]/).filter(Boolean).map((w) => w[0].toUpperCase() + w.slice(1)).join(" ");
+const name = m.head.ref.split("/").pop().split(/[-_]/).filter(Boolean).map((w) => w[0].toUpperCase() + w.slice(1)).join(" ");
 const html = `<title>${esc(name)} Before and After</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
