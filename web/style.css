@@ -651,7 +651,9 @@ button.filter-toggle[aria-expanded="true"] { background: var(--flow-wash); }
 .ask .hint { margin: 0.5rem 0 0; }
 .ask .row input { flex: 1; }
 /* no result yet: nothing to answer, so not the vague colour (waitingRow) */
-.card.waiting .ask { border-color: var(--line); }
+.card.waiting .ask, .card.draft .ask { border-color: var(--line); }
+.card.draft .ask .row { align-items: center; flex-wrap: wrap; }
+.card.draft .ask .row .hint { margin: 0; }
 .card.waiting .ask .row { align-items: center; flex-wrap: wrap; }
 .card.waiting .ask .row .hint { margin: 0; }
 /* every vague idea on one form (vagueBatch) */
