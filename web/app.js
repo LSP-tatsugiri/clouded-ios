@@ -29,7 +29,7 @@ import { DROP_REASON_MAX, buildChoices, cleanReason, duplicateReason, isLive, li
 import { UNRATED, levelChoices } from "./lib/rating.js";
 import { similarIdeas } from "./lib/similar.js";
 import { canDictate, dictation } from "./lib/speech.js";
-import { TICK_MS, WINDOW_MS, batchSubmit, filledAnswers, queuedSince, resultOf, startWait, step } from "./lib/wait.js";
+import { TICK_MS, WINDOW_MS, answerPending, batchSubmit, filledAnswers, queuedSince, resultOf, startWait, step } from "./lib/wait.js";
 // separate lines for the help page, run errors and the profile's lead section
 import { explainRun } from "./lib/errors.js";
 import { MARKS, SECTIONS } from "./lib/help.js";
@@ -50,7 +50,9 @@ const BANDS = [
   ["one", "One skill away", "One skill short."],
   ["far", "Further out", "Two or more skills short."],
   ["vague", "Needs a detail", "Answer one question and extraction runs."],
-  ["draft", "Not extracted", "Saved as written. Extract one when you want its gaps."]
+  ["draft", "Not extracted", "Saved as written. Extract one when you want its gaps."],
+  // no question to answer: no result yet, a failed run, or an answer still re-running
+  ["waiting", "Not extracted yet", "Nothing to answer yet."]
 ];
 // "draft" is the database's word; the cards say what it means
 const statusWord = (s) => (s === "draft" ? "not extracted" : s);
@@ -125,6 +127,11 @@ const state = {
   extracting: new Map(), // idea_id -> { stage, seconds } while the list watches a new idea
   stalled: new Map(),  // idea_id -> since, for waits that ran out: what "Check again" polls for
   rerun: new Map(),    // idea_id -> since, for answers sent this session whose re-run has not landed: resumed on return
+  // idea_id -> since for every answer sent this session, until a run newer
+  // than it is seen. Unlike rerun, a wait that times out leaves it, so the
+  // card stays read-only rather than offering a second paid answer (kindOf).
+  // In memory only: nothing in the rows says when a clarification was written.
+  answered: new Map(),
   checked: new Map(),  // idea_id -> { at, run }: the last read-only "Check again" on a card with no result
   batch: { open: false, drafts: new Map(), sending: false, note: "" }, // the "answer them all" form
   error: null,
@@ -199,7 +206,8 @@ function header() {
   // each page's own title is its h1, so the wordmark is not a heading; the
   // waifu scene has no title of its own and keeps the h1 waifu.css styles
   return el("header", { style: site ? "view-transition-name: app-header" : null },
-    el(site ? "p" : "h1", { class: site ? "brand" : null }, site && brandMark(), "clouded"),
+    // the word is its own span so a phone can show the mark alone (style.css)
+    el(site ? "p" : "h1", { class: site ? "brand" : null }, site && brandMark(), site ? el("span", { class: "word" }, "clouded") : "clouded"),
     el("nav", {},
       tab("#/", "Ideas", "list"),
       tab("#/group", "Group", "group"),
@@ -352,7 +360,8 @@ function friendMarker({ idea, extraction }) {
   const iHoldCrux = crux ? classify(crux, state.levels) === "have" : true;
   const cruxHeld = !iHoldCrux && f.cruxHolders.length > 0;
   const parts = [];
-  if (cruxHeld) parts.push(`${nameList(f.cruxHolders)} ${f.cruxHolders.length === 1 ? "holds" : "hold"} a hard part`);
+  // a rating, said as one, so it does not read like a claim (claimRow)
+  if (cruxHeld) parts.push(`${nameList(f.cruxHolders)} rated the hard part solid`);
   if (f.gaps) parts.push(`group covers ${f.covered} of ${f.gaps} ${f.gaps === 1 ? "gap" : "gaps"}`);
   return { cruxHeld, text: parts.length ? parts.join(" · ") : null };
 }
@@ -590,8 +599,24 @@ function kept(map, id, make) {
   return map.get(id);
 }
 
+// What an idea with no full card is (lib/wait.js, resultOf), from the latest
+// run this session has seen and any answer it sent. Only "vague" gets a box.
+function kindOf(idea, run = state.checked.get(idea.id)?.run ?? null) {
+  return resultOf(idea, run, Date.now(), WATCH_WINDOW_MS, state.answered.get(idea.id) ?? null);
+}
+
+// An answer was just written: wait for its re-run (rerun), and keep the card
+// read-only until a run newer than it is seen (answered, settleAnswer).
+function sentAnswer(id, since) {
+  state.rerun.set(id, since);
+  state.answered.set(id, since);
+}
+function settleAnswer(id, run) {
+  if (!answerPending(state.answered.get(id), run)) state.answered.delete(id);
+}
+
 function vagueRow(idea, glide = true) {
-  const kind = resultOf(idea, state.checked.get(idea.id)?.run ?? null, Date.now(), WATCH_WINDOW_MS);
+  const kind = kindOf(idea);
   if (kind === "draft") return draftRow(idea, glide);
   if (kind !== "vague") return waitingRow(idea, kind, glide);
   const input = kept(answerInputs, idea.id, () =>
@@ -607,7 +632,7 @@ function vagueRow(idea, glide = true) {
         const since = new Date().toISOString();
         await setClarification(idea.id, text);
         answerInputs.delete(idea.id);
-        state.rerun.set(idea.id, since);
+        sentAnswer(idea.id, since);
         watch(idea.id, since);
       });
     }
@@ -658,40 +683,54 @@ function extractNow(id) {
   run(async () => { await extractDraft(id); await load(); });
 }
 
-// An idea with no extraction result: nothing to answer, and nothing on this
-// side can start the extraction again — that is the webhook's job. "Check
-// again" only reads (checkIdea), so it costs nothing.
+// An idea with no extraction result, or an answer whose re-run has not
+// landed: nothing to answer, and nothing on this side can start the
+// extraction again — that is the webhook's job. "Check again" only reads
+// (checkIdea), so it costs nothing.
 function waitingRow(idea, kind, glide) {
-  const seen = state.checked.get(idea.id);
-  const said = !seen ? null
-    : seen.run?.error ? "Checked: the last attempt failed."
-    : seen.run ? "Checked: a run exists but the idea has not caught up yet."
-    : "Checked: still nothing.";
   return el("article", cardProps(idea, "card idea vague waiting", glide),
     el("div", { class: "card-head" }, el("div", {},
       el("h3", {}, el("a", { href: `#/idea/${idea.id}` }, idea.raw)),
-      el("p", { class: "raw" }, "Not extracted yet."))),
-    el("div", { class: "ask" },
-      el("p", {}, kind === "failed" ? "Extraction ran and failed, so there is no question to answer yet."
-        : kind === "pending" ? "The result has not arrived yet."
-        : "The extraction result never arrived."),
-      el("div", { class: "row" },
-        el("button", { type: "button", class: "sm secondary", "data-check": idea.id, disabled: state.busy, onclick: () => checkIdea(idea.id) }, "Check again"),
-        said && el("span", { class: "hint", role: "status" }, said)),
-      el("p", { class: "hint" }, "If it stays like this, tell the owner — the extraction service may be down.")),
+      el("p", { class: "raw" }, waitingHead(kind)))),
+    waitingNote(idea, kind, true),
     el("div", { class: "card-foot" }, lifecycleTags(idea), el("span", {}, "you"), el("span", {}, fmtDate(idea.created_at)), cardDelete(idea)),
     cardConfirm(idea)
   );
 }
 
-// Read-only: the idea and its runs, then the list again. Never addIdea or
+const waitingHead = (kind) => kind === "answering" ? "Answered, not re-extracted yet." : "Not extracted yet.";
+
+// The why and the read-only "Check again", on the list's waiting card and on
+// the idea page. `check` is false for a friend's idea: it is not theirs to
+// chase, so it gets the why alone.
+function waitingNote(idea, kind, check, head = null) {
+  const seen = state.checked.get(idea.id);
+  // for an answer still out, a run from before it is no news
+  const said = !seen ? null
+    : kind === "answering" ? "Checked: still nothing."
+    : seen.run?.error ? "Checked: the last attempt failed."
+    : seen.run ? "Checked: a run exists but the idea has not caught up yet."
+    : "Checked: still nothing.";
+  return el("div", { class: "ask" },
+    el("p", {}, head && el("b", {}, `${head} `), kind === "failed" ? "Extraction ran and failed, so there is no question to answer yet."
+      : kind === "pending" ? "The result has not arrived yet."
+      : kind === "answering" ? "Your answer was sent. Its re-run has not landed yet, so there is nothing to answer again."
+      : "The extraction result never arrived."),
+    check && el("div", { class: "row" },
+      el("button", { type: "button", class: "sm secondary", "data-check": idea.id, disabled: state.busy, onclick: () => checkIdea(idea.id) }, "Check again"),
+      said && el("span", { class: "hint", role: "status" }, said)),
+    el("p", { class: "hint" }, "If it stays like this, tell the owner — the extraction service may be down."));
+}
+
+// Read-only: the idea and its runs, then the page again. Never addIdea or
 // setClarification, the two writes that start a (paid) extraction.
 function checkIdea(id) {
   run(async () => {
     const [one, [latest = null]] = await Promise.all([fetchIdea(id), runsFor(id)]);
     state.checked.set(id, { at: Date.now(), run: latest });
+    settleAnswer(id, latest);
     await load();
-    const k = resultOf(one, latest, Date.now(), WATCH_WINDOW_MS);
+    const k = kindOf(one, latest);
     announce(k === "clear" || k === "vague" ? "The extraction has landed." : "Still not extracted.");
   }).then(() => document.querySelector(`[data-check="${id}"]`)?.focus());
 }
@@ -702,7 +741,8 @@ function checkIdea(id) {
 // stops it: what was sent is said, and the rest stay filled in.
 function vagueBatch(ideas) {
   const b = state.batch;
-  const list = ideas.filter((i) => i.is_clear === false && !state.extracting.has(i.id));
+  // the ones with a question still open: the cards that would carry a box
+  const list = ideas.filter((i) => kindOf(i) === "vague" && !state.extracting.has(i.id));
   if (list.length < 2) { b.open = false; return null; }
   if (!b.open) return el("p", { class: "batch-open" },
     el("button", { type: "button", class: "sm secondary", onclick: () => { b.open = true; b.note = ""; render({ focus: ".batch textarea" }); } },
@@ -758,7 +798,7 @@ function sendBatch(ids) {
         await setClarification(id, text);   // the paid write, once per filled answer
         sent++;
         b.drafts.delete(id); batchInputs.delete(id);
-        state.rerun.set(id, since);
+        sentAnswer(id, since);
         watch(id, since);
       }
       announce(`Sent ${sent} ${sent === 1 ? "answer" : "answers"}.`);
@@ -1021,7 +1061,13 @@ function listView() {
     };
     const byBand = new Map(BANDS.map(([k]) => [k, []]));
     for (const r of shown) byBand.get(bandOf(r)).push(r);
-    for (const r of vagueShown) byBand.get(r.idea.status === "draft" ? "draft" : "vague").push(r);
+    // only an idea with a question open counts as needing a detail; a draft
+    // has its own band; the rest have nothing to answer and go last, under
+    // their own quiet heading
+    for (const r of vagueShown) {
+      const k = kindOf(r.idea);
+      byBand.get(k === "draft" || k === "vague" ? k : "waiting").push(r);
+    }
     body = BANDS.map(([k, h, p]) => {
       const items = byBand.get(k);
       return items.length > 0 && el("section", { class: `band ${k}` },
@@ -1041,7 +1087,7 @@ function listView() {
     errorLine(),
     loaded && !rated && rateFirst(),
     // the count is of cards on the page: vague ideas show in both sorts (in
-    // the date order, or under "Needs a detail"), so they are counted too
+    // the date order, or under "Needs a detail" / "Not extracted yet"), so they are counted too
     filterBar(domains, shown.length + vagueShown.length, inView.length),
     el("div", { class: "layout" },
       el("div", { class: "list" },
@@ -1446,7 +1492,7 @@ function feedRow({ idea, extraction }, me, glide = true) {
   const f = friendsWhoHold(extraction, held, state.pool);
   const holders = [...(cruxClass === "have" ? ["you"] : []), ...f.cruxHolders.map((id) => state.names.get(id) ?? "a friend")];
   const holderText = holders.length
-    ? `${holders.slice(0, 2).join(" and ")}${holders.length > 2 ? ` +${holders.length - 2}` : ""} ${holders.length === 1 && holders[0] !== "you" ? "holds" : "hold"} a hard part`
+    ? `${holders.slice(0, 2).join(" and ")}${holders.length > 2 ? ` +${holders.length - 2}` : ""} rated the hard part solid`
     : null;
   const coverText = f.gaps ? `group covers ${f.covered} of ${f.gaps} ${f.gaps === 1 ? "gap" : "gaps"}` : "nothing missing for you";
 
@@ -1529,7 +1575,8 @@ function claimRow(idea, hasCrux) {
   }).then(() => app.querySelector(`[data-pick="${pick}"]`)?.focus());
   return el("div", { class: "claim" },
     c.others.length > 0 && el("span", { class: "friend-line" }, mark("friend"),
-      `${nameList(c.others)} can do a hard part`),
+      // their own words, quoted: a claim, where friendMarker's line is a rating
+      `${nameList(c.others)} said “I can do a hard part”`),
     c.mine && el("span", { class: "friend-line" }, mark("friend"), "You said you can do a hard part"),
     c.mine && el("button", {
       type: "button", class: "link", "data-pick": pick, disabled: state.busy,
@@ -2080,7 +2127,10 @@ async function watch(ideaId, since, again = false) {
       render();
     });
     if (got === CANCELLED) return;
+    // a timeout ends the wait but not the answer: answered stays, so the
+    // card comes back read-only rather than with a second paid box
     state.rerun.delete(ideaId);
+    if (got) settleAnswer(ideaId, got);
     if (!got) stall(ideaId, since, "Extraction has not landed yet. It may still be running.");
     else if (got.error) failRun(got.error);
     else announce("Extraction finished.");
@@ -2321,6 +2371,7 @@ async function pollRerun(ideaId, since) {
     });
     if (got === CANCELLED) return;
     state.rerun.delete(ideaId);
+    if (got) settleAnswer(ideaId, got);   // a timeout leaves answered, as in watch()
     if (!got) stall(ideaId, since, "The re-run has not landed yet. It may still be running.");
     else if (got.error) failRun(got.error);
     else announce("Extraction finished.");
@@ -2354,7 +2405,7 @@ function looksLike(idea, caps) {
         el("a", { href: `#/idea/${m.id}` }, other.objective || other.raw),
         el("span", { class: "why" }, ` (${lifecycleOf(other) === "built" ? `${m.why} · built` : m.why})`),
         canDrop(other) && !asking && [" ", el("button", {
-          class: "link", type: "button", disabled: state.busy,
+          class: "link", type: "button", disabled: state.busy, "data-dup": other.id,
           onclick: () => { state.confirmDuplicate = other.id; clearError(); render({ focus: ".dup-confirm .ghost" }); }
         }, "Drop this one as a duplicate")]
       ];
@@ -2366,7 +2417,8 @@ function looksLike(idea, caps) {
 // reason written for you and a pointer to the other idea (setDropped's third
 // argument); "Back to live" undoes it. Nothing else is written.
 function duplicateConfirm(idea, other) {
-  const keep = () => { state.confirmDuplicate = null; render({ focus: ".looks-like button.link" }); };
+  // back to the drop link of the match that was opened, not the first one
+  const keep = () => { state.confirmDuplicate = null; render({ focus: `.looks-like [data-dup="${other.id}"]` }); };
   return el("div", { class: "dup-confirm" },
     el("p", { class: "hint" }, `Drop this as a duplicate of “${other.objective || other.raw}”?`),
     el("div", { class: "row" },
@@ -2402,7 +2454,7 @@ function answerBox(idea, correct = false) {
         // the one write here, and the only thing that starts an extraction
         await setClarification(idea.id, text);
         state.correcting = false; state.correctDraft = "";
-        state.rerun.set(idea.id, since);
+        sentAnswer(idea.id, since);
         await pollRerun(idea.id, since);
       });
     }
@@ -2455,6 +2507,8 @@ function ideaView() {
   const dist = distanceOf(extraction, state.levels);
   const crux = cruxOf(extraction);
   const ordered = crux ? [crux, ...caps.filter((c) => c !== crux)] : caps;
+  // the page has the runs, so the latest one decides, not a "Check again"
+  const kind = kindOf(idea, runs[0] ?? null);
 
   const counts = dist && [
     `${dist.gap} short`,
@@ -2485,7 +2539,8 @@ function ideaView() {
     el("h1", { class: "detail-title" }, idea.objective || idea.raw),
     el("p", { class: "idea-raw" }, `captured as: ${idea.raw}`),
     idea.clarification && el("p", { class: "idea-raw" }, `you clarified: ${idea.clarification}`),
-    assumedLine(idea, mine),
+    // a correction still re-running is not offered again (it is a paid write)
+    assumedLine(idea, mine && !answerPending(state.answered.get(idea.id), runs[0] ?? null)),
     mine && looksLike(idea, caps),
 
     // the inspiration that came with the idea; extraction never saw either
@@ -2526,10 +2581,15 @@ function ideaView() {
         }, state.busy ? "Working…" : "Extract now"),
         el("span", { class: "hint" }, "One API call, about a cent."))),
 
-    idea.is_clear === false && el("section", { class: "ask" },
+    kind === "vague" && el("section", { class: "ask" },
       el("p", {}, el("b", {}, "Too vague to extract. "), idea.clarifying_question),
       mine && answerBox(idea)
     ),
+    // no result, a failed run, or an answer not landed: the list's waiting
+    // card's words; "Check again" for the owner, and not while a wait runs.
+    // A draft has its own section above and nothing to wait on.
+    kind !== "vague" && kind !== "clear" && kind !== "draft" && el("section", { class: "waiting-note" },
+      waitingNote(idea, kind, mine && !state.waiting, waitingHead(kind))),
 
     caps.length > 0 && el("section", {},
       el("div", { class: "taken-head" }, el("h2", {}, "What it would take"), helpLink()),
@@ -3079,6 +3139,7 @@ async function loadRoute() {
     // claims exist on shared ideas only; null (unreadable) hides the row
     state.claims = one.shared_to ? await loadClaims([id]) : null;
     state.detail = { idea: one, caps, runs, groups, imageUrl };
+    settleAnswer(id, runs[0] ?? null);   // a run since the answer: its box may come back
     await loadNames([...(one.user_id !== state.session.user.id ? [one.user_id] : []), ...(state.claims?.get(id) ?? [])]);
     // an answer's wait that a route change cut short (pollRerun); unawaited, it reads only
     const since = state.rerun.get(id);

@@ -12,6 +12,7 @@
     { "id": "list-closest", "title": "Ideas list, Closest to me", "hash": "#/?sort=closest" },
     { "id": "idea-crux", "title": "Idea page: clear, with a crux (knob)", "hash": "#/idea/c3c3c3c3-0000-4000-8000-000000000001", "dark": true },
     { "id": "idea-vague", "title": "Idea page: vague (blender animation)", "hash": "#/idea/c3c3c3c3-0000-4000-8000-000000000004" },
+    { "id": "idea-failed", "title": "Idea page: extraction failed (birds)", "hash": "#/idea/c3c3c3c3-0000-4000-8000-000000000016" },
     { "id": "idea-built", "title": "Idea page: built (golf mount)", "hash": "#/idea/c3c3c3c3-0000-4000-8000-000000000007" },
     { "id": "idea-draft", "title": "Idea page: saved without extracting (bike light)", "hash": "#/idea/c3c3c3c3-0000-4000-8000-000000000050" },
     { "id": "profile", "title": "Profile", "hash": "#/profile", "dark": true },

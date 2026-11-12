@@ -37,7 +37,11 @@ const PICK = [
   ["ledger", ME, 36],
   ["dryer", ME, 42],
   ["printed", ME, 47, { pending: true }],
-  ["gundam", MARA, 33, { shared: true }]
+  ["gundam", MARA, 33, { shared: true }],
+  // appended, so the ids above stay put: a second question (the batch form)
+  // and an extraction that ran and failed (a dead key)
+  ["rc-truck", ME, 50],
+  ["birds", ME, 52, { failed: true }]
 ];
 const day = (d, h = 20) => new Date(Date.UTC(2026, 8, 12 + d, h, 14)).toISOString();
 
@@ -48,13 +52,13 @@ PICK.forEach(([slug, owner, d, o = {}], n) => {
   ids.set(slug, id);
   const r = raws.get(slug);
   const x = ext[slug];
-  const pending = !!o.pending;
+  const pending = !!o.pending || !!o.failed;   // either way, no result on the row
   ideas.push({
     id, user_id: owner, raw: r.raw, clarification: r.clarification ?? null,
     objective: pending ? null : x.objective, domain: pending ? null : x.domain,
     is_clear: pending ? null : x.clear, clarifying_question: pending ? null : x.clarifying_question,
     assumption: pending ? null : x.assumption ?? null,
-    status: pending ? "pending" : "extracted",
+    status: o.failed ? "failed" : pending ? "pending" : "extracted",
     shared_to: o.shared ? GROUP : null, image_path: null,
     source_url: slug === "gridfinity" ? "https://gridfinity.xyz/" : null,
     created_at: day(d),
@@ -62,10 +66,11 @@ PICK.forEach(([slug, owner, d, o = {}], n) => {
     dropped_at: o.dropped ? day(o.dropped, 18) : null,
     drop_reason: o.reason ?? null, duplicate_of: null
   });
-  if (pending) return;
   const run = { id: `d4d4d4d4-0000-4000-8000-${String(n + 1).padStart(12, "0")}`, idea_id: id,
     created_at: new Date(Date.parse(day(d)) + 9000).toISOString(),
     model: "claude-sonnet-5", prompt_hash: "b6a035830560", error: null, clear: x.clear };
+  if (o.failed) runs.push({ ...run, error: "401 invalid x-api-key", clear: null });
+  if (pending) return;
   runs.push(run);
   // the database keeps one crux (cruxOf in distance.js keeps the first)
   let crux = false;

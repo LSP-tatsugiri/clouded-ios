@@ -14,7 +14,7 @@ export const MARKS = [
   { kind: "partial", name: "partial", text: "You rated it some. You have done a bit of this, and it counts as half a gap." },
   { kind: "gap", name: "short", text: "You rated it none, or have not rated it yet. Both count as one gap." },
   { kind: "proposed", name: "proposed", text: "The idea needs something that is not in the skill table yet. A person has to add it before it can be rated; until then it counts as one gap." },
-  { kind: "friend", name: "a friend holds it", text: "On a shared idea: someone in your group rated a skill it needs solid. A friend's some does not count." }
+  { kind: "friend", name: "a friend holds it", text: "On a shared idea: someone in your group rated a skill it needs solid (some does not count), or said “I can do a hard part”, which is their word, not a rating." }
 ];
 
 // Each section is a heading and its paragraphs, in page order.

@@ -1,7 +1,7 @@
 // Run: node --test web/test/*.test.mjs
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { SLOW_MS, SUBSCRIBE_MS, TICK_MS, WINDOW_MS, batchSubmit, costLine, filledAnswers, queuedSince, resultOf, startWait, step } from "../lib/wait.js";
+import { SLOW_MS, SUBSCRIBE_MS, TICK_MS, WINDOW_MS, answerPending, batchSubmit, costLine, filledAnswers, queuedSince, resultOf, startWait, step } from "../lib/wait.js";
 
 // feed events through step(), collecting every act with the event that caused it
 function drive(events, s = startWait()) {
@@ -84,6 +84,32 @@ test("resultOf tells a question from no result", () => {
   // a vague verdict stands even when an older run had failed
   assert.equal(resultOf({ is_clear: false, status: "extracted", created_at: at(3) }, { error: "x" }, now), "vague");
   assert.equal(resultOf({ is_clear: null, status: "pending", created_at: at(1) }, null, now, 30000), "stale");
+});
+
+test("an answer still waiting on its re-run gets no answer box", () => {
+  const now = Date.parse("2026-11-10T12:00:00Z");
+  const at = (min) => new Date(now - min * 60000).toISOString();
+  const vague = { is_clear: false, status: "extracted", clarifying_question: "What?", clarification: "a lamp", created_at: at(60) };
+  const older = { created_at: at(30), error: null, clear: false };
+  const newer = { created_at: at(1), error: null, clear: false };
+  // answered 5 minutes ago (the wait has long timed out), no run since: read-only
+  assert.equal(resultOf(vague, null, now, WINDOW_MS, at(5)), "answering");
+  assert.equal(resultOf(vague, older, now, WINDOW_MS, at(5)), "answering");
+  // a run after the answer settles it: a second question gets the box again
+  assert.equal(resultOf(vague, newer, now, WINDOW_MS, at(5)), "vague");
+  assert.equal(resultOf({ ...vague, is_clear: true }, null, now, WINDOW_MS, at(5)), "clear");
+  // an errored re-run settles it too; the old question stands, as before
+  assert.equal(resultOf({ ...vague, status: "failed" }, { ...newer, error: "401" }, now, WINDOW_MS, at(5)), "vague");
+  // nothing sent this session (or a reload): a genuinely vague idea keeps its box
+  assert.equal(resultOf(vague, null, now), "vague");
+  assert.equal(resultOf(vague, older, now, WINDOW_MS, null), "vague");
+});
+
+test("answerPending: only a run newer than the answer settles it", () => {
+  assert.equal(answerPending(null, null), false);
+  assert.equal(answerPending("2026-11-10T12:00:00Z", null), true);
+  assert.equal(answerPending("2026-11-10T12:00:00Z", { created_at: "2026-11-10T12:00:00Z" }), true);
+  assert.equal(answerPending("2026-11-10T12:00:00Z", { created_at: "2026-11-10T12:00:01Z" }), false);
 });
 
 test("a draft is its own state, and an extracted draft waits from when it was asked", () => {

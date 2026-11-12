@@ -286,8 +286,11 @@ while out.** Capture is the only part that is phone-first by nature.
 1. **Row-level security expresses the sharing model once, in the database.**
    Both clients inherit it. Written in application code instead, the same
    permission logic gets implemented twice and is subtly wrong in one of them.
-2. **pgvector is built in.** Near-duplicate detection and capability matching run
-   in the same database as everything else.
+2. **pgvector is built in.** Near-duplicate detection and capability matching could
+   run in the same database as everything else. (2026-11-11: neither does.
+   Near-duplicates are found in the browser, `web/lib/similar.js`, by wording
+   trigrams or three shared skills; capability matching is the resolver's
+   lexical match plus a model call.)
 3. **Server-side processing means the extraction prompt can be re-run over every
    idea ever captured.** This matters more than it sounds: the first month of
    prompts will be bad, and on-device processing would leave early ideas
