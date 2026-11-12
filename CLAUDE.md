@@ -145,8 +145,8 @@ while out. Capture is the only phone-first part.
   capabilities, so a weekend project and a six-month one can score the same.
   The web list's "Closest to me" sorts by crux status first (held / partial /
   gap), then by gap count (`sortKey` in `distance.js`), which fixes the
-  ordering but not the size. It is no longer the default sort — both the Ideas
-  tab and the Group feed open on Newest (2026-09-27), so distance is something
+  ordering but not the size. It is not the default sort: both the Ideas
+  tab and the Group feed open on Newest, so distance is something
   you ask for rather than the first thing you see. Consider a per-capability flag for "learnable from a tutorial" vs
   "needs real iteration".
 - **The leverage ranking is biased by how the taxonomy is split.** `skills.json`
@@ -160,9 +160,8 @@ while out. Capture is the only phone-first part.
   `docs/improvement-backlog.md` §5.
 - **A low `proposed` rate is not evidence the table is good.** The prompt forces
   reuse. The real risk is unrelated capabilities being merged, which is silent.
-- **Media is context, not input.** The README once called screenshots "the
-  main input"; Step 6 settled that the idea is always a sentence in `raw`
-  and a picture or link is attached alongside (`image_path`, `source_url`),
+- **Media is context, not input.** The idea is always a sentence in `raw`;
+  a picture or link is attached alongside (`image_path`, `source_url`),
   never shown to the model. So there is no screenshot-extraction spike to
   run. If extraction should ever read images, that is a new product decision.
 - **Proposed skills drift in name, not concept.** Handled by `src/resolve.js`
@@ -174,9 +173,7 @@ while out. Capture is the only phone-first part.
   proposal, which the local flow does not do. Only a curator sees either the
   tab or the table; grant with `supabase/scripts/grant-curator.mjs`.
 - **Model is `claude-sonnet-5`** as of 2026-09-12, the default in both the
-  edge function and `extraction/src/` (the Node default matched the edge
-  function's only from 2026-09-16; before that `npm start` without `MODEL=`
-  hashed a sonnet-4-5 prompt). The committed baseline in `out/` is from
+  edge function and `extraction/src/`. The committed baseline in `out/` is from
   sonnet-5, re-baselined 2026-11-10 at prompt `57810805f527` (adds
   `assumption`, per-capability `iteration` and `strict: true`): 15 of 19
   clear, every crux single. Same-prompt wobble was last measured on the
@@ -276,8 +273,8 @@ Learned the hard way; keep them true on every machine.
   publish the page as an Artifact and give the owner the link with the PR.
   It uses a fake backend, so it costs nothing and shows layout, not live data;
   say so. Add a screen to `tools/shots/screens.json` when a change adds one.
-- **Two machines share one repo and one database.** Both work on `main`
-  since Step 6 merged (the Mac builds `ios/`; Xcode is Mac-only). Two hooks in `.claude/settings.json`
+- **Two machines share one repo and one database.** Both track `main`
+  (the Mac builds `ios/`; Xcode is Mac-only). Two hooks in `.claude/settings.json`
   run `.claude/hooks/sync-status.mjs`: before every prompt (`--before`)
   it reports what the other machine has pushed that this checkout lacks —
   commits and, above all, migration files — and says nothing when there
