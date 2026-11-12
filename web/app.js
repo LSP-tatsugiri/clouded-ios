@@ -12,7 +12,7 @@ import {
   classify, compareKeys, cruxOf, cruxStatus, distanceOf, friendsWhoHold, leverage, sortKey
 } from "/extraction/src/distance.js";
 import {
-  addFeedback, addIdea, amCurator, capabilitiesFor, createGroup, db, deleteGroup, deleteIdea,
+  addFeedback, addIdea, amCurator, capabilitiesFor, createGroup, db, deleteGroup, deleteIdea, extractDraft,
   groupMembers, groupSkills, idea as fetchIdea, ideas, invite, mediaUrl, myFeedback, myGroups, myProfile,
   mySkills, pendingInvites, profilesFor, promoteSkill, proposedSkills, rejectSkill, removeMember, renameGroup,
   revokeInvite, runsFor, session, setBuilt, setClarification, setDisplayName, setDropped, setShare, setSkillLevel, sharedIdeas,
@@ -29,7 +29,7 @@ import { DROP_REASON_MAX, buildChoices, cleanReason, duplicateReason, isLive, li
 import { UNRATED, levelChoices } from "./lib/rating.js";
 import { similarIdeas } from "./lib/similar.js";
 import { canDictate, dictation } from "./lib/speech.js";
-import { TICK_MS, WINDOW_MS, answerPending, batchSubmit, filledAnswers, resultOf, startWait, step } from "./lib/wait.js";
+import { TICK_MS, WINDOW_MS, answerPending, batchSubmit, filledAnswers, queuedSince, resultOf, startWait, step } from "./lib/wait.js";
 // separate lines for the help page, run errors and the profile's lead section
 import { explainRun } from "./lib/errors.js";
 import { MARKS, SECTIONS } from "./lib/help.js";
@@ -50,9 +50,12 @@ const BANDS = [
   ["one", "One skill away", "One skill short."],
   ["far", "Further out", "Two or more skills short."],
   ["vague", "Needs a detail", "Answer one question and extraction runs."],
+  ["draft", "Not extracted", "Saved as written. Extract one when you want its gaps."],
   // no question to answer: no result yet, a failed run, or an answer still re-running
   ["waiting", "Not extracted yet", "Nothing to answer yet."]
 ];
+// "draft" is the database's word; the cards say what it means
+const statusWord = (s) => (s === "draft" ? "not extracted" : s);
 const mark = (k) => el("span", { class: `mark ${k}` }, MARK[k]);
 const fmtDate = (iso) => new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 
@@ -564,7 +567,8 @@ function extractingRow(idea, { stage, seconds, again }) {
   return el("article", { class: "card idea busy" },
     el("div", { class: "card-head" }, el("div", {},
       el("h3", {}, idea.raw),
-      el("p", { class: "raw" }, again ? "Checking again" : fresh ? "Just added" : "Re-extracting after your answer"))),
+      el("p", { class: "raw" }, again ? "Checking again" : idea.queued_at && idea.is_clear == null ? "Extracting a saved idea"
+        : fresh ? "Just added" : "Re-extracting after your answer"))),
     el("div", { class: "progress" },
       el("div", { class: "bar", "aria-hidden": "true" }, el("i", {})),
       el("span", {}, saving ? "Saving the result" : again ? `Checking, ${seconds}s` : `Extracting, ${seconds}s`)),
@@ -613,6 +617,7 @@ function settleAnswer(id, run) {
 
 function vagueRow(idea, glide = true) {
   const kind = kindOf(idea);
+  if (kind === "draft") return draftRow(idea, glide);
   if (kind !== "vague") return waitingRow(idea, kind, glide);
   const input = kept(answerInputs, idea.id, () =>
     el("input", { name: "clarification", "aria-label": "Your answer", placeholder: "A few words is enough", required: true, autocomplete: "off" }));
@@ -649,6 +654,33 @@ function vagueRow(idea, glide = true) {
     el("div", { class: "card-foot" }, lifecycleTags(idea), el("span", {}, "you"), el("span", {}, fmtDate(idea.created_at)), cardDelete(idea)),
     cardConfirm(idea)
   );
+}
+
+// Saved without extracting: the sentence as written, and the one button that
+// spends on it. "Extract now" is extractDraft(), which moves the row to
+// pending; load() then sees a pending row asked for just now and watches it
+// like a new idea, so the card becomes the extracting card and then the full
+// one (or the question, if it turns out vague).
+function draftRow(idea, glide) {
+  return el("article", cardProps(idea, "card idea vague draft", glide),
+    el("div", { class: "card-head" }, el("div", {},
+      el("h3", {}, el("a", { href: `#/idea/${idea.id}` }, idea.raw)),
+      el("p", { class: "raw" }, "Saved without extracting"))),
+    el("div", { class: "ask" },
+      el("div", { class: "row" },
+        el("button", { type: "button", class: "sm secondary", "data-extract": idea.id, disabled: state.busy,
+          onclick: () => extractNow(idea.id) }, "Extract now"),
+        el("span", { class: "hint" }, "One API call, about a cent."))),
+    el("div", { class: "card-foot" }, lifecycleTags(idea), el("span", {}, "you"), el("span", {}, fmtDate(idea.created_at)), cardDelete(idea)),
+    cardConfirm(idea)
+  );
+}
+
+// one press, one call: run() sets busy before its first await, and the
+// database refuses a second extract_draft once the row is no longer a draft
+function extractNow(id) {
+  if (state.busy) return;
+  run(async () => { await extractDraft(id); await load(); });
 }
 
 // An idea with no extraction result, or an answer whose re-run has not
@@ -977,25 +1009,34 @@ function listView() {
     (!f.friend || friendMarker(r).cruxHeld) &&
     (!f.skill || needs(r)));
 
+  // Enter and "Add idea" extract (paid); "Save without extracting" keeps the
+  // sentence as a draft and spends nothing until "Extract now"
+  const save = (draft) => {
+    // one submit, one addIdea: run() sets busy before its first await, so a
+    // held Enter's second submit stops here
+    if (state.busy) return;
+    mic?.stop();   // a word still being transcribed is not part of the idea
+    const raw = captureBox.value.trim();
+    if (!raw) { captureBox.focus(); return; }
+    // load() sees the new row as pending and starts watching it; a draft
+    // lands under "Not extracted" and nothing watches it
+    run(async () => {
+      await addIdea(raw, { draft });
+      captureBox.value = ""; grow(captureBox);
+      if (draft) announce("Saved without extracting.");
+      await load();
+    });
+  };
   const add = el("form", {
     class: "capture",
-    onsubmit: (e) => {
-      e.preventDefault();
-      // one submit, one addIdea: run() sets busy before its first await, so a
-      // held Enter's second submit stops here
-      if (state.busy) return;
-      mic?.stop();   // a word still being transcribed is not part of the idea
-      const raw = captureBox.value.trim();
-      if (!raw) return;
-      // load() sees the new row as pending and starts watching it
-      run(async () => { await addIdea(raw); captureBox.value = ""; grow(captureBox); await load(); });
-    }
+    onsubmit: (e) => { e.preventDefault(); save(false); }
   },
     captureBox,
     mic?.button,
     el("button", { type: "submit", class: "btn", disabled: state.busy }, "Add idea"),
+    el("button", { type: "button", class: "btn ghost", disabled: state.busy, onclick: () => save(true) }, "Save without extracting"),
     // adding runs extraction server-side, which is a paid API call
-    el("span", { class: "cost" }, "extracts on save, about 1¢"),
+    el("span", { class: "cost" }, "Add idea extracts, about 1¢. Saving without extracting is free."),
     mic?.note
   );
 
@@ -1020,9 +1061,13 @@ function listView() {
     };
     const byBand = new Map(BANDS.map(([k]) => [k, []]));
     for (const r of shown) byBand.get(bandOf(r)).push(r);
-    // only an idea with a question open counts as needing a detail; the rest
-    // have nothing to answer and go last, under their own quiet heading
-    for (const r of vagueShown) byBand.get(kindOf(r.idea) === "vague" ? "vague" : "waiting").push(r);
+    // only an idea with a question open counts as needing a detail; a draft
+    // has its own band; the rest have nothing to answer and go last, under
+    // their own quiet heading
+    for (const r of vagueShown) {
+      const k = kindOf(r.idea);
+      byBand.get(k === "draft" || k === "vague" ? k : "waiting").push(r);
+    }
     body = BANDS.map(([k, h, p]) => {
       const items = byBand.get(k);
       return items.length > 0 && el("section", { class: `band ${k}` },
@@ -1433,7 +1478,7 @@ function feedRow({ idea, extraction }, me, glide = true) {
     return el("article", cardProps(idea, "card idea vague", glide),
       el("div", { class: "card-head" }, el("div", {},
         el("h3", {}, el("a", { href: `#/idea/${idea.id}` }, title)),
-        el("p", { class: "raw" }, idea.status === "extracted" ? "Too vague to extract yet" : idea.status))),
+        el("p", { class: "raw" }, idea.status === "extracted" ? "Too vague to extract yet" : statusWord(idea.status)))),
       el("div", { class: "card-foot" }, owner, lifecycleTags(idea), el("span", {}, fmtDate(idea.created_at))),
       claimRow(idea, false)
     );
@@ -2509,19 +2554,41 @@ function ideaView() {
       !mine && el("a", { href: `#/friend/${idea.user_id}`, class: "owner" }, state.names.get(idea.user_id) ?? "a friend"),
       idea.domain && el("span", { class: "tag" }, idea.domain),
       dist && el("span", { class: "tag" }, counts),
-      idea.status !== "extracted" && el("span", { class: "tag warn" }, idea.status)
+      idea.status !== "extracted" && el("span", { class: "tag warn" }, statusWord(idea.status))
     ),
 
     errorLine(),
     state.waiting && el("p", { class: "muted" }, state.waiting),
+
+    idea.status === "draft" && el("section", { class: "ask" },
+      el("p", {}, el("b", {}, "Saved without extracting. "),
+        "Nothing has read it yet, so it has no capabilities or hard part."),
+      mine && el("div", { class: "row" },
+        el("button", {
+          type: "button", class: "btn sm", disabled: state.busy,
+          onclick: () => {
+            if (state.busy) return;
+            run(async () => {
+              // the one write here, and what starts the (paid) extraction
+              await extractDraft(idea.id);
+              await load();   // the page now reads pending, not draft
+              // wait from the database's own stamp, not this browser's clock
+              const since = state.detail?.idea.queued_at ?? new Date().toISOString();
+              state.rerun.set(idea.id, since);
+              await pollRerun(idea.id, since);
+            });
+          }
+        }, state.busy ? "Working…" : "Extract now"),
+        el("span", { class: "hint" }, "One API call, about a cent."))),
 
     kind === "vague" && el("section", { class: "ask" },
       el("p", {}, el("b", {}, "Too vague to extract. "), idea.clarifying_question),
       mine && answerBox(idea)
     ),
     // no result, a failed run, or an answer not landed: the list's waiting
-    // card's words; "Check again" for the owner, and not while a wait runs
-    kind !== "vague" && kind !== "clear" && el("section", { class: "waiting-note" },
+    // card's words; "Check again" for the owner, and not while a wait runs.
+    // A draft has its own section above and nothing to wait on.
+    kind !== "vague" && kind !== "clear" && kind !== "draft" && el("section", { class: "waiting-note" },
       waitingNote(idea, kind, mine && !state.waiting, waitingHead(kind))),
 
     caps.length > 0 && el("section", {},
@@ -3023,7 +3090,8 @@ async function loadRoute() {
     // short is picked up again the same way, from the moment it was sent.
     const fresh = Date.now() - WATCH_WINDOW_MS;
     for (const i of ideaRows) {
-      if (i.status === "pending" && Date.parse(i.created_at) > fresh) watch(i.id, i.created_at);
+      // a draft sent with "Extract now" waits from that moment (queued_at)
+      if (i.status === "pending" && Date.parse(queuedSince(i)) > fresh) watch(i.id, queuedSince(i));
     }
     for (const [id, since] of state.rerun) {
       if (Date.parse(since) > fresh) watch(id, since); else state.rerun.delete(id);

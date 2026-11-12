@@ -374,6 +374,27 @@
    "dropped_at": null,
    "drop_reason": null,
    "duplicate_of": null
+  },
+  {
+   "id": "c3c3c3c3-0000-4000-8000-000000000050",
+   "user_id": "88976eb5-378e-422c-8676-2bf99a9ac01e",
+   "raw": "a bike light that brightens when a car comes up behind",
+   "clarification": null,
+   "objective": null,
+   "domain": null,
+   "is_clear": null,
+   "clarifying_question": null,
+   "assumption": null,
+   "status": "draft",
+   "shared_to": null,
+   "image_path": null,
+   "source_url": null,
+   "created_at": "2026-11-09T20:14:00.000Z",
+   "queued_at": null,
+   "built_at": null,
+   "dropped_at": null,
+   "drop_reason": null,
+   "duplicate_of": null
   }
  ],
  "idea_capabilities": [

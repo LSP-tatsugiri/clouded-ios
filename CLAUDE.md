@@ -73,6 +73,13 @@ These are load-bearing. Changing one is a product decision, not a refactor.
   `#/help` copy, `lib/group.js` group leverage and claims, `lib/wait.js`
   the extraction wait (Realtime raced against a poll) and the batch answer,
   `lib/extracted.js` the wording of `assumption` and the iteration tag.
+  Since 2026-11-11 an idea can be saved without extracting ("Save without
+  extracting" beside Add idea): it is stored with `status = 'draft'`, the
+  extract function ignores every webhook for a draft, and "Extract now"
+  calls `extract_draft()` (migration `20261111194455_idea_drafts.sql`),
+  which moves it to `pending` and stamps `queued_at` — that UPDATE is the
+  one paid call. The list shows drafts under "Not extracted"; iOS shows
+  them with a "draft" tag and cannot extract them yet.
   The capture box can be dictated as well as
   typed (`lib/speech.js`, 2026-09-25); it says in a line under the mic that
   the browser's own vendor does the transcribing, which is the honest

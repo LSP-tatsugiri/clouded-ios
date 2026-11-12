@@ -55,17 +55,19 @@ export function step(s, ev) {
 //   "failed"   extraction ran and errored (a dead key looks like this)
 //   "answering" an answer was sent and no run newer than it has landed: the
 //              question on screen is the old one, already answered
+//   "draft"    saved without extracting: nothing has run, nothing is waited on
 // `run` is the latest extraction_runs row when the caller has one, else null.
 // `answeredAt` is when this session sent an answer (an ISO string), else
 // null. Only "vague" may offer an answer box: an answer is a paid re-run, and
 // for the others it would be answering a question nobody asked, or the same
 // question twice while the first answer may still land.
 export function resultOf(idea, run, now, windowMs = WINDOW_MS, answeredAt = null) {
+  if (idea.status === "draft") return "draft";
   if (idea.is_clear === true) return "clear";
   if (answerPending(answeredAt, run)) return "answering";
   if (idea.is_clear === false) return "vague";
   if (idea.status === "failed" || run?.error) return "failed";
-  return now - Date.parse(idea.created_at) < windowMs ? "pending" : "stale";
+  return now - Date.parse(queuedSince(idea)) < windowMs ? "pending" : "stale";
 }
 
 // Whether an answer sent at `answeredAt` is still waiting on its re-run,
@@ -78,6 +80,10 @@ export function answerPending(answeredAt, run) {
   if (!answeredAt) return false;
   return !(run && Date.parse(run.created_at) > Date.parse(answeredAt));
 }
+
+// When an idea's extraction was asked for: the insert, or for a draft the
+// moment "Extract now" moved it to pending, which may be weeks later.
+export const queuedSince = (idea) => idea.queued_at ?? idea.created_at;
 
 // The answers a batch form will send: one per idea, only those filled in,
 // trimmed, in the order the form lists them.
