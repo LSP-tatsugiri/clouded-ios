@@ -1,7 +1,7 @@
 // Run: node --test web/test/*.test.mjs
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { SLOW_MS, SUBSCRIBE_MS, TICK_MS, WINDOW_MS, batchSubmit, costLine, filledAnswers, resultOf, startWait, step } from "../lib/wait.js";
+import { SLOW_MS, SUBSCRIBE_MS, TICK_MS, WINDOW_MS, batchSubmit, costLine, filledAnswers, queuedSince, resultOf, startWait, step } from "../lib/wait.js";
 
 // feed events through step(), collecting every act with the event that caused it
 function drive(events, s = startWait()) {
@@ -84,6 +84,18 @@ test("resultOf tells a question from no result", () => {
   // a vague verdict stands even when an older run had failed
   assert.equal(resultOf({ is_clear: false, status: "extracted", created_at: at(3) }, { error: "x" }, now), "vague");
   assert.equal(resultOf({ is_clear: null, status: "pending", created_at: at(1) }, null, now, 30000), "stale");
+});
+
+test("a draft is its own state, and an extracted draft waits from when it was asked", () => {
+  const now = Date.parse("2026-11-10T12:00:00Z");
+  const at = (min) => new Date(now - min * 60000).toISOString();
+  // never stale, never failed, never an answer box: nothing was asked for
+  assert.equal(resultOf({ is_clear: null, status: "draft", created_at: at(60 * 24 * 30) }, null, now), "draft");
+  // weeks old, but "Extract now" was pressed a minute ago
+  const asked = { is_clear: null, status: "pending", created_at: at(60 * 24 * 30), queued_at: at(1) };
+  assert.equal(resultOf(asked, null, now), "pending");
+  assert.equal(queuedSince(asked), asked.queued_at);
+  assert.equal(queuedSince({ created_at: at(5), queued_at: null }), at(5));
 });
 
 test("filledAnswers keeps only what was typed, trimmed, in order", () => {

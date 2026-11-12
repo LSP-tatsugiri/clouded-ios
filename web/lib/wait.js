@@ -53,15 +53,22 @@ export function step(s, ev) {
 //   "pending"  no result yet, inside the wait window: being watched
 //   "stale"    no result and the window is past: the webhook never came
 //   "failed"   extraction ran and errored (a dead key looks like this)
+//   "draft"    saved without extracting: nothing has run, nothing is waited on
 // `run` is the latest extraction_runs row when the caller has one, else null.
 // Only "vague" may offer an answer box: an answer is a paid re-run, and for
-// the last three it would be answering a question nobody asked.
+// "pending", "stale" and "failed" it would be answering a question nobody
+// asked.
 export function resultOf(idea, run, now, windowMs = WINDOW_MS) {
+  if (idea.status === "draft") return "draft";
   if (idea.is_clear === true) return "clear";
   if (idea.is_clear === false) return "vague";
   if (idea.status === "failed" || run?.error) return "failed";
-  return now - Date.parse(idea.created_at) < windowMs ? "pending" : "stale";
+  return now - Date.parse(queuedSince(idea)) < windowMs ? "pending" : "stale";
 }
+
+// When an idea's extraction was asked for: the insert, or for a draft the
+// moment "Extract now" moved it to pending, which may be weeks later.
+export const queuedSince = (idea) => idea.queued_at ?? idea.created_at;
 
 // The answers a batch form will send: one per idea, only those filled in,
 // trimmed, in the order the form lists them.

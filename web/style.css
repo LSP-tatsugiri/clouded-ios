@@ -398,7 +398,8 @@ input.txt, .fld input, .row input, :where(#app > :not(.waifu)) textarea {
   resize: none;
   overflow-y: auto;
 }
-.capture .cost { align-self: flex-start; height: 3.25rem; display: inline-flex; align-items: center; }
+/* two buttons and two prices: the line under them, wrapping on a phone */
+.capture .cost { flex: 1 1 100%; white-space: normal; margin-top: -0.25rem; }
 
 /* dictation: a mic beside Add idea, square and quiet until it is listening,
    then crux red because that is what recording reads as. app.js leaves it out
@@ -651,7 +652,9 @@ button.filter-toggle[aria-expanded="true"] { background: var(--flow-wash); }
 .ask .hint { margin: 0.5rem 0 0; }
 .ask .row input { flex: 1; }
 /* no result yet: nothing to answer, so not the vague colour (waitingRow) */
-.card.waiting .ask { border-color: var(--line); }
+.card.waiting .ask, .card.draft .ask { border-color: var(--line); }
+.card.draft .ask .row { align-items: center; flex-wrap: wrap; }
+.card.draft .ask .row .hint { margin: 0; }
 .card.waiting .ask .row { align-items: center; flex-wrap: wrap; }
 .card.waiting .ask .row .hint { margin: 0; }
 /* every vague idea on one form (vagueBatch) */

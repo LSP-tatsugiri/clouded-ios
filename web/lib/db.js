@@ -67,10 +67,13 @@ export async function session() {
 // the same request and limited to the ideas returned, where they used to be a
 // separate unfiltered read of every row the user could see.
 export async function ideas(userId) {
-  return withCaps(ok(await db.from("ideas")
-    .select(`${IDEA_COLS}, ${CAPS}`)
+  const read = () => db.from("ideas")
+    .select([IDEA_COLS, ...newCols("queued_at"), CAPS].join(", "))
     .eq("user_id", userId)
-    .order("created_at", { ascending: true }), "ideas"));
+    .order("created_at", { ascending: true });
+  let res = await read();
+  while (lacksColumn(res.error)) res = await read();
+  return withCaps(ok(res, "ideas"));
 }
 
 // The feed: every shared idea the user can see, theirs included, newest
@@ -121,7 +124,7 @@ export async function groupSkills(userId) {
 // migration 20261110161336 is pushed they are dropped from the select (lacksColumn).
 export async function idea(id) {
   const cols = "id, user_id, raw, clarification, objective, domain, is_clear, clarifying_question, status, shared_to, image_path, source_url, created_at, built_at, dropped_at, drop_reason";
-  const read = () => db.from("ideas").select([cols, ...newCols("duplicate_of", "assumption")].join(", ")).eq("id", id).maybeSingle();
+  const read = () => db.from("ideas").select([cols, ...newCols("duplicate_of", "assumption", "queued_at")].join(", ")).eq("id", id).maybeSingle();
   let res = await read();
   // one retry per column the hosted database does not have yet
   while (lacksColumn(res.error)) res = await read();
@@ -316,8 +319,25 @@ export async function mySkills(userId) {
 
 // Insert is the capture path. user_id defaults to auth.uid() in the schema and
 // the policy rejects anything else, so it is not sent.
-export async function addIdea(raw) {
-  return ok(await db.from("ideas").insert({ raw }).select("id").single(), "addIdea");
+//
+// `draft` saves it without extracting (migration 20261111194455): the
+// function ignores a draft's webhook, so this insert costs nothing. Before
+// that migration is pushed the status check refuses 'draft' (23514) and
+// nothing is saved, which is said rather than retried as a paid insert.
+export async function addIdea(raw, { draft = false } = {}) {
+  const res = await db.from("ideas").insert(draft ? { raw, status: "draft" } : { raw }).select("id").single();
+  if (draft && res.error?.code === "23514") {
+    throw new Error("Saving without extracting needs a database update the owner has not pushed yet. Nothing was saved.");
+  }
+  return ok(res, "addIdea");
+}
+
+// A draft's one extraction: moves it to pending, and that UPDATE is the
+// webhook event the function runs on. A paid call, about a cent. The
+// database refuses anything that is not your own draft, so a second press
+// after the first landed fails instead of paying twice.
+export async function extractDraft(id) {
+  return ok(await db.rpc("extract_draft", { p_id: id }), "extractDraft");
 }
 
 // The only UPDATE the webhook acts on, so writing this re-runs extraction and
@@ -357,9 +377,10 @@ export async function setDropped(id, reason, duplicateOf = null) {
   return ok(await write(row), "setDropped");
 }
 
-// Three columns arrive with migrations the owner pushes by hand:
+// Four columns arrive with migrations the owner pushes by hand:
 // ideas.duplicate_of (20261110161103), ideas.assumption and
-// idea_capabilities.iteration (20261110161336). Until then the hosted database
+// idea_capabilities.iteration (20261110161336), ideas.queued_at
+// (20261111194455). Until then the hosted database
 // refuses any read or write that names one: Postgres says undefined column
 // (42703) on a select, PostgREST says not in the schema cache (PGRST204) on an
 // update. Both mean "retry without it"; nothing was written. A refusal is
@@ -368,7 +389,7 @@ const absent = new Set();
 const newCols = (...names) => names.filter((n) => !absent.has(n));
 function lacksColumn(error) {
   if (!error || (error.code !== "42703" && error.code !== "PGRST204")) return false;
-  const col = ["duplicate_of", "assumption", "iteration"].find((n) => !absent.has(n) && (error.message ?? "").includes(n));
+  const col = ["duplicate_of", "assumption", "iteration", "queued_at"].find((n) => !absent.has(n) && (error.message ?? "").includes(n));
   if (col) absent.add(col);
   return !!col;
 }

@@ -26,3 +26,14 @@ Deno.test("other tables, deletes and junk are ignored", () => {
   assertEquals(ideaToRun({ type: "DELETE", table: "ideas", record: { id } }), null);
   assertEquals(ideaToRun({}), null);
 });
+
+Deno.test("a draft is never run from a webhook", () => {
+  assertEquals(ideaToRun({ type: "INSERT", table: "ideas", record: { id, status: "draft" } }), null);
+  assertEquals(ideaToRun({ type: "UPDATE", table: "ideas", record: { id, status: "draft", clarification: "x" }, old_record: { status: "draft", clarification: null } }), null);
+});
+
+Deno.test("extract_draft moving a draft to pending runs it once", () => {
+  assertEquals(ideaToRun({ type: "UPDATE", table: "ideas", record: { id, status: "pending", clarification: null }, old_record: { status: "draft", clarification: null } }), id);
+  // the function's own writes afterwards do not loop
+  assertEquals(ideaToRun({ type: "UPDATE", table: "ideas", record: { id, status: "extracted", clarification: null }, old_record: { status: "pending", clarification: null } }), null);
+});

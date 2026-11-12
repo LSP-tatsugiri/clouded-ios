@@ -13,6 +13,7 @@
     { "id": "idea-crux", "title": "Idea page: clear, with a crux (knob)", "hash": "#/idea/c3c3c3c3-0000-4000-8000-000000000001", "dark": true },
     { "id": "idea-vague", "title": "Idea page: vague (blender animation)", "hash": "#/idea/c3c3c3c3-0000-4000-8000-000000000004" },
     { "id": "idea-built", "title": "Idea page: built (golf mount)", "hash": "#/idea/c3c3c3c3-0000-4000-8000-000000000007" },
+    { "id": "idea-draft", "title": "Idea page: saved without extracting (bike light)", "hash": "#/idea/c3c3c3c3-0000-4000-8000-000000000050" },
     { "id": "profile", "title": "Profile", "hash": "#/profile", "dark": true },
     { "id": "group", "title": "Group", "hash": "#/group" },
     { "id": "friend", "title": "A friend's page (Mara)", "hash": "#/friend/a1a1a1a1-0000-4000-8000-000000000001" },
